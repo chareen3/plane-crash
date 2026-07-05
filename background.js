@@ -194,10 +194,36 @@ async function flushBuffer() {
 
     // Broadcast stats to any open popups
     broadcastToPopup({ type: 'STATS_UPDATE', stats: state.stats });
+
+    // --- NEW: Post to Dashboard API ---
+    await postToDashboard(toSave);
+
   } catch (e) {
     warn('flushBuffer error:', e);
     // Put events back
     state.buffer.unshift(...toSave);
+  }
+}
+
+async function postToDashboard(events) {
+  try {
+    // We only care about events with a multiplier for the dashboard, usually eventType='crash'
+    const completedRounds = events.filter(e => typeof e.multiplier === 'number');
+    if (completedRounds.length === 0) return;
+
+    const payload = completedRounds.map(e => ({
+      id: e.roundIndex !== null ? String(e.roundIndex) : e.id, // Use roundIndex if available, otherwise id
+      crashPoint: e.multiplier
+    }));
+
+    await fetch('http://localhost:3000/api/rounds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    log(`Posted ${payload.length} rounds to dashboard`);
+  } catch (err) {
+    warn('Dashboard POST failed:', err);
   }
 }
 
