@@ -1,27 +1,27 @@
 // Peak hours scoring (UTC) based on Aviator/Crash game traffic patterns
 export const PEAK_HOURS_UTC = [
-  { hour: 0,  label: '00:00 UTC', score: 60, tag: 'WARM', note: 'Asia late night, moderate volume' },
-  { hour: 1,  label: '01:00 UTC', score: 45, tag: 'NORM', note: 'Low global volume' },
-  { hour: 2,  label: '02:00 UTC', score: 35, tag: 'COLD', note: 'Very low volume' },
-  { hour: 3,  label: '03:00 UTC', score: 30, tag: 'COLD', note: 'Very low volume' },
-  { hour: 4,  label: '04:00 UTC', score: 30, tag: 'COLD', note: 'Very low volume' },
-  { hour: 5,  label: '05:00 UTC', score: 40, tag: 'NORM', note: 'EU early risers' },
-  { hour: 6,  label: '06:00 UTC', score: 55, tag: 'WARM', note: 'EU morning pickup' },
-  { hour: 7,  label: '07:00 UTC', score: 65, tag: 'HOT',  note: 'EU prime morning' },
-  { hour: 8,  label: '08:00 UTC', score: 75, tag: 'HOT',  note: 'EU/Africa morning peak' },
-  { hour: 9,  label: '09:00 UTC', score: 80, tag: 'PEAK', note: 'High EU volume' },
+  { hour: 0, label: '00:00 UTC', score: 60, tag: 'WARM', note: 'Asia late night, moderate volume' },
+  { hour: 1, label: '01:00 UTC', score: 45, tag: 'NORM', note: 'Low global volume' },
+  { hour: 2, label: '02:00 UTC', score: 35, tag: 'COLD', note: 'Very low volume' },
+  { hour: 3, label: '03:00 UTC', score: 30, tag: 'COLD', note: 'Very low volume' },
+  { hour: 4, label: '04:00 UTC', score: 30, tag: 'COLD', note: 'Very low volume' },
+  { hour: 5, label: '05:00 UTC', score: 40, tag: 'NORM', note: 'EU early risers' },
+  { hour: 6, label: '06:00 UTC', score: 55, tag: 'WARM', note: 'EU morning pickup' },
+  { hour: 7, label: '07:00 UTC', score: 65, tag: 'HOT', note: 'EU prime morning' },
+  { hour: 8, label: '08:00 UTC', score: 75, tag: 'HOT', note: 'EU/Africa morning peak' },
+  { hour: 9, label: '09:00 UTC', score: 80, tag: 'PEAK', note: 'High EU volume' },
   { hour: 10, label: '10:00 UTC', score: 85, tag: 'PEAK', note: 'EU full volume' },
   { hour: 11, label: '11:00 UTC', score: 85, tag: 'PEAK', note: 'EU full volume' },
   { hour: 12, label: '12:00 UTC', score: 80, tag: 'PEAK', note: 'EU noon + US East wake' },
-  { hour: 13, label: '13:00 UTC', score: 78, tag: 'HOT',  note: 'EU afternoon + US morning' },
+  { hour: 13, label: '13:00 UTC', score: 78, tag: 'HOT', note: 'EU afternoon + US morning' },
   { hour: 14, label: '14:00 UTC', score: 82, tag: 'PEAK', note: 'EU/US overlap' },
   { hour: 15, label: '15:00 UTC', score: 88, tag: 'PEAK', note: 'Global peak, EU+US+Asia overlap' },
   { hour: 16, label: '16:00 UTC', score: 90, tag: 'PEAK', note: 'Highest global volume window' },
   { hour: 17, label: '17:00 UTC', score: 88, tag: 'PEAK', note: 'EU evening + US afternoon' },
   { hour: 18, label: '18:00 UTC', score: 85, tag: 'PEAK', note: 'Post-work EU, US active' },
-  { hour: 19, label: '19:00 UTC', score: 80, tag: 'HOT',  note: 'Evening prime' },
-  { hour: 20, label: '20:00 UTC', score: 75, tag: 'HOT',  note: 'EU late evening' },
-  { hour: 21, label: '21:00 UTC', score: 68, tag: 'HOT',  note: 'US peak + Asia early' },
+  { hour: 19, label: '19:00 UTC', score: 80, tag: 'HOT', note: 'Evening prime' },
+  { hour: 20, label: '20:00 UTC', score: 75, tag: 'HOT', note: 'EU late evening' },
+  { hour: 21, label: '21:00 UTC', score: 68, tag: 'HOT', note: 'US peak + Asia early' },
   { hour: 22, label: '22:00 UTC', score: 65, tag: 'WARM', note: 'US evening + Asia pickup' },
   { hour: 23, label: '23:00 UTC', score: 60, tag: 'WARM', note: 'US late + Asia morning' },
 ];
@@ -36,18 +36,18 @@ export function buildPrompt(stats: any, betSignal: any, timeData: {
   currentLocalHour: number;
   currentAMPM: string;
   peakHours: any[];
-}) {
+}, mode: string = 'balanced') {
   const t = (mult: number) =>
     stats.targets?.find((x: any) => Math.abs(x.target - mult) < 0.01);
 
-  const t105  = t(1.05);
-  const t110  = t(1.10);
-  const t118  = t(1.18);
-  const t120  = t(1.20);
-  const t150  = t(1.50);
-  const t200  = t(2.0);
-  const t300  = t(3.0);
-  const t500  = t(5.0);
+  const t105 = t(1.05);
+  const t110 = t(1.10);
+  const t118 = t(1.18);
+  const t120 = t(1.20);
+  const t150 = t(1.50);
+  const t200 = t(2.0);
+  const t300 = t(3.0);
+  const t500 = t(5.0);
   const t1000 = t(10.0);
 
   const nowPeak =
