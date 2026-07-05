@@ -647,12 +647,12 @@ function startCollection(config = {}) {
   // Periodic flush to background
   cState.flushTimer = setInterval(flushToBackground, 3000);
 
-  // Crash staleness detector — if multiplier stops moving for >800ms, assume crashed
+  // Crash staleness detector — if multiplier stops moving for >400ms, assume crashed
   cState.crashDetectorTimer = setInterval(() => {
     if (!cState.lastMultiplierTime || !cState.lastMultiplier) return;
     
     const numVal = parseMultiplier(cState.lastMultiplier);
-    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 800)) {
+    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 400)) {
       cState.roundIndex++;
       const mEl = queryFirst(SELECTORS.MULTIPLIER);
       const event = makeBaseEvent({
@@ -669,7 +669,7 @@ function startCollection(config = {}) {
       cState.lastMultiplierTime = 0;
       cState.lastMultiplier = null;
     }
-  }, 300); // poll every 300ms for fast detection
+  }, 100); // poll every 100ms for fast detection
 }
 
 function stopCollection() {

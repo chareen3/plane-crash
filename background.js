@@ -222,11 +222,15 @@ async function saveToSupabase(events) {
       created_at: e.capturedAt || new Date().toISOString(),
     }));
 
-    // 🚀 Broadcast to dashboard INSTANTLY before Supabase even responds
+    // 🚀 Broadcast to dashboard INSTANTLY via our injected bridge script
     try {
-      const bc = new BroadcastChannel('crash_live');
-      rows.forEach(row => bc.postMessage({ type: 'NEW_CRASH', round: row }));
-      bc.close();
+      chrome.tabs.query({ url: "*://localhost:3000/*" }, (tabs) => {
+        tabs.forEach(tab => {
+          rows.forEach(row => {
+            chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => {});
+          });
+        });
+      });
     } catch (_) {}
 
     const response = await fetch(`${SUPABASE_URL}/rest/v1/crash_rounds`, {
