@@ -443,6 +443,11 @@ function doFullSnapshot(source = 'observer') {
 function enqueueEvent(event) {
   if (!event || !cState.active) return;
   cState.buffer.push(event);
+
+  // Flush crash results to background immediately — don't wait for the 3s timer
+  if (event.eventType === 'round_result') {
+    flushToBackground();
+  }
 }
 
 function flushToBackground() {
@@ -642,12 +647,12 @@ function startCollection(config = {}) {
   // Periodic flush to background
   cState.flushTimer = setInterval(flushToBackground, 3000);
 
-  // Crash staleness detector (if multiplier stops moving for >2s, assume crash)
+  // Crash staleness detector — if multiplier stops moving for >800ms, assume crashed
   cState.crashDetectorTimer = setInterval(() => {
     if (!cState.lastMultiplierTime || !cState.lastMultiplier) return;
     
     const numVal = parseMultiplier(cState.lastMultiplier);
-    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 2000)) {
+    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 800)) {
       cState.roundIndex++;
       const mEl = queryFirst(SELECTORS.MULTIPLIER);
       const event = makeBaseEvent({
@@ -664,7 +669,7 @@ function startCollection(config = {}) {
       cState.lastMultiplierTime = 0;
       cState.lastMultiplier = null;
     }
-  }, 1000);
+  }, 300); // poll every 300ms for fast detection
 }
 
 function stopCollection() {

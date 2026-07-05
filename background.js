@@ -205,14 +205,63 @@ async function flushBuffer() {
   }
 }
 
-async function postToDashboard(events) {
+// ---------------------------------------------------------------------------
+// Supabase — direct REST insert (no localhost dependency)
+// ---------------------------------------------------------------------------
+const SUPABASE_URL     = 'https://knynrvsredfqvzcsdgoo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtueW5ydnNyZWRmcXZ6Y3NkZ29vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyMzgxNDYsImV4cCI6MjA5ODgxNDE0Nn0.6-KjfOLhJbZXUjzFg5PztYbfko6hR9NdRpxcJnLZ09A';
+
+async function saveToSupabase(events) {
   try {
-    // Only post actual round results (final crash points) to the dashboard
+    const completedRounds = events.filter(e => e.eventType === 'round_result' && typeof e.multiplier === 'number');
+    if (completedRounds.length === 0) return;
+
+    const rows = completedRounds.map(e => ({
+      round_number: e.roundIndex !== null && e.roundIndex !== undefined ? e.roundIndex : Date.now(),
+      crash_point: e.multiplier,
+      created_at: e.capturedAt || new Date().toISOString(),
+    }));
+
+    // 🚀 Broadcast to dashboard INSTANTLY before Supabase even responds
+    try {
+      const bc = new BroadcastChannel('crash_live');
+      rows.forEach(row => bc.postMessage({ type: 'NEW_CRASH', round: row }));
+      bc.close();
+    } catch (_) {}
+
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/crash_rounds`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal,resolution=ignore-duplicates',
+      },
+      body: JSON.stringify(rows),
+    });
+
+    if (response.ok || response.status === 201 || response.status === 409) {
+      log(`✅ Saved ${rows.length} round(s) to Supabase:`, rows.map(r => r.crash_point));
+    } else {
+      const err = await response.text();
+      warn('Supabase insert failed:', response.status, err);
+    }
+  } catch (err) {
+    warn('saveToSupabase error:', err);
+  }
+}
+
+async function postToDashboard(events) {
+  // Save directly to Supabase (works without dashboard running)
+  await saveToSupabase(events);
+
+  // Also try to notify the local dashboard if it's running (optional)
+  try {
     const completedRounds = events.filter(e => e.eventType === 'round_result' && typeof e.multiplier === 'number');
     if (completedRounds.length === 0) return;
 
     const payload = completedRounds.map(e => ({
-      id: e.roundIndex !== null ? String(e.roundIndex) : e.id, // Use roundIndex if available, otherwise id
+      id: e.roundIndex !== null ? String(e.roundIndex) : e.id,
       crashPoint: e.multiplier,
       crashTime: e.capturedAt
     }));
@@ -220,11 +269,13 @@ async function postToDashboard(events) {
     await fetch('http://localhost:3000/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(2000), // 2s timeout — don't block if server is down
     });
-    log(`Posted ${payload.length} rounds to dashboard`);
+    log(`Also notified local dashboard with ${payload.length} round(s)`);
   } catch (err) {
-    warn('Dashboard POST failed:', err);
+    // Silently ignore — dashboard may not be running, Supabase already has the data
+    log('Local dashboard not reachable (ok, Supabase save succeeded)');
   }
 }
 
@@ -294,6 +345,11 @@ function ingestEvent(rawEvent) {
 
   // Broadcast to popup
   broadcastToPopup({ type: 'NEW_EVENT', event, stats: { ...state.stats } });
+
+  // 🔥 If this is a crash result, save to Supabase IMMEDIATELY (don't wait for flush timer)
+  if (event.eventType === 'round_result') {
+    saveToSupabase([event]);
+  }
 
   // Auto-flush if batch size reached
   if (state.buffer.length >= CONFIG.FLUSH_BATCH_SIZE) {
