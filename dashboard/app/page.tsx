@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Calculator } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
@@ -42,24 +42,24 @@ type WinRate = {
 };
 
 const CURRENCIES = {
-  USD: { symbol: '$', rate: 1, minBet: 1, name: '🇺🇸 USA ($1)' },
-  LKR: { symbol: 'Rs. ', rate: 300, minBet: 300, name: '🇱🇰 Sri Lanka (₨300)' },
-  INR: { symbol: '₹', rate: 85, minBet: 100, name: '🇮🇳 India (₹100)' },
-  BRL: { symbol: 'R$', rate: 5, minBet: 5, name: '🇧🇷 Brazil (R$5)' },
+  USD: { symbol: '$', rate: 1, minBet: 1, name: '🇺🇸 USD' },
+  LKR: { symbol: 'Rs. ', rate: 300, minBet: 300, name: '🇱🇰 LKR' },
+  INR: { symbol: '₹', rate: 85, minBet: 100, name: '🇮🇳 INR' },
+  BRL: { symbol: 'R$', rate: 5, minBet: 5, name: '🇧🇷 BRL' },
 };
-
 
 const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
 const RISK_EMOJI: Record<string, any> = { 
-  LOW: <CheckCircle2 size={16} strokeWidth={2.5} />, 
-  MEDIUM: <Info size={16} strokeWidth={2.5} />, 
-  HIGH: <AlertTriangle size={16} strokeWidth={2.5} /> 
+  LOW: <CheckCircle2 size={14} strokeWidth={2.5} />, 
+  MEDIUM: <Info size={14} strokeWidth={2.5} />, 
+  HIGH: <AlertTriangle size={14} strokeWidth={2.5} /> 
 };
-const STRATEGY_META: Record<string, { color: string; icon: any; label: string }> = {
-  SKIP: { color: '#ff4d6d', icon: <ShieldAlert size={32} strokeWidth={2} />, label: 'SKIP THIS ROUND' },
-  CONSERVATIVE: { color: '#00e5a0', icon: <ShieldCheck size={32} strokeWidth={2} />, label: 'CONSERVATIVE BET' },
-  BALANCED: { color: '#ffc84a', icon: <Scale size={32} strokeWidth={2} />, label: 'BALANCED BET' },
-  AGGRESSIVE: { color: '#a78bfa', icon: <Zap size={32} strokeWidth={2} />, label: 'AGGRESSIVE BET' },
+
+const STRATEGY_META: Record<string, { color: string; glow: string; icon: any; label: string; tag: string }> = {
+  SKIP:        { color: '#ff3366', glow: 'rgba(255,51,102,0.3)',   icon: <ShieldAlert size={28} strokeWidth={2} />,  label: 'SKIP THIS ROUND',   tag: 'DANGER' },
+  CONSERVATIVE:{ color: '#00e5a0', glow: 'rgba(0,229,160,0.3)',    icon: <ShieldCheck size={28} strokeWidth={2} />,  label: 'CONSERVATIVE BET',  tag: 'SAFE'   },
+  BALANCED:    { color: '#ffd000', glow: 'rgba(255,208,0,0.3)',    icon: <Scale size={28} strokeWidth={2} />,         label: 'BALANCED BET',      tag: 'NORMAL' },
+  AGGRESSIVE:  { color: '#a78bfa', glow: 'rgba(167,139,250,0.35)', icon: <Zap size={28} strokeWidth={2} />,           label: 'AGGRESSIVE BET',    tag: 'HIGH'   },
 };
 
 function classifyRisk(v: number) { return v < 2 ? 'red' : v < 5 ? 'yellow' : 'green'; }
@@ -69,25 +69,37 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 60)}m ago`;
 }
 
-function LingerMultipliers({ rounds }: { rounds: Round[] }) {
-  const top = [...rounds]
-    .slice(0, 30)
-    .filter(r => r.crash_point >= 5)
-    .sort((a, b) => b.crash_point - a.crash_point)
-    .slice(0, 6);
-  if (top.length === 0) return null;
-  return (
-    <div className="linger-row">
-      <span className="linger-label">\uD83D\uDD25 Big Hits (last 30)</span>
-      <div className="linger-chips">
-        {top.map((r, i) => (
-          <span key={i} className={`linger-chip ${r.crash_point >= 10 ? 'mega' : ''}`}>
-            {Number(r.crash_point).toFixed(2)}x
-          </span>
-        ))}
-      </div>
-    </div>
-  );
+function AnimatedCrashMultiplier({ target }: { target: number }) {
+  const [displayValue, setDisplayValue] = useState(1.00);
+
+  useEffect(() => {
+    setDisplayValue(1.00);
+    if (!target || target <= 1.00) {
+      if (target) setDisplayValue(target);
+      return;
+    }
+    
+    let current = 1.00;
+    const duration = 1200; // 1.2s animation to simulate plane
+    const fps = 60;
+    const steps = (duration / 1000) * fps;
+    const increment = (target - 1.00) / steps;
+    const intervalTime = 1000 / fps;
+    
+    const interval = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        setDisplayValue(target);
+        clearInterval(interval);
+      } else {
+        setDisplayValue(current);
+      }
+    }, intervalTime);
+    
+    return () => clearInterval(interval);
+  }, [target]);
+
+  return <>{displayValue.toFixed(2)}x</>;
 }
 
 export default function Dashboard() {
@@ -99,30 +111,15 @@ export default function Dashboard() {
   const [isPredicting, setIsPredicting] = useState(false);
   const [predStatus, setPredStatus] = useState<'idle' | 'predicting' | 'done'>('idle');
   const [betAmount, setBetAmount] = useState<string>('');
+  const [activeNav, setActiveNav] = useState<string>('dashboard');
   const heroRef = useRef<HTMLDivElement>(null);
   const lastPredictedRoundRef = useRef<number>(-1);
-
   const [currency, setCurrency] = useState<'USD' | 'LKR' | 'INR' | 'BRL'>('USD');
-  const [mathExplainerOpen, setMathExplainerOpen] = useState(true); // default open to educate the user
-  const [activeGame, setActiveGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
+  const [activeGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
 
   const handleCurrencyChange = (curr: 'USD' | 'LKR' | 'INR' | 'BRL') => {
     setCurrency(curr);
     localStorage.setItem('dashboard_currency', curr);
-  };
-
-  const handleGameChange = (game: '1xbet' | 'aviator' | 'luckyjet') => {
-    setActiveGame(game);
-    setPredStatus('predicting');
-    setIsPredicting(true);
-    fetch(`/api/predict?game=${game}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(d => {
-        if (d && d.risk) { setPrediction(d); setPredStatus('done'); }
-        else setPredStatus('idle');
-      })
-      .catch(() => setPredStatus('idle'))
-      .finally(() => setIsPredicting(false));
   };
 
   const fetchWinRate = useCallback(async () => {
@@ -133,7 +130,7 @@ export default function Dashboard() {
   const isPredictingRef = useRef(false);
 
   const runPrediction = useCallback(async () => {
-    if (isPredictingRef.current) return; // prevent double-fire
+    if (isPredictingRef.current) return;
     isPredictingRef.current = true;
     setPredStatus('predicting');
     setIsPredicting(true);
@@ -150,9 +147,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const savedCurr = localStorage.getItem('dashboard_currency');
-    if (savedCurr && savedCurr in CURRENCIES) {
-      setCurrency(savedCurr as any);
-    }
+    if (savedCurr && savedCurr in CURRENCIES) setCurrency(savedCurr as any);
 
     supabase.from('crash_rounds').select('*').order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => {
@@ -202,8 +197,6 @@ export default function Dashboard() {
           return updated;
         });
         setLastCrash(round);
-        
-        // Trigger prediction & winrate refresh only if not already handled optimistically
         if (round.round_number !== lastPredictedRoundRef.current) {
           fetchWinRate();
           runPrediction();
@@ -218,503 +211,508 @@ export default function Dashboard() {
   }, []);
 
   const stats = localStats;
-  const avg = stats ? stats.mean.toFixed(2) : '\u2014';
-  const median = stats ? stats.median.toFixed(2) : '\u2014';
-  const highest = rounds.length > 0 ? Math.max(...rounds.map(r => Number(r.crash_point))).toFixed(2) : '\u2014';
+  const avg = stats ? stats.mean.toFixed(2) : '—';
+  const median = stats ? stats.median.toFixed(2) : '—';
+  const highest = rounds.length > 0 ? Math.max(...rounds.map(r => Number(r.crash_point))).toFixed(2) : '—';
   const stratMeta = prediction?.strategy ? STRATEGY_META[prediction.strategy] ?? STRATEGY_META['SKIP'] : null;
 
+  const navItems = [
+    { id: 'dashboard', icon: <Home size={18} />, label: 'Dashboard' },
+    { id: 'live',      icon: <Activity size={18} />, label: 'Live Feed' },
+    { id: 'targets',   icon: <Target size={18} />, label: 'Targets' },
+    { id: 'patterns',  icon: <Layers size={18} />, label: 'Patterns' },
+    { id: 'history',   icon: <Clock size={18} />, label: 'History' },
+  ];
+
+  const chartData = [...rounds].reverse().slice(0, 50).map(r => ({
+    name: r.round_number,
+    time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    crash: Number(r.crash_point),
+    color: r.crash_point < 2 ? '#ff3366' : r.crash_point < 5 ? '#ffd000' : '#00e5a0'
+  }));
+
+  const CustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (!cx || !cy) return null;
+    return <circle cx={cx} cy={cy} r={3} fill={payload.color} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />;
+  };
+
+  // Big hits from recent rounds
+  const bigHits = [...rounds].slice(0, 30).filter(r => r.crash_point >= 5).sort((a, b) => b.crash_point - a.crash_point).slice(0, 5);
+
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="topbar-left">
-          <Orbit className="topbar-icon" size={28} color="#FFD700" />
-          <div>
-            <h1 className="topbar-title">Crash Tracker</h1>
-            <span className="topbar-sub">AI-Powered · Real-time · Supabase</span>
+    <div className="dash-shell">
+      {/* ─── SIDEBAR ─── */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <Orbit size={22} color="#00ffd5" />
+          <span className="sidebar-logo-text">CrashAI</span>
+        </div>
+
+        <nav className="sidebar-nav">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              className={`sidebar-nav-item ${activeNav === item.id ? 'active' : ''}`}
+              onClick={() => setActiveNav(item.id)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-bottom">
+          {/* Last Crash in Sidebar */}
+          <div className="sidebar-signal-card" style={{ padding: '16px 12px' }}>
+            <div className="ssc-label" style={{ color: '#888' }}>LAST CRASH</div>
+            <div className="ssc-target" style={{ color: classifyRisk(lastCrash?.crash_point ?? 0) === 'green' ? '#00e5a0' : classifyRisk(lastCrash?.crash_point ?? 0) === 'yellow' ? '#ffd000' : '#ff3366', fontSize: '24px' }}>
+              {lastCrash ? <AnimatedCrashMultiplier target={Number(lastCrash.crash_point)} /> : '—'}
+            </div>
+            {lastCrash && <div className="ssc-stake">{timeAgo(lastCrash.created_at)}</div>}
+          </div>
+
+          <div className="sidebar-version">
+            <span className="sidebar-live-dot" />
+            <span>LIVE · Supabase</span>
           </div>
         </div>
-        <div className="topbar-right">
+      </aside>
 
-          <div className="currency-selector-wrap" style={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginRight: '6px', fontWeight: 'bold' }}>📍 REGION:</span>
+      {/* ─── MAIN CONTENT ─── */}
+      <div className="dash-main">
+        {/* ─── TOP BAR ─── */}
+        <header className="dash-topbar">
+          <div className="dash-topbar-title">
+            <Bot size={18} color="#00ffd5" />
+            <span>AI Crash Tracker</span>
+            <span className="dash-topbar-sub">powered by Supabase · Real-time</span>
+          </div>
+
+          <div className="dash-topbar-actions">
+            {betAmount && <span className="bet-badge">💰 {betAmount} USD</span>}
+
             <select
               value={currency}
               onChange={(e) => handleCurrencyChange(e.target.value as any)}
               className="currency-select"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '6px',
-                color: '#fff',
-                padding: '6px 12px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                outline: 'none',
-                fontWeight: '600',
-                transition: 'all 0.2s',
-              }}
             >
               {Object.entries(CURRENCIES).map(([k, v]) => (
-                <option key={k} value={k} style={{ background: '#13131a', color: '#fff' }}>
-                  {v.name}
-                </option>
+                <option key={k} value={k} style={{ background: '#0f111a' }}>{v.name}</option>
               ))}
             </select>
+
+            <div className="live-badge">
+              <span className="live-dot" />LIVE
+            </div>
+
+            <button className="top-btn" onClick={async () => {
+              if (confirm('Clear all data?')) {
+                await fetch('/api/reset', { method: 'POST' });
+                window.location.reload();
+              }
+            }}>
+              <Trash2 size={14} /> Reset
+            </button>
+
+            <button className="top-btn accent" onClick={() => runPrediction()} disabled={isPredicting || rounds.length === 0}>
+              {isPredicting ? <RefreshCw size={14} className="spin" /> : <Zap size={14} />}
+              {isPredicting ? 'Analyzing…' : 'Refresh AI'}
+            </button>
           </div>
+        </header>
 
-          {betAmount && <span className="bet-badge">💰 Bet: {betAmount} USD</span>}
-          <span className="live-badge"><span className="live-dot" />LIVE</span>
-          <button className="ai-btn" onClick={async () => {
-            if (confirm('Are you sure you want to clear all data?')) {
-              await fetch('/api/reset', { method: 'POST' });
-              window.location.reload();
-            }
-          }}>
-            <Trash2 size={16} /> Reset
-          </button>
-          <button className="ai-btn" onClick={() => runPrediction()} disabled={isPredicting || rounds.length === 0}>
-            {isPredicting ? <RefreshCw size={16} className="spin" /> : <Zap size={16} />}
-            {isPredicting ? 'Analyzing...' : 'Refresh AI'}
-          </button>
-        </div>
-      </header>
+        {/* ─── BODY ─── */}
+        <div className="dash-body">
 
-      <div className="game-selector-container" style={{
-        display: 'flex',
-        gap: '12px',
-        padding: '12px 24px',
-        background: 'rgba(255, 255, 255, 0.01)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        flexWrap: 'wrap'
-      }}>
-        <span style={{ fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', marginRight: '8px', letterSpacing: '0.5px' }}>GAME MODE:</span>
-        {[
-          { id: '1xbet', label: '1xBet Crash', desc: 'Target: 1.10x - 1.80x' },
-          { id: 'aviator', label: 'Aviator', desc: 'Target: 1.15x - 1.60x' },
-          { id: 'luckyjet', label: 'Lucky Jet', desc: 'Target: 1.08x - 1.70x' }
-        ].map(g => (
-          <button
-            key={g.id}
-            onClick={() => handleGameChange(g.id as any)}
-            style={{
-              background: activeGame === g.id ? 'linear-gradient(135deg, #7c3aed, #a78bfa)' : 'rgba(255,255,255,0.03)',
-              border: '1px solid',
-              borderColor: activeGame === g.id ? '#a78bfa' : 'rgba(255,255,255,0.08)',
-              color: activeGame === g.id ? '#fff' : '#888',
-              borderRadius: '8px',
-              padding: '6px 14px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: '700',
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '2px',
-              transition: 'all 0.2s ease-in-out',
-            }}
-          >
-            <span>{g.label}</span>
-            <span style={{ fontSize: '9px', opacity: 0.7, fontWeight: 'normal' }}>{g.desc}</span>
-          </button>
-        ))}
-      </div>
-
-
-      {prediction && stratMeta && (
-        <div className={`bet-signal-banner ${prediction.strategy}`} style={{ background: stratMeta.color + '18', borderColor: stratMeta.color }}>
-          <div className="bsb-left">
-            <span className="bsb-icon">{stratMeta.icon}</span>
-            <div>
-              <div className="bsb-action" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
-              <div className="bsb-reason">{prediction.skip_reason || prediction.strategy_reason || 'Highly confident statistical target.'}</div>
+          {/* ─── TOP ROW: Stat Cards ─── */}
+          <div className="stat-strip">
+            <div className="stat-card2">
+              <div className="sc2-icon" style={{ background: 'rgba(0,229,160,0.12)', color: '#00e5a0' }}><BarChart3 size={18} /></div>
+              <div>
+                <div className="sc2-label">Session Avg</div>
+                <div className="sc2-val">{avg}x</div>
+              </div>
+            </div>
+            <div className="stat-card2">
+              <div className="sc2-icon" style={{ background: 'rgba(0,255,213,0.12)', color: '#00ffd5' }}><TrendingDown size={18} /></div>
+              <div>
+                <div className="sc2-label">Median</div>
+                <div className="sc2-val">{median}x</div>
+              </div>
+            </div>
+            <div className="stat-card2">
+              <div className="sc2-icon" style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}><Rocket size={18} /></div>
+              <div>
+                <div className="sc2-label">Highest</div>
+                <div className="sc2-val" style={{ color: '#a78bfa' }}>{highest}x</div>
+              </div>
+            </div>
+            <div className="stat-card2">
+              <div className="sc2-icon" style={{ background: 'rgba(255,51,102,0.12)', color: '#ff3366' }}><AlertOctagon size={18} /></div>
+              <div>
+                <div className="sc2-label">Under 2x</div>
+                <div className="sc2-val" style={{ color: '#ff3366' }}>{stats?.pUnder2 ?? 0}%</div>
+              </div>
+            </div>
+            <div className="stat-card2">
+              <div className="sc2-icon" style={{ background: 'rgba(255,208,0,0.12)', color: '#ffd000' }}><CheckCircle2 size={18} /></div>
+              <div>
+                <div className="sc2-label">AI Win Rate</div>
+                <div className="sc2-val" style={{ color: '#ffd000' }}>{winRate.winRate ?? 0}%</div>
+              </div>
+            </div>
+            <div className="stat-card2">
+              <div className="sc2-icon" style={{ background: 'rgba(0,229,160,0.12)', color: '#00e5a0' }}><Activity size={18} /></div>
+              <div>
+                <div className="sc2-label">Rounds</div>
+                <div className="sc2-val">{winRate.total ?? rounds.length}</div>
+              </div>
             </div>
           </div>
-          <div className="bsb-right" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-            {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
-              <>
-                <div>
-                  <div className="bsb-cashout-label">TARGET</div>
-                  <div className="bsb-cashout-val" style={{ color: stratMeta.color }}>
-                    {Number(prediction.cashout_target).toFixed(2)}x
-                  </div>
-                </div>
-                <div>
-                  <div className="bsb-cashout-label">REC. STAKE</div>
-                  <div className="bsb-cashout-val" style={{ color: '#00e5a0' }}>
-                    {prediction.recommended_stake_pct ?? ((prediction.recommended_bet_units ?? 1) * 2)}%
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                <div className="blink" style={{ background: 'rgba(255, 77, 109, 0.15)', border: '1px solid #ff4d6d', borderRadius: '8px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AlertTriangle size={14} color="#ff4d6d" />
-                  <span style={{ color: '#ff4d6d', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}>DANGER ZONE: DO NOT BET</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      <LingerMultipliers rounds={rounds} />
+          {/* ─── MAIN GRID ─── */}
+          <div className="main-grid2">
 
-      <div className="main-grid">
-        <div className="left-col">
-          <div className={`pred-panel ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
-            <div className="pred-header">
-              <span className="pred-title">AI RISK COACH & PROBABILITY ESTIMATOR</span>
-              <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                {predStatus === 'predicting' ? <><RefreshCw size={12} className="spin" /> Analyzing...</> : predStatus === 'done' ? <><CheckCircle2 size={12} /> Ready</> : 'Waiting'}
-              </span>
-            </div>
-            {prediction?.ai_model_used && predStatus === 'done' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 12px', fontSize: '11px' }}>
-                  {RISK_EMOJI[prediction.risk]} {prediction.risk} RISK
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a78bfa', fontWeight: '700', background: 'rgba(167,139,250,0.1)', padding: '4px 10px', borderRadius: '20px' }}>
-                  <Bot size={11} /> AI Coach
-                </span>
-                {prediction.volatility_phase && (
-                  <span style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px', 
-                    fontSize: '10px', 
-                    color: prediction.volatility_phase === 'CALM' ? '#00e5a0' : prediction.volatility_phase === 'VOLATILE' ? '#ff4d6d' : '#ffc84a', 
-                    fontWeight: '700', 
-                    background: prediction.volatility_phase === 'CALM' ? 'rgba(0, 229, 160, 0.1)' : prediction.volatility_phase === 'VOLATILE' ? 'rgba(255, 77, 109, 0.1)' : 'rgba(255, 200, 74, 0.1)', 
-                    padding: '4px 10px', 
-                    borderRadius: '20px',
-                    border: '1px solid rgba(255,255,255,0.05)'
-                  }}>
-                    📊 Session: {prediction.volatility_phase}
-                  </span>
-                )}
-                {prediction.should_bet && prediction.recommended_stake_pct && (
-                  <span style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px', 
-                    fontSize: '10px', 
-                    color: '#a78bfa', 
-                    fontWeight: '700', 
-                    background: 'rgba(167, 139, 250, 0.1)', 
-                    padding: '4px 10px', 
-                    borderRadius: '20px',
-                    border: '1px solid rgba(255,255,255,0.05)'
-                  }}>
-                    💰 Stake: {prediction.recommended_stake_pct}% bankroll
-                  </span>
-                )}
-              </div>
-            )}
-            {prediction && stats ? (
-              <>
-                <div className="risk-conf-row">
-                  <div className="conf-bar-wrap">
-                    <div className="conf-bar-track">
-                      <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
+            {/* ─── LEFT COLUMN ─── */}
+            <div className="left-col2">
+
+              {/* Bet Signal Hero Card */}
+              {prediction && stratMeta ? (
+                <div className="glass-card" style={{ borderColor: stratMeta.color + '60', boxShadow: `0 0 30px ${stratMeta.glow}`, padding: '24px', position: 'relative', overflow: 'hidden' }} ref={heroRef}>
+                  {prediction.strategy !== 'SKIP' && (
+                    <img src="https://gamscdn.com/web-v3/sfiles/games-images/game-previews/game-371.webp" style={{ position: 'absolute', top: '50%', left: '50%', width: '300px', opacity: 0.1, mixBlendMode: 'screen', pointerEvents: 'none', transform: 'translate(-50%, -50%) rotate(-5deg)' }} alt="Pattern Overlay" />
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', position: 'relative', zIndex: 2 }}>
+                    <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px' }}>{stratMeta.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: stratMeta.color, fontSize: '18px', fontWeight: '800', letterSpacing: '1px' }}>{stratMeta.label}</div>
+                      <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
+                         {prediction.strategy_reason || prediction.skip_reason || 'AI strategy active.'}
+                      </div>
+                      <div className="hc2-vol-row" style={{ marginTop: '12px' }}>
+                        <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`}>
+                          {stats?.volatility?.toUpperCase() ?? 'NORMAL'} VOL
+                        </span>
+                        <span className="hc2-trend">
+                          {stats?.trend === 'rising' ? <TrendingUp size={14} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={14} color="#ff3366" /> : <Minus size={14} color="#888" />}
+                          {stats?.trend?.toUpperCase() ?? 'FLAT'}
+                        </span>
+                      </div>
                     </div>
-                    <span className="conf-label">{prediction.confidence}% confidence score</span>
+                    <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                      <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Target</div>
+                      {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
+                        <div style={{ color: stratMeta.color, fontSize: '42px', fontWeight: '900', fontFamily: 'monospace', lineHeight: 1, marginTop: '4px' }}>
+                          {Number(prediction.cashout_target).toFixed(2)}x
+                        </div>
+                      ) : (
+                        <div style={{ color: '#ff3366', fontSize: '32px', fontWeight: '900', marginTop: '8px' }}>WAIT</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="pred-summary" style={{ fontStyle: 'italic', color: '#ccc', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '12px 0 16px', fontSize: '13px', lineHeight: '1.4' }}>
-                  {prediction.summary}
-                </div>
-                
-                {prediction.strategy === 'SKIP' || !prediction.should_bet ? (
-                  <div style={{ background: 'rgba(255, 77, 109, 0.08)', border: '1px solid rgba(255, 77, 109, 0.2)', borderRadius: '10px', padding: '14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <ShieldAlert size={20} color="#ff4d6d" style={{ flexShrink: 0 }} />
-                    <div>
-                      <div style={{ color: '#ff4d6d', fontWeight: '800', fontSize: '12px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>SKIP SIGNAL ACTIVE</div>
-                      <div style={{ color: '#aaa', fontSize: '11px', marginTop: '2px' }}>
-                        {prediction.skip_reason || prediction.strategy_reason || 'Session is exhibiting high-risk patterns. Wait for volatility to drop.'}
-                      </div>
-                    </div>
+              ) : (
+                <div className="glass-card hero-card2" ref={heroRef}>
+                  <div className="hc2-left">
+                    <div className="hc2-label">AWAITING AI SIGNAL...</div>
+                    <div className="hc2-value" style={{ color: '#555', fontSize: '42px' }}>—</div>
                   </div>
-                ) : (
-                  <div className="cashout-targets" style={{ display: 'grid', gridTemplateColumns: prediction.swing_target ? '1fr 1fr' : '1fr', gap: '12px', marginBottom: '16px' }}>
-                    <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0, 229, 160, 0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '4px' }}>
-                      <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#888' }}><ShieldCheck size={13} color="#00e5a0" /> Safe Auto-Cashout</div>
-                      <div className="ct-mult" style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
-                        {prediction.cashout_target ? prediction.cashout_target.toFixed(2) : stats.conservativeCashout.toFixed(2)}x
-                      </div>
-                      <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa' }}>
-                        ~{prediction.cashout_target ? Math.round((0.97 / prediction.cashout_target) * 100) : 90}% mathematical probability
-                      </div>
-                    </div>
-                    {prediction.swing_target && (
-                      <div className="cashout-target risk" style={{ borderLeftColor: '#ffc84a', background: 'rgba(255, 200, 74, 0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '4px' }}>
-                        <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#888' }}><Scale size={13} color="#ffc84a" /> Optional Swing (Split Bet)</div>
-                        <div className="ct-mult" style={{ fontSize: '20px', fontWeight: '800', fontFamily: 'monospace', color: '#ffc84a', margin: '4px 0' }}>
-                          {prediction.swing_target.toFixed(2)}x
-                        </div>
-                        <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa' }}>
-                          ~{Math.round((0.97 / prediction.swing_target) * 100)}% mathematical probability
-                        </div>
-                      </div>
+                </div>
+              )}
+
+              {/* AI Prediction Panel */}
+              <div className={`glass-card pred-card2 ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
+                <div className="pc2-header">
+                  <div className="pc2-title">
+                    <Bot size={16} color="#a78bfa" />
+                    AI RISK COACH & PROBABILITY ESTIMATOR
+                  </div>
+                  <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                    {predStatus === 'predicting' ? <><RefreshCw size={11} className="spin" /> Analyzing…</> : predStatus === 'done' ? <><CheckCircle2 size={11} /> Ready</> : 'Waiting'}
+                  </span>
+                </div>
+
+                {prediction?.ai_model_used && predStatus === 'done' && (
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                    <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', fontSize: '11px' }}>
+                      {RISK_EMOJI[prediction.risk]} {prediction.risk} RISK
+                    </span>
+                    <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)' }}>
+                      <Bot size={10} /> AI Coach
+                    </span>
+                    {prediction.volatility_phase && (
+                      <span className="badge-pill" style={{
+                        color: prediction.volatility_phase === 'CALM' ? '#00e5a0' : prediction.volatility_phase === 'VOLATILE' ? '#ff3366' : '#ffd000',
+                        background: prediction.volatility_phase === 'CALM' ? 'rgba(0,229,160,0.1)' : prediction.volatility_phase === 'VOLATILE' ? 'rgba(255,51,102,0.1)' : 'rgba(255,208,0,0.1)',
+                      }}>
+                        📊 {prediction.volatility_phase}
+                      </span>
+                    )}
+                    {prediction.should_bet && prediction.recommended_stake_pct && (
+                      <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)' }}>
+                        💰 Stake: {prediction.recommended_stake_pct}%
+                      </span>
                     )}
                   </div>
                 )}
 
-                {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (
-                  <div className="ai-ceiling-forecast" style={{ background: 'rgba(0, 229, 160, 0.15)', borderColor: '#00e5a0', marginTop: '16px' }}>
-                    <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold' }}>⭐ STATISTICAL CEILING (90% HIT RATE)</span>
-                    <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
-                  </div>
-                )}
-                {prediction.long_targets && (
-                  <div className="ai-long-forecast" style={{ marginBottom: '16px' }}>
-                    <div className="long-targets-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-                      <div className="long-target-col" style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '6px' }}>
-                        <span className="lt-val" style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{prediction.long_targets.x5}%</span>
-                        <span className="lt-lbl" style={{ display: 'block', fontSize: '9px', color: '#888' }}>5x (Math: 19.4%)</span>
-                      </div>
-                      <div className="long-target-col" style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '6px' }}>
-                        <span className="lt-val" style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{prediction.long_targets.x10}%</span>
-                        <span className="lt-lbl" style={{ display: 'block', fontSize: '9px', color: '#888' }}>10x (Math: 9.7%)</span>
-                      </div>
-                      <div className="long-target-col" style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '6px' }}>
-                        <span className="lt-val" style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{prediction.long_targets.x20}%</span>
-                        <span className="lt-lbl" style={{ display: 'block', fontSize: '9px', color: '#888' }}>20x (Math: 4.8%)</span>
+                {prediction && stats ? (
+                  <>
+                    <div className="risk-conf-row">
+                      <div className="conf-bar-wrap">
+                        <div className="conf-bar-track">
+                          <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
+                        </div>
+                        <span className="conf-label">{prediction.confidence}% confidence</span>
                       </div>
                     </div>
-                  </div>
-                )}
-                <div className="pred-bars">
-                  {[
-                    { label: 'Under 2x', pct: stats.pUnder2, cls: 'red' },
-                    { label: '2x \u2013 5x', pct: stats.p2to5, cls: 'yellow' },
-                    { label: 'Over 5x', pct: stats.pOver5, cls: 'green' },
-                  ].map(b => (
-                    <div className="pred-bar-row" key={b.label}>
-                      <span className="pred-bar-label">{b.label}</span>
-                      <div className="pred-bar-track">
-                        <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${b.pct}%` }} />
-                      </div>
-                      <span className={`pred-bar-pct ${b.cls}`}>{b.pct}%</span>
+
+                    <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
+                      {prediction.summary}
                     </div>
-                  ))}
-                </div>
-                <div className="pred-meta">
-                  <span>EMA: {stats.ema}x</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Streak: {stats.currentLowStreak > 0 ? <><AlertTriangle size={14} color="var(--red)" /> {stats.currentLowStreak} low</> : <><CheckCircle2 size={14} color="var(--green)" /> {stats.currentHighStreak} high</>}</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Trend: {stats.trend === 'rising' ? <><TrendingUp size={14} /> Rising</> : stats.trend === 'falling' ? <><TrendingDown size={14} /> Falling</> : <><Minus size={14} /> Flat</>}</span>
-                  <span>Volatility: {stats.volatility}</span>
-                </div>
-              </>
-            ) : (
-              <div className="pred-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '30px 0' }}>
-                {isPredicting ? <RefreshCw className="spin" size={24} /> : <Orbit size={24} />}
-                {isPredicting ? 'Running AI analysis...' : 'Start capture to enable predictions'}
-              </div>
-            )}
-          </div>
 
+                    {prediction.strategy === 'SKIP' || !prediction.should_bet ? (
+                      <div style={{ background: 'rgba(255,51,102,0.08)', border: '1px solid rgba(255,51,102,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <ShieldAlert size={18} color="#ff3366" style={{ flexShrink: 0 }} />
+                        <div>
+                          <div style={{ color: '#ff3366', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>SKIP SIGNAL ACTIVE</div>
+                          <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
+                            {prediction.skip_reason || prediction.strategy_reason || 'Session is exhibiting high-risk patterns.'}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="cashout-targets" style={{ display: 'grid', gridTemplateColumns: prediction.swing_target ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '14px' }}>
+                        <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0,229,160,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
+                          <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><ShieldCheck size={12} color="#00e5a0" /> Safe Auto-Cashout</div>
+                          <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
+                            {prediction.cashout_target ? prediction.cashout_target.toFixed(2) : stats.conservativeCashout.toFixed(2)}x
+                          </div>
+                          <div className="ct-pct" style={{ fontSize: '10px', color: '#666' }}>
+                            ~{prediction.cashout_target ? Math.round((0.97 / prediction.cashout_target) * 100) : 90}% mathematical probability
+                          </div>
+                        </div>
+                        {prediction.swing_target && (
+                          <div className="cashout-target risk" style={{ borderLeftColor: '#ffd000', background: 'rgba(255,208,0,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
+                            <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><Scale size={12} color="#ffd000" /> Optional Swing</div>
+                            <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#ffd000', margin: '4px 0' }}>
+                              {prediction.swing_target.toFixed(2)}x
+                            </div>
+                            <div className="ct-pct" style={{ fontSize: '10px', color: '#666' }}>
+                              ~{Math.round((0.97 / prediction.swing_target) * 100)}% mathematical probability
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
+                    {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (
+                      <div className="ai-ceiling-forecast" style={{ background: 'rgba(0,229,160,0.1)', borderColor: '#00e5a0', marginTop: '12px' }}>
+                        <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold' }}>⭐ STATISTICAL CEILING (90% HIT RATE)</span>
+                        <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
+                      </div>
+                    )}
 
+                    {prediction.long_targets && (
+                      <div className="ai-long-forecast" style={{ marginBottom: '12px' }}>
+                        <div className="long-targets-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                          {[
+                            { label: '5x (Math: 19.4%)', val: prediction.long_targets.x5 },
+                            { label: '10x (Math: 9.7%)', val: prediction.long_targets.x10 },
+                            { label: '20x (Math: 4.8%)', val: prediction.long_targets.x20 },
+                          ].map(lt => (
+                            <div key={lt.label} style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '6px' }}>
+                              <span style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{lt.val}%</span>
+                              <span style={{ display: 'block', fontSize: '9px', color: '#666' }}>{lt.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-          <div className="hero" ref={heroRef}>
-            <div className="hero-label">LAST CRASH</div>
-            <div className={`hero-value color-${classifyRisk(lastCrash?.crash_point ?? 0)}`}>
-              {lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '\u2014'}
-            </div>
-            {lastCrash && <div className="hero-time">{timeAgo(lastCrash.created_at)}</div>}
-          </div>
+                    <div className="pred-bars">
+                      {[
+                        { label: 'Under 2x', pct: stats.pUnder2, cls: 'red' },
+                        { label: '2x – 5x',  pct: stats.p2to5,   cls: 'yellow' },
+                        { label: 'Over 5x',  pct: stats.pOver5,  cls: 'green' },
+                      ].map(b => (
+                        <div className="pred-bar-row" key={b.label}>
+                          <span className="pred-bar-label">{b.label}</span>
+                          <div className="pred-bar-track">
+                            <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${b.pct}%` }} />
+                          </div>
+                          <span className={`pred-bar-pct ${b.cls}`}>{b.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
 
-          <div className="stat-row">
-            {[
-              { icon: <BarChart3 size={20} />, label: 'Avg', value: `${avg}x` },
-              { icon: <TrendingDown size={20} />, label: 'Median', value: `${median}x` },
-              { icon: <Rocket size={20} />, label: 'Highest', value: `${highest}x` },
-              { icon: <AlertOctagon size={20} />, label: 'Under 2x', value: `${stats?.pUnder2 ?? 0}%`, cls: 'red' },
-            ].map(s => (
-              <div key={s.label} className="stat-card">
-                <div className="stat-icon">{s.icon}</div>
-                <div className="stat-label">{s.label}</div>
-                <div className={`stat-value ${s.cls ?? ''}`}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-
-        </div>
-
-        <div className="right-col">
-          <div className="panel">
-            <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Zap size={16} color="#a78bfa" />
-              AI Data Stream
-            </div>
-            
-            <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {/* Risk & Trend */}
-              <div style={{ background: 'var(--bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>Live Engine State</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '13px' }}>Trend: <strong style={{ color: stats?.trend === 'rising' ? '#00e5a0' : stats?.trend === 'falling' ? '#ff4d6d' : '#fff' }}>{stats?.trend.toUpperCase() || 'FLAT'}</strong></div>
-                  <div style={{ fontSize: '13px' }}>Volatility: <strong>{stats?.volatility.toUpperCase() || 'NORMAL'}</strong></div>
-                </div>
-                <div style={{ marginTop: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Risk Score:</span>
-                  <strong style={{ color: (stats?.riskScore ?? 0) > 60 ? '#ff4d6d' : (stats?.riskScore ?? 0) < 40 ? '#00e5a0' : '#ffc84a' }}>{stats?.riskScore ?? 0}/100</strong>
-                </div>
-              </div>
-
-              {/* Minute Timing */}
-              {stats?.timePattern && (
-                <div style={{ background: 'var(--bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>Time Pattern Engine</div>
-                  <div style={{ fontSize: '13px', marginBottom: '4px' }}>Minute: <strong>{stats.timePattern.minute}</strong> (Occurred {stats.timePattern.occurrences}x)</div>
-                  <div style={{ fontSize: '12px', color: '#aaa', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                    <div>80% Safe: <strong style={{ color: '#00e5a0' }}>{stats.timePattern.p80}x</strong></div>
-                    <div>Median: <strong>{stats.timePattern.p50}x</strong></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Sequence Engine */}
-              {stats?.sequenceMatch && (
-                <div style={{ background: 'var(--bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>Sequence Engine</div>
-                  <div style={{ fontSize: '13px', marginBottom: '4px', display: 'flex', gap: '4px' }}>
-                    {stats.sequenceMatch.sequence.map((sq, i) => (
-                      <span key={i} style={{ 
-                        padding: '2px 6px', 
-                        borderRadius: '4px', 
-                        fontSize: '10px', 
-                        background: sq === 'INSTANT' ? '#ff4d6d' : sq === 'LOW' ? '#ffc84a' : sq === 'MED' ? '#00e5a0' : '#a78bfa',
-                        color: '#000',
-                        fontWeight: 'bold'
-                      }}>
-                        {sq}
+                    <div className="pred-meta">
+                      <span>EMA: {stats.ema}x</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Streak: {stats.currentLowStreak > 0 ? <><AlertTriangle size={12} color="var(--red)" /> {stats.currentLowStreak} low</> : <><CheckCircle2 size={12} color="var(--green)" /> {stats.currentHighStreak} high</>}
                       </span>
-                    ))}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#aaa', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginTop: '6px' }}>
-                    <div>Instant Risk: <strong style={{ color: stats.sequenceMatch.pInstantNext > 20 ? '#ff4d6d' : '#fff' }}>{stats.sequenceMatch.pInstantNext}%</strong></div>
-                    <div>Safe Hit Rate: <strong>{stats.sequenceMatch.pSafeNext}%</strong></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Streak Patterns */}
-              {stats?.detectedPatterns && stats.detectedPatterns.length > 0 && (
-                <div style={{ background: 'var(--bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>Streak Pattern Engine</div>
-                  <div style={{ fontSize: '13px', marginBottom: '4px' }}>{stats.detectedPatterns[0].patternName}</div>
-                  <div style={{ fontSize: '12px', color: '#aaa' }}>
-                    Historically occurred <strong>{stats.detectedPatterns[0].occurrences}</strong> times
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-title">Crash History</div>
-            <div className="chart-wrap" style={{ width: '100%', height: '220px', marginTop: '16px' }}>
-              {rounds.length > 1 && (() => {
-                const pts = [...rounds].reverse().slice(0, 50).map(r => ({
-                  name: r.round_number,
-                  crash: Number(r.crash_point),
-                  color: r.crash_point < 2 ? '#ff4d6d' : r.crash_point < 5 ? '#ffc84a' : '#00e5a0'
-                }));
-                
-                const CustomDot = (props: any) => {
-                  const { cx, cy, payload } = props;
-                  if (!cx || !cy) return null;
-                  return (
-                    <circle cx={cx} cy={cy} r={4} fill={payload.color} stroke="var(--surface)" strokeWidth={1.5} />
-                  );
-                };
-
-                return (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={pts} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorCrash" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6c63ff" stopOpacity={0.4}/>
-                          <stop offset="95%" stopColor="#6c63ff" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-dim)' }} tickLine={false} axisLine={false} minTickGap={20} />
-                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-dim)' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'rgba(20, 20, 28, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
-                        itemStyle={{ color: '#fff', fontWeight: 'bold' }}
-                        labelStyle={{ color: 'var(--text-dim)', marginBottom: '4px' }}
-                        formatter={(value: any) => [`${value}x`, 'Crash']}
-                        labelFormatter={(label) => `Round ${label}`}
-                      />
-                      <Area type="monotone" dataKey="crash" stroke="#6c63ff" strokeWidth={3} fillOpacity={1} fill="url(#colorCrash)" activeDot={{ r: 6, fill: '#6c63ff', stroke: '#fff', strokeWidth: 2 }} dot={<CustomDot />} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                );
-              })()}
-            </div>
-            <div className="chart-legend">
-              <span className="dot green" /> \u22655x
-              <span className="dot yellow" /> 2\u20135x
-              <span className="dot red" /> &lt;2x
-              <span style={{ color: '#a78bfa' }}>\u2605</span> \u226510x
-            </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-title">Target Hit Rates ({rounds.length} rounds)</div>
-            {stats && stats.count > 0 ? (
-              <div className="target-table">
-                <div className="target-table-head">
-                  <span>Target</span><span>RTP Math</span><span>Hit Rate</span><span>Recent 20</span><span>Last Hit</span><span>Signal</span>
-                </div>
-                {stats.targets.map(t => (
-                  <div key={t.target} className={`target-row signal-${t.signal.toLowerCase()}`}>
-                    <span className="target-mult">{t.target.toFixed(1)}x</span>
-                    <span className="target-math">{(t.mathProb ?? 0).toFixed(1)}%</span>
-                    <div className="target-bar-wrap">
-                      <div className="target-bar-bg">
-                        <div className="target-bar-fill" style={{ width: `${t.hitRate}%` }} />
-                      </div>
-                      <span className="target-pct">{t.hitRate}%</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Trend: {stats.trend === 'rising' ? <TrendingUp size={12} /> : stats.trend === 'falling' ? <TrendingDown size={12} /> : <Minus size={12} />} {stats.trend}
+                      </span>
+                      <span>Risk: {stats.riskScore}/100</span>
                     </div>
-                    <span className={`target-recent ${t.recentHitRate >= t.hitRate ? 'up' : 'down'}`}>
-                      {t.recentHitRate}%{t.recentHitRate >= t.hitRate ? ' \u2191' : ' \u2193'}
-                    </span>
-                    <span className="target-last">
-                      {t.lastHitAgo === 0 ? 'Now' : t.lastHitAgo === -1 ? 'Never' : `${t.lastHitAgo}r ago`}
-                    </span>
-                    <span className={`target-signal ${t.signal.toLowerCase()}`}>{t.signal}</span>
+                  </>
+                ) : (
+                  <div className="pred-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '28px 0' }}>
+                    {isPredicting ? <RefreshCw className="spin" size={22} /> : <Orbit size={22} />}
+                    {isPredicting ? 'Running AI analysis…' : 'Start capture to enable predictions'}
                   </div>
-                ))}
-                <div className="target-footer">* Based on captured historical data.</div>
+                )}
               </div>
-            ) : (
-              <div className="feed-empty">Capture rounds to see target analysis</div>
-            )}
-          </div>
+            </div>
 
-          <div className="panel feed-panel">
-            <div className="panel-title">Live Feed</div>
-            <div className="feed-list">
-              {rounds.length === 0
-                ? <div className="feed-empty">Waiting for crash data...</div>
-                : rounds.slice(0, 40).map((round, i) => (
-                  <div key={round.id ?? `${round.round_number}-${i}`}
-                    className={`feed-row ${round._optimistic ? 'optimistic' : ''}`}>
-                    <div className="feed-meta">
-                      <span className="feed-num">#{round.round_number}</span>
-                      <span className="feed-time">{timeAgo(round.created_at)}</span>
+            {/* ─── RIGHT COLUMN ─── */}
+            <div className="right-col2">
+
+              {/* Chart */}
+              <div className="glass-card">
+                <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={14} color="#00ffd5" /> Crash History</span>
+                  <span style={{ fontSize: '10px', color: '#555' }}>Last {Math.min(rounds.length, 50)} rounds</span>
+                </div>
+                <div style={{ width: '100%', height: '180px' }}>
+                  {rounds.length > 1 && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 6, right: 0, left: -25, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorCrash" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#00ffd5" stopOpacity={0.25} />
+                            <stop offset="95%" stopColor="#00ffd5" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} minTickGap={20} />
+                        <YAxis tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'rgba(15,17,26,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '11px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                          formatter={(value: any, name: any, props: any) => [`${value}x`, `Round ${props.payload.name}`]}
+                          labelFormatter={(label) => `Time: ${label}`}
+                        />
+                        <Area type="monotone" dataKey="crash" stroke="#00ffd5" strokeWidth={2} fillOpacity={1} fill="url(#colorCrash)" dot={<CustomDot />} activeDot={{ r: 6, fill: '#00ffd5', stroke: '#fff', strokeWidth: 2 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+                <div className="chart-legend">
+                  <span className="dot green" /> ≥5x
+                  <span className="dot yellow" /> 2–5x
+                  <span className="dot red" /> &lt;2x
+                </div>
+              </div>
+
+              {/* AI Data Stream */}
+              <div className="glass-card">
+                <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <Zap size={14} color="#a78bfa" /> AI Data Stream
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: 0, right: 0, width: '40px', height: '40px', background: 'radial-gradient(circle, rgba(0,229,160,0.2) 0%, transparent 70%)' }}></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', letterSpacing: '1px' }}><Activity size={12} color="#00e5a0" /> Live Engine State</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center' }}>
+                        <span style={{ color: '#aaa' }}>Trend</span>
+                        <strong style={{ color: stats?.trend === 'rising' ? '#00e5a0' : stats?.trend === 'falling' ? '#ff3366' : '#fff', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>{stats?.trend?.toUpperCase() || 'FLAT'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center' }}>
+                        <span style={{ color: '#aaa' }}>Volatility</span>
+                        <strong style={{ color: '#ffd000' }}>{stats?.volatility?.toUpperCase() || 'NORMAL'}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
+                        <span style={{ color: '#aaa' }}>Risk Score</span>
+                        <strong style={{ color: (stats?.riskScore ?? 0) > 60 ? '#ff3366' : (stats?.riskScore ?? 0) < 40 ? '#00e5a0' : '#ffd000', fontSize: '14px' }}>{stats?.riskScore ?? 0}/100</strong>
+                      </div>
                     </div>
-                    <span className={`feed-mult color-${classifyRisk(round.crash_point)}`}>
-                      {Number(round.crash_point).toFixed(2)}x
-                    </span>
-                    {round.crash_point >= 10 && <span className="feed-mega">\uD83D\uDD25</span>}
                   </div>
-                ))}
+
+                  {stats?.sequenceMatch ? (
+                    <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', letterSpacing: '1px' }}><Layers size={12} color="#00d4ff" /> Sequence Engine</div>
+                      <div style={{ fontSize: '12px', marginBottom: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {stats.sequenceMatch.sequence.map((sq, i) => (
+                          <span key={i} style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', background: sq === 'INSTANT' ? 'rgba(255,51,102,0.15)' : sq === 'LOW' ? 'rgba(255,208,0,0.15)' : sq === 'MED' ? 'rgba(0,229,160,0.15)' : 'rgba(167,139,250,0.15)', color: sq === 'INSTANT' ? '#ff3366' : sq === 'LOW' ? '#ffd000' : sq === 'MED' ? '#00e5a0' : '#a78bfa', fontWeight: 'bold' }}>{sq}</span>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#888', display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>Instant Risk <strong style={{ color: stats.sequenceMatch.pInstantNext > 20 ? '#ff3366' : '#fff' }}>{stats.sequenceMatch.pInstantNext}%</strong></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>Safe Hit <strong style={{ color: '#00e5a0' }}>{stats.sequenceMatch.pSafeNext}%</strong></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: '11px' }}>
+                      Sequence generating...
+                    </div>
+                  )}
+
+                  {stats?.detectedPatterns && stats.detectedPatterns.length > 0 && (
+                    <div style={{ gridColumn: '1 / -1', background: 'linear-gradient(145deg, rgba(167,139,250,0.08), rgba(167,139,250,0.02))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(167,139,250,0.3)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ background: 'rgba(167,139,250,0.15)', padding: '10px', borderRadius: '10px' }}><Zap size={18} color="#a78bfa" /></div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '9px', textTransform: 'uppercase', color: '#a78bfa', marginBottom: '2px', letterSpacing: '1px', fontWeight: 'bold' }}>Streak Pattern Detected</div>
+                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>{stats.detectedPatterns[0].patternName}</div>
+                      </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div key={stats.detectedPatterns[0].occurrences} className="zoom-3d-pulse" style={{ fontSize: '20px', fontWeight: '900', color: '#a78bfa', lineHeight: 1, display: 'inline-block' }}>{stats.detectedPatterns[0].occurrences}x</div>
+                          <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>HISTORY</div>
+                        </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Target Hit Rates */}
+              <div className="glass-card">
+                <div className="panel-title" style={{ marginBottom: '10px' }}>Target Hit Rates ({rounds.length} rounds)</div>
+                {stats && stats.count > 0 ? (
+                  <div className="target-table">
+                    <div className="target-table-head">
+                      <span>Target</span><span>Math</span><span>Hit Rate</span><span>Recent</span><span>Last</span><span>Signal</span>
+                    </div>
+                    {stats.targets.map(t => (
+                      <div key={t.target} className={`target-row signal-${t.signal.toLowerCase()}`}>
+                        <span className="target-mult">{t.target.toFixed(1)}x</span>
+                        <span className="target-math">{(t.mathProb ?? 0).toFixed(1)}%</span>
+                        <div className="target-bar-wrap">
+                          <div className="target-bar-bg"><div className="target-bar-fill" style={{ width: `${t.hitRate}%` }} /></div>
+                          <span className="target-pct">{t.hitRate}%</span>
+                        </div>
+                        <span className={`target-recent ${t.recentHitRate >= t.hitRate ? 'up' : 'down'}`}>{t.recentHitRate}%{t.recentHitRate >= t.hitRate ? ' ↑' : ' ↓'}</span>
+                        <span className="target-last">{t.lastHitAgo === 0 ? 'Now' : t.lastHitAgo === -1 ? 'Never' : `${t.lastHitAgo}r ago`}</span>
+                        <span className={`target-signal ${t.signal.toLowerCase()}`}>{t.signal}</span>
+                      </div>
+                    ))}
+                    <div className="target-footer">* Based on captured historical data.</div>
+                  </div>
+                ) : (
+                  <div className="feed-empty">Capture rounds to see target analysis</div>
+                )}
+              </div>
+
+              {/* Live Feed */}
+              <div className="glass-card feed-panel">
+                <div className="panel-title" style={{ marginBottom: '10px' }}>Live Feed</div>
+                <div className="feed-list">
+                  {rounds.length === 0
+                    ? <div className="feed-empty">Waiting for crash data…</div>
+                    : rounds.slice(0, 40).map((round, i) => (
+                      <div key={round.id ?? `${round.round_number}-${i}`} className={`feed-row ${round._optimistic ? 'optimistic' : ''}`}>
+                        <div className="feed-meta">
+                          <span className="feed-num">#{round.round_number}</span>
+                          <span className="feed-time">{timeAgo(round.created_at)}</span>
+                        </div>
+                        <span className={`feed-mult color-${classifyRisk(round.crash_point)}`}>
+                          {Number(round.crash_point).toFixed(2)}x
+                        </span>
+                        {round.crash_point >= 10 && <span className="feed-mega">🔥</span>}
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

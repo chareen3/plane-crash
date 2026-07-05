@@ -12,7 +12,7 @@ const supabase = createClient(
 async function fetchRecentRounds() {
   const rounds: { round_number: number; crash_point: number; created_at: string }[] = [];
   const PAGE_SIZE = 1000;
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 5; i++) {
     const { data, error } = await supabase
       .from('crash_rounds')
       .select('round_number, crash_point, created_at')

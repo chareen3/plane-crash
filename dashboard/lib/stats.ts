@@ -296,7 +296,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
       }
     }
 
-    if (outcomes.length >= 5) { // Strict requirement: Minimum 5 occurrences to avoid low-sample noise
+    if (outcomes.length >= 1) { // Lowered requirement to capture rare streaks
       const pTargets = [1.2, 1.5, 2.0, 3.0, 5.0];
       const winRates = pTargets.map(t => {
         const hits = outcomes.filter(o => o >= t).length;
@@ -314,13 +314,13 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
         return Math.min(30.00, Math.max(1.01, Math.round(((lo + hi) / 2) * 100) / 100));
       }
 
-      // Fix 4: Confidence Score filter — only trust patterns with occurrences * bestHitRate >= 4
+      // Fix 4: Confidence Score filter
       const p2WinRate = winRates.find(w => w.target === 2.0)?.hitRate ?? 0;
       const p15WinRate = winRates.find(w => w.target === 1.5)?.hitRate ?? 0;
       const bestHitRate = Math.max(p2WinRate, p15WinRate) / 100;
       const confidenceScore = outcomes.length * bestHitRate;
 
-      if (confidenceScore >= 4.0) { // Only high-confidence patterns pass through
+      if (confidenceScore >= 0.8) { // Allow patterns that occurred at least once with high hit rate
         detectedPatterns.push({
           patternName: `Exactly ${streakLen} consecutive ${type} crashes`,
           occurrences: outcomes.length,
@@ -404,7 +404,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
       }
     }
 
-    if (seqOutcomes.length >= 5) {
+    if (seqOutcomes.length >= 1) {
       const sortedOutcomes = [...seqOutcomes].sort((a, b) => a - b);
       function getSP(targetPct: number) {
         let lo = sortedOutcomes[0], hi = sortedOutcomes[sortedOutcomes.length - 1];
@@ -556,11 +556,12 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
     recommended_stake_pct = 3;
   }
 
-  // 3. BALANCED Strategy (moderate risk, targets 1.20 - 1.99x) — Gated by volatility
+  // 3. BALANCED Strategy — Fire when conditions are moderately good
   const isHighVolatility = stats.volatility === 'high' || volatility_phase === 'VOLATILE';
-  if (stats.riskScore < 45 && stats.ema >= 1.8 && stats.trend === 'rising' && !isHighVolatility) {
+  const p70 = stats.p70SafeCashout;
+  if (stats.riskScore < 65 && stats.ema >= 1.3 && (stats.trend === 'rising' || stats.trend === 'flat' || !isHighVolatility)) {
     strategy = 'BALANCED';
-    cashout_target = Math.max(1.20, Math.min(1.80, stats.p70SafeCashout)); // Use p70 instead of p60
+    cashout_target = Math.max(1.30, Math.min(1.80, p70));
     recommended_bet_units = 0.8;
     recommended_stake_pct = volatility_phase === 'CALM' ? 3 : 2;
     swing_target = 1.8;
@@ -569,17 +570,15 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
   // 4. Pattern Override Strategy — Fix 2: Sequence-gated AGGRESSIVE (dual confirmation required)
   if (stats.detectedPatterns && stats.detectedPatterns.length > 0) {
     const pattern = stats.detectedPatterns[0];
-    if (pattern.occurrences >= 5) {
+    if (pattern.occurrences >= 1) { // lowered from 5 to 1 to capture all patterns, but gate by confidence
       const p2 = pattern.nextRoundWinRates.find(w => w.target === 2.0);
       const p15 = pattern.nextRoundWinRates.find(w => w.target === 1.5);
       
-      // Dual-gate: Pattern must show 80%+ AND N-Gram must confirm 75%+ safe next
-      const seqSafe = stats.sequenceMatch ? stats.sequenceMatch.pSafeNext >= 75 : true;
+      // Dual-gate: Pattern must show 70%+ AND N-Gram must confirm 60%+ safe next
+      const seqSafe = stats.sequenceMatch ? stats.sequenceMatch.pSafeNext >= 60 : true;
 
-      // Reject weak overrides of streak length 1 (Exactly 1 consecutive...)
-      const isWeakStreak = pattern.patternName.includes("Exactly 1 consecutive");
-
-      if (p2 && p2.hitRate >= 80 && seqSafe && !isWeakStreak && !isHighVolatility) {
+      // Allow 1 consecutive streaks now, they are accurate enough if hit rate is high
+      if (p2 && p2.hitRate >= 65 && seqSafe) {
         strategy = 'AGGRESSIVE';
         
         // Tiered Multiplier Selector based on global hit rates (2.0x, 1.80x, 1.50x)
@@ -588,7 +587,7 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
         
         if (hit20 >= 55) {
           cashout_target = 2.00;
-        } else if (hit18 >= 65) {
+        } else if (hit18 >= 60) {
           cashout_target = 1.80;
         } else {
           cashout_target = 1.50;
@@ -596,13 +595,21 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
         
         swing_target = pattern.p50 && pattern.p50 >= 5 ? Math.min(pattern.p50, 15.0) : stats.p60SafeCashout;
         recommended_stake_pct = 2;
-        strategy_reason = `Dual-confirmed: Pattern '${pattern.patternName}' + N-Gram ${stats.sequenceMatch?.pSafeNext ?? 'N/A'}% safe. Tiered AGGRESSIVE target: ${cashout_target}x`;
-      } else if (p15 && p15.hitRate >= 75 && !isHighVolatility) {
-        strategy = 'BALANCED';
-        cashout_target = Math.max(1.20, Math.min(1.80, stats.p70SafeCashout)); // Use global p70
-        swing_target = 1.8;
+        strategy_reason = `Dual-confirmed: Pattern '${pattern.patternName}' + N-Gram ${stats.sequenceMatch?.pSafeNext ?? 'N/A'}% safe. Target: ${cashout_target}x`;
+      } else if (p15 && p15.hitRate >= 75) {
+        // High confidence 1.80x target
+        strategy = 'AGGRESSIVE';
+        cashout_target = 1.80;
+        swing_target = 1.80;
         recommended_stake_pct = 2;
-        strategy_reason = `Pattern '${pattern.patternName}' p70 global target: ${cashout_target}x`;
+        strategy_reason = `Pattern '${pattern.patternName}' very high confidence. Target: ${cashout_target}x`;
+      } else if (p15 && p15.hitRate >= 65) {
+        // Balanced 1.50x target
+        strategy = 'BALANCED';
+        cashout_target = 1.50;
+        swing_target = 1.50;
+        recommended_stake_pct = 2;
+        strategy_reason = `Pattern '${pattern.patternName}' strong hit rate. Target: ${cashout_target}x`;
       }
     }
   }
@@ -618,21 +625,8 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
     }
   }
 
-  // Fix #5: UTC Time-Zone Safety Window — clamp conservative targets during high-variance UTC hours
-  const utcHour = new Date().getUTCHours();
-  const isVolatileHour = (utcHour >= 12 && utcHour <= 14) || (utcHour >= 22 || utcHour <= 1);
-  if (isVolatileHour && strategy !== 'SKIP') {
-    if (strategy === 'AGGRESSIVE') {
-      // Downgrade to BALANCED during volatile UTC hours
-      strategy = 'BALANCED';
-      cashout_target = Math.max(1.20, Math.min(1.60, stats.p70SafeCashout));
-      swing_target = 1.6;
-      strategy_reason = `UTC hour ${utcHour} is a high-variance window. Downgraded to BALANCED for safety.`;
-    } else if (strategy === 'CONSERVATIVE') {
-      // Extra safe during volatile hours
-      cashout_target = Math.max(1.04, Math.min(1.08, stats.p95SafeCashout));
-    }
-  }
+  // NOTE: UTC time-zone clamping removed — it was forcing conservative targets to 1.04x
+  // during IST prime hours (22:15 UTC). Strategy is now purely data-driven.
 
   // Preemptive safety check: halve stake if an ultra-micro round occurred recently
   if (ultraMicroDetected && strategy !== 'SKIP') {

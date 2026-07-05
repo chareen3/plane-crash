@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     // 4. Fetch the entire database history (up to 50,000 rounds) with timestamps
     let historyRounds: { crash_point: number; created_at: string }[] = [];
     const PAGE_SIZE = 1000;
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 5; i++) {
       const { data: pageData, error: pageErr } = await supabase
         .from('crash_rounds')
         .select('crash_point, created_at')
