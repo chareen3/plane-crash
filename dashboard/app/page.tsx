@@ -17,18 +17,50 @@ type Prediction = {
   summary: string;
   predicted_multiplier?: number;
   long_targets?: { x5: number; x10: number; x20: number };
+  should_bet?: boolean;
+  skip_reason?: string | null;
+  strategy?: string;
+  cashout_target?: number;
+  strategy_reason?: string;
   stats?: CrashStats;
 };
 type WinRate = { total: number; correct: number; winRate: number; byRisk: Record<string, { total: number; correct: number }> };
 
 const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
-const RISK_EMOJI: Record<string, string> = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴' };
+const RISK_EMOJI: Record<string, string> = { LOW: '\uD83D\uDFE2', MEDIUM: '\uD83D\uDFE1', HIGH: '\uD83D\uDD34' };
+const STRATEGY_META: Record<string, { color: string; icon: string; label: string }> = {
+  SKIP:         { color: '#ff4d6d', icon: '\uD83D\uDEAB', label: 'SKIP THIS ROUND' },
+  CONSERVATIVE: { color: '#00e5a0', icon: '\uD83D\uDEE1\uFE0F', label: 'CONSERVATIVE BET' },
+  BALANCED:     { color: '#ffc84a', icon: '\u2696\uFE0F', label: 'BALANCED BET' },
+  AGGRESSIVE:   { color: '#a78bfa', icon: '\uD83D\uDE80', label: 'AGGRESSIVE BET' },
+};
 
 function classifyRisk(v: number) { return v < 2 ? 'red' : v < 5 ? 'yellow' : 'green'; }
 function timeAgo(iso: string) {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return `${s}s ago`;
   return `${Math.floor(s / 60)}m ago`;
+}
+
+function LingerMultipliers({ rounds }: { rounds: Round[] }) {
+  const top = [...rounds]
+    .slice(0, 30)
+    .filter(r => r.crash_point >= 5)
+    .sort((a, b) => b.crash_point - a.crash_point)
+    .slice(0, 6);
+  if (top.length === 0) return null;
+  return (
+    <div className="linger-row">
+      <span className="linger-label">\uD83D\uDD25 Big Hits (last 30)</span>
+      <div className="linger-chips">
+        {top.map((r, i) => (
+          <span key={i} className={`linger-chip ${r.crash_point >= 10 ? 'mega' : ''}`}>
+            {Number(r.crash_point).toFixed(2)}x
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function Dashboard() {
@@ -40,9 +72,7 @@ export default function Dashboard() {
   const [isPredicting, setIsPredicting] = useState(false);
   const [predStatus, setPredStatus] = useState<'idle' | 'predicting' | 'done'>('idle');
   const [betAmount, setBetAmount] = useState<string>('');
-  const [ticker, setTicker] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
-  const predRef = useRef<HTMLDivElement>(null);
 
   const fetchWinRate = useCallback(async () => {
     const res = await fetch('/api/grade');
@@ -63,10 +93,7 @@ export default function Dashboard() {
     finally { setIsPredicting(false); }
   }, []);
 
-
-
   useEffect(() => {
-    // Initial data load
     supabase.from('crash_rounds').select('*').order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => {
         if (data?.length) {
@@ -75,49 +102,34 @@ export default function Dashboard() {
           setLocalStats(computeStats(data.map(r => Number(r.crash_point))));
         }
       });
-
     fetchWinRate();
     runPrediction();
 
-    // Zero-latency bridge from Extension content script
     const handleMessage = (evt: MessageEvent) => {
       if (evt.data?.type === 'EXTENSION_CRASH_LIVE') {
         const { round, prediction, stats } = evt.data;
-        
         if (round) {
           const roundObj: Round = { ...round, _optimistic: true };
           setLastCrash(roundObj);
           setRounds(prev => {
             if (prev.some(r => r.round_number === roundObj.round_number)) return prev;
             const updated = [roundObj, ...prev].slice(0, 50);
-            if (!stats) {
-              setLocalStats(computeStats(updated.map(r => Number(r.crash_point))));
-            }
+            if (!stats) setLocalStats(computeStats(updated.map(r => Number(r.crash_point))));
             return updated;
           });
         }
-
-        if (stats) {
-          setLocalStats(stats);
-        }
-
-        if (prediction) {
-          setPrediction(prediction);
-          setPredStatus('done');
-        }
-
+        if (stats) setLocalStats(stats);
+        if (prediction) { setPrediction(prediction); setPredStatus('done'); }
         heroRef.current?.classList.remove('flash');
         void heroRef.current?.offsetWidth;
         heroRef.current?.classList.add('flash');
-
-        fetchWinRate(); // Refresh the trust strip stats
+        fetchWinRate();
       } else if (evt.data?.type === 'EXTENSION_BET_CHANGE') {
         setBetAmount(evt.data.amount);
       }
     };
     window.addEventListener('message', handleMessage);
 
-    // Supabase Realtime backup
     const channel = supabase.channel('crash-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crash_rounds' }, (payload) => {
         const round = payload.new as Round;
@@ -131,65 +143,52 @@ export default function Dashboard() {
         setLastCrash(round);
       }).subscribe();
 
-    const tick = setInterval(() => setTicker(t => t + 1), 5000);
-
     return () => {
       supabase.removeChannel(channel);
       window.removeEventListener('message', handleMessage);
-      clearInterval(tick);
     };
   }, []);
 
   const stats = localStats;
-  const avg = stats ? stats.mean.toFixed(2) : '—';
-  const median = stats ? stats.median.toFixed(2) : '—';
-  const highest = rounds.length > 0 ? Math.max(...rounds.map(r => Number(r.crash_point))).toFixed(2) : '—';
+  const avg = stats ? stats.mean.toFixed(2) : '\u2014';
+  const median = stats ? stats.median.toFixed(2) : '\u2014';
+  const highest = rounds.length > 0 ? Math.max(...rounds.map(r => Number(r.crash_point))).toFixed(2) : '\u2014';
+  const stratMeta = prediction?.strategy ? STRATEGY_META[prediction.strategy] ?? STRATEGY_META['SKIP'] : null;
 
   return (
     <div className="app">
-
-      {/* ── TOPBAR ── */}
       <header className="topbar">
         <div className="topbar-left">
-          <span className="topbar-icon">✈</span>
+          <span className="topbar-icon">\u2708</span>
           <div>
             <h1 className="topbar-title">Crash Tracker</h1>
-            <span className="topbar-sub">AI-Powered · Real-time · Supabase</span>
+            <span className="topbar-sub">AI-Powered \u00b7 Real-time \u00b7 Supabase</span>
           </div>
         </div>
         <div className="topbar-right">
-          {betAmount && (
-            <span className="bet-badge">💰 Bet Amount: {betAmount} USD</span>
-          )}
+          {betAmount && <span className="bet-badge">\uD83D\uDCB0 Bet: {betAmount} USD</span>}
           <span className="live-badge"><span className="live-dot" />LIVE</span>
           <button className="ai-btn" onClick={runPrediction} disabled={isPredicting || rounds.length === 0}>
-            {isPredicting ? '⏳ Analyzing...' : '🧠 Refresh AI'}
+            {isPredicting ? '\u23F3 Analyzing...' : '\uD83E\uDDE0 Refresh AI'}
           </button>
         </div>
       </header>
 
-      {/* ── TRUST STRIP ── */}
       <div className="trust-strip">
         <div className="trust-item">
-          <span className="trust-icon">🎯</span>
-          <div>
-            <div className="trust-label">Total Predictions</div>
-            <div className="trust-value">{winRate.total}</div>
-          </div>
+          <span className="trust-icon">\uD83C\uDFAF</span>
+          <div><div className="trust-label">Total Predictions</div><div className="trust-value">{winRate.total}</div></div>
         </div>
         <div className="trust-divider" />
         <div className="trust-item">
-          <span className="trust-icon">✅</span>
-          <div>
-            <div className="trust-label">Correct Calls</div>
-            <div className="trust-value green">{winRate.correct}</div>
-          </div>
+          <span className="trust-icon">\u2705</span>
+          <div><div className="trust-label">Correct Calls</div><div className="trust-value green">{winRate.correct}</div></div>
         </div>
         <div className="trust-divider" />
         <div className="trust-item">
-          <span className="trust-icon">📊</span>
+          <span className="trust-icon">\uD83D\uDCCA</span>
           <div>
-            <div className="trust-label">Platform Accuracy</div>
+            <div className="trust-label">Accuracy</div>
             <div className={`trust-value ${winRate.winRate >= 60 ? 'green' : winRate.winRate >= 40 ? 'yellow' : 'red'}`}>
               {winRate.winRate}%
             </div>
@@ -197,11 +196,8 @@ export default function Dashboard() {
         </div>
         <div className="trust-divider" />
         <div className="trust-item">
-          <span className="trust-icon">📈</span>
-          <div>
-            <div className="trust-label">Rounds Tracked</div>
-            <div className="trust-value">{rounds.length}</div>
-          </div>
+          <span className="trust-icon">\uD83D\uDCC8</span>
+          <div><div className="trust-label">Rounds Tracked</div><div className="trust-value">{rounds.length}</div></div>
         </div>
         {winRate.byRisk && Object.keys(winRate.byRisk).length > 0 && (<>
           <div className="trust-divider" />
@@ -222,75 +218,75 @@ export default function Dashboard() {
         </>)}
       </div>
 
-      {/* ── MAIN GRID ── */}
+      {prediction && stratMeta && (
+        <div className="bet-signal-banner" style={{ background: stratMeta.color + '18', borderColor: stratMeta.color }}>
+          <div className="bsb-left">
+            <span className="bsb-icon">{stratMeta.icon}</span>
+            <div>
+              <div className="bsb-action" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
+              {prediction.skip_reason && <div className="bsb-reason">\u26A0\uFE0F {prediction.skip_reason}</div>}
+              {prediction.strategy_reason && !prediction.skip_reason && <div className="bsb-reason">{prediction.strategy_reason}</div>}
+            </div>
+          </div>
+          {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 && (
+            <div className="bsb-right">
+              <div className="bsb-cashout-label">Cashout at</div>
+              <div className="bsb-cashout-val" style={{ color: stratMeta.color }}>
+                {Number(prediction.cashout_target).toFixed(2)}x
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <LingerMultipliers rounds={rounds} />
+
       <div className="main-grid">
-
-        {/* LEFT COLUMN */}
         <div className="left-col">
-
-          {/* Prediction Panel */}
-          <div className={`pred-panel ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`} ref={predRef}>
+          <div className={`pred-panel ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
             <div className="pred-header">
-              <span className="pred-title">⚡ NEXT ROUND — CASHOUT TARGETS</span>
+              <span className="pred-title">\u26A1 NEXT ROUND \u2014 AI ANALYSIS</span>
               <span className={`pred-status ${predStatus}`}>
-                {predStatus === 'predicting' ? '🔄 Analyzing...' : predStatus === 'done' ? '✅ Ready' : '⏸ Waiting'}
+                {predStatus === 'predicting' ? '\uD83D\uDD04 Analyzing...' : predStatus === 'done' ? '\u2705 Ready' : '\u23F8 Waiting'}
               </span>
             </div>
-
             {prediction && stats ? (
               <>
-                {/* Big cashout recommendation */}
-                <div className="cashout-hero">
-                  <div className="cashout-main">
-                    <div className="cashout-label">🎯 Recommended Cashout</div>
-                    <div className={`cashout-value color-${RISK_COLOR[prediction.risk]}`}>
-                      {stats.suggestedCashout.toFixed(2)}x
+                <div className="risk-conf-row">
+                  <div className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`}>
+                    {RISK_EMOJI[prediction.risk]} {prediction.risk} RISK
+                  </div>
+                  <div className="conf-bar-wrap">
+                    <div className="conf-bar-track">
+                      <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
                     </div>
-                    <div className="cashout-sub">
-                      {stats.suggestedCashoutWinRate}% of past rounds reached this — {prediction.risk} RISK
-                    </div>
-                    
-                    {/* RECOMMENDED STAKE */}
-                    <div className="stake-recommendation">
-                      💰 Recommended Bet: <span className="stake-val">{
-                        prediction.risk === 'HIGH' ? '❌ SKIP (0x)' :
-                        prediction.risk === 'MEDIUM' ? '💵 1.0x Base Stake' :
-                        '🔥 2.0x Base Stake (Calm)'
-                      }</span>
-                    </div>
+                    <span className="conf-label">{prediction.confidence}% confidence</span>
                   </div>
                 </div>
-
-                {/* Three target options */}
+                <div className="pred-summary">{prediction.summary}</div>
                 <div className="cashout-targets">
                   <div className="cashout-target safe">
-                    <div className="ct-label">🛡 Conservative</div>
+                    <div className="ct-label">\uD83D\uDEE1 Conservative</div>
                     <div className="ct-mult">{stats.conservativeCashout.toFixed(2)}x</div>
-                    <div className="ct-pct">{stats.p90SafeCashout >= stats.conservativeCashout ? '~90%' : '~85%'} win rate</div>
+                    <div className="ct-pct">~90% hit rate</div>
                   </div>
                   <div className="cashout-target balanced">
-                    <div className="ct-label">⚖️ Balanced</div>
+                    <div className="ct-label">\u2696\uFE0F Balanced</div>
                     <div className="ct-mult">{stats.p70SafeCashout.toFixed(2)}x</div>
-                    <div className="ct-pct">~70% win rate</div>
+                    <div className="ct-pct">~70% hit rate</div>
                   </div>
                   <div className="cashout-target risk">
-                    <div className="ct-label">🚀 Aggressive</div>
+                    <div className="ct-label">\uD83D\uDE80 Aggressive</div>
                     <div className="ct-mult">{stats.aggressiveCashout.toFixed(2)}x</div>
-                    <div className="ct-pct">~50% win rate</div>
+                    <div className="ct-pct">~50% hit rate</div>
                   </div>
                 </div>
-
-                {/* AI summary */}
-                <div className="pred-summary">{prediction.summary}</div>
-
-                {/* AI Expected Ceiling & Long Targets Forecast */}
                 {prediction.predicted_multiplier !== undefined && (
                   <div className="ai-ceiling-forecast">
-                    <span className="ceiling-label">🔮 AI EXPECTED CEILING</span>
+                    <span className="ceiling-label">\uD83D\uDD2E AI EXPECTED CEILING</span>
                     <span className="ceiling-val">{Number(prediction.predicted_multiplier).toFixed(2)}x</span>
                   </div>
                 )}
-
                 {prediction.long_targets && (
                   <div className="ai-long-forecast">
                     <div className="long-targets-row">
@@ -309,63 +305,49 @@ export default function Dashboard() {
                     </div>
                   </div>
                 )}
-
-                {/* Probability bars */}
                 <div className="pred-bars">
-                  <div className="pred-bar-row">
-                    <span className="pred-bar-label">Under 2x</span>
-                    <div className="pred-bar-track">
-                      <div className="pred-bar-fill red" style={{ width: `${stats.pUnder2}%` }} />
+                  {[
+                    { label: 'Under 2x', pct: stats.pUnder2, cls: 'red' },
+                    { label: '2x \u2013 5x', pct: stats.p2to5, cls: 'yellow' },
+                    { label: 'Over 5x', pct: stats.pOver5, cls: 'green' },
+                  ].map(b => (
+                    <div className="pred-bar-row" key={b.label}>
+                      <span className="pred-bar-label">{b.label}</span>
+                      <div className="pred-bar-track">
+                        <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${b.pct}%` }} />
+                      </div>
+                      <span className={`pred-bar-pct ${b.cls}`}>{b.pct}%</span>
                     </div>
-                    <span className="pred-bar-pct red">{stats.pUnder2}%</span>
-                  </div>
-                  <div className="pred-bar-row">
-                    <span className="pred-bar-label">2x – 5x</span>
-                    <div className="pred-bar-track">
-                      <div className="pred-bar-fill yellow" style={{ width: `${stats.p2to5}%` }} />
-                    </div>
-                    <span className="pred-bar-pct yellow">{stats.p2to5}%</span>
-                  </div>
-                  <div className="pred-bar-row">
-                    <span className="pred-bar-label">Over 5x</span>
-                    <div className="pred-bar-track">
-                      <div className="pred-bar-fill green" style={{ width: `${stats.pOver5}%` }} />
-                    </div>
-                    <span className="pred-bar-pct green">{stats.pOver5}%</span>
-                  </div>
+                  ))}
                 </div>
-
                 <div className="pred-meta">
                   <span>EMA: {stats.ema}x</span>
-                  <span>Streak: {stats.currentLowStreak > 0 ? `🔴 ${stats.currentLowStreak} low` : `🟢 ${stats.currentHighStreak} high`}</span>
-                  <span>Trend: {stats.trend === 'rising' ? '↑ Rising' : stats.trend === 'falling' ? '↓ Falling' : '→ Flat'}</span>
+                  <span>Streak: {stats.currentLowStreak > 0 ? `\uD83D\uDD34 ${stats.currentLowStreak} low` : `\uD83D\uDFE2 ${stats.currentHighStreak} high`}</span>
+                  <span>Trend: {stats.trend === 'rising' ? '\u2191 Rising' : stats.trend === 'falling' ? '\u2193 Falling' : '\u2192 Flat'}</span>
                   <span>Volatility: {stats.volatility}</span>
                 </div>
               </>
             ) : (
               <div className="pred-empty">
-                {isPredicting ? '⏳ Running statistical analysis on last 50 rounds...' : '📡 Start capture to enable predictions'}
+                {isPredicting ? '\u23F3 Running AI analysis...' : '\uD83D\uDCE1 Start capture to enable predictions'}
               </div>
             )}
           </div>
 
-
-          {/* Hero */}
           <div className="hero" ref={heroRef}>
             <div className="hero-label">LAST CRASH</div>
             <div className={`hero-value color-${classifyRisk(lastCrash?.crash_point ?? 0)}`}>
-              {lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '—'}
+              {lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '\u2014'}
             </div>
             {lastCrash && <div className="hero-time">{timeAgo(lastCrash.created_at)}</div>}
           </div>
 
-          {/* Stats Strip */}
           <div className="stat-row">
             {[
-              { icon: '📊', label: 'Avg', value: `${avg}x` },
-              { icon: '📉', label: 'Median', value: `${median}x` },
-              { icon: '🚀', label: 'Highest', value: `${highest}x` },
-              { icon: '⚠️', label: 'Under 2x', value: `${stats?.pUnder2 ?? 0}%`, cls: 'red' },
+              { icon: '\uD83D\uDCCA', label: 'Avg', value: `${avg}x` },
+              { icon: '\uD83D\uDCC9', label: 'Median', value: `${median}x` },
+              { icon: '\uD83D\uDE80', label: 'Highest', value: `${highest}x` },
+              { icon: '\u26A0\uFE0F', label: 'Under 2x', value: `${stats?.pUnder2 ?? 0}%`, cls: 'red' },
             ].map(s => (
               <div key={s.label} className="stat-card">
                 <div className="stat-icon">{s.icon}</div>
@@ -376,23 +358,20 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN — Chart + Feed */}
         <div className="right-col">
-
-          {/* Mini Chart */}
           <div className="panel">
-            <div className="panel-title">📈 Crash History</div>
+            <div className="panel-title">\uD83D\uDCC8 Crash History</div>
             <div className="chart-wrap">
               {rounds.length > 1 && (() => {
                 const pts = [...rounds].reverse().slice(0, 40);
                 const max = Math.max(...pts.map(r => r.crash_point), 5);
                 const W = 400; const H = 140; const PAD = 10;
                 const xStep = (W - PAD * 2) / (pts.length - 1);
-                const points = pts.map((r, i) => {
-                  const x = PAD + i * xStep;
-                  const y = H - PAD - ((r.crash_point / max) * (H - PAD * 2));
-                  return { x, y, v: r.crash_point };
-                });
+                const points = pts.map((r, i) => ({
+                  x: PAD + i * xStep,
+                  y: H - PAD - ((r.crash_point / max) * (H - PAD * 2)),
+                  v: r.crash_point,
+                }));
                 const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
                 return (
                   <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
@@ -402,35 +381,33 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor="#6c63ff" stopOpacity="0" />
                       </linearGradient>
                     </defs>
-                    <polygon points={`${points[0].x},${H} ${polyline} ${points[points.length - 1].x},${H}`}
-                      fill="url(#lineGrad)" />
+                    <polygon points={`${points[0].x},${H} ${polyline} ${points[points.length - 1].x},${H}`} fill="url(#lineGrad)" />
                     <polyline points={polyline} fill="none" stroke="#6c63ff" strokeWidth="2" strokeLinejoin="round" />
                     {points.map((p, i) => (
                       <circle key={i} cx={p.x} cy={p.y} r="3"
                         fill={p.v < 2 ? '#ff4d6d' : p.v < 5 ? '#ffc84a' : '#00e5a0'} />
+                    ))}
+                    {points.filter(p => p.v >= 10).map((p, i) => (
+                      <text key={i} x={p.x} y={p.y - 6} textAnchor="middle" fontSize="8" fill="#a78bfa">\u2605</text>
                     ))}
                   </svg>
                 );
               })()}
             </div>
             <div className="chart-legend">
-              <span className="dot green" /> ≥5x
-              <span className="dot yellow" /> 2–5x
+              <span className="dot green" /> \u22655x
+              <span className="dot yellow" /> 2\u20135x
               <span className="dot red" /> &lt;2x
+              <span style={{ color: '#a78bfa' }}>\u2605</span> \u226510x
             </div>
           </div>
 
-          {/* Target Hit Table */}
           <div className="panel">
-            <div className="panel-title">🎯 Target Hit Rates (Based on {rounds.length} rounds)</div>
+            <div className="panel-title">\uD83C\uDFAF Target Hit Rates ({rounds.length} rounds)</div>
             {stats && stats.count > 0 ? (
               <div className="target-table">
                 <div className="target-table-head">
-                  <span>Target</span>
-                  <span>Hit Rate</span>
-                  <span>Recent 20</span>
-                  <span>Last Hit</span>
-                  <span>Signal</span>
+                  <span>Target</span><span>Hit Rate</span><span>Recent 20</span><span>Last Hit</span><span>Signal</span>
                 </div>
                 {stats.targets.map(t => (
                   <div key={t.target} className={`target-row signal-${t.signal.toLowerCase()}`}>
@@ -442,8 +419,7 @@ export default function Dashboard() {
                       <span className="target-pct">{t.hitRate}%</span>
                     </div>
                     <span className={`target-recent ${t.recentHitRate >= t.hitRate ? 'up' : 'down'}`}>
-                      {t.recentHitRate}%
-                      {t.recentHitRate >= t.hitRate ? ' ↑' : ' ↓'}
+                      {t.recentHitRate}%{t.recentHitRate >= t.hitRate ? ' \u2191' : ' \u2193'}
                     </span>
                     <span className="target-last">
                       {t.lastHitAgo === 0 ? 'Now' : t.lastHitAgo === -1 ? 'Never' : `${t.lastHitAgo}r ago`}
@@ -451,18 +427,15 @@ export default function Dashboard() {
                     <span className={`target-signal ${t.signal.toLowerCase()}`}>{t.signal}</span>
                   </div>
                 ))}
-                <div className="target-footer">
-                  * Based on your captured historical data. Not a prediction of future outcomes.
-                </div>
+                <div className="target-footer">* Based on captured historical data.</div>
               </div>
             ) : (
               <div className="feed-empty">Capture rounds to see target analysis</div>
             )}
           </div>
 
-          {/* Live Feed */}
           <div className="panel feed-panel">
-            <div className="panel-title">⚡ Live Feed</div>
+            <div className="panel-title">\u26A1 Live Feed</div>
             <div className="feed-list">
               {rounds.length === 0
                 ? <div className="feed-empty">Waiting for crash data...</div>
@@ -476,6 +449,7 @@ export default function Dashboard() {
                     <span className={`feed-mult color-${classifyRisk(round.crash_point)}`}>
                       {Number(round.crash_point).toFixed(2)}x
                     </span>
+                    {round.crash_point >= 10 && <span className="feed-mega">\uD83D\uDD25</span>}
                   </div>
                 ))}
             </div>
