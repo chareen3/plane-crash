@@ -92,38 +92,33 @@ export async function GET() {
     let finalCashout   = strategyLabel === 'SKIP' ? 0     : betSignal.cashout_target;
     let aiModelUsed    = 'stats-only';
 
-    // ── PARALLEL: fire AI call at same time we're building response ──
-    // This is the key speed optimization — no sequential waiting
+    // ── Wait for AI prediction ──
     const prompt = buildPrompt(stats, betSignal, timeData);
-    const aiCallPromise = callAI(prompt);
-
-    // Wait for AI with a hard ceiling so we never block the round countdown
-    const aiResponse = await Promise.race([
-      aiCallPromise,
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 4000)), // 4s max
-    ]);
-
-    if (aiResponse) {
-      const { result: ai, model } = aiResponse;
-      aiModelUsed = model;
-
-      // Only override with valid, in-range values
-      if (['LOW','MEDIUM','HIGH'].includes(ai.risk))                              aiRisk = ai.risk;
-      if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = ai.confidence;
-      if (typeof ai.summary === 'string' && ai.summary.length > 5)                aiSummary = ai.summary;
-      if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
-        aiPredMultiplier = ai.cashout_target;
-        finalCashout     = ai.cashout_target;
+    
+    try {
+      const aiResponse = await callAI(prompt);
+      if (aiResponse) {
+        const { result: ai, model } = aiResponse;
+        aiModelUsed = model;
+        
+        if (['LOW','MEDIUM','HIGH'].includes(ai.risk)) aiRisk = ai.risk;
+        if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = ai.confidence;
+        if (typeof ai.summary === 'string' && ai.summary.length > 5) aiSummary = ai.summary;
+        if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
+          aiPredMultiplier = ai.cashout_target;
+          finalCashout = ai.cashout_target;
+        }
+        if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) strategyLabel = ai.strategy;
+        if (typeof ai.should_bet === 'boolean') finalBet = ai.should_bet;
+        if (typeof ai.summary === 'string') {
+          strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.summary;
+        }
       }
-      if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy))  strategyLabel = ai.strategy;
-      if (typeof ai.should_bet === 'boolean')                                      finalBet = ai.should_bet;
-      if (typeof ai.summary === 'string') {
-        strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.summary;
-      }
+    } catch (err) {
+      console.error('[AI CALL] Error:', err);
     }
 
-    // Persist prediction (non-blocking — don't await so response is faster)
-    supabase.from('predictions').insert({
+    const aiPrediction = {
       predicted_risk:       aiRisk,
       confidence:           aiConfidence,
       summary:              aiSummary,
@@ -136,21 +131,14 @@ export async function GET() {
       strategy:             strategyLabel,
       strategy_reason:      strategyReason,
       ai_model_used:        aiModelUsed,
-    }).then(() => {}); // fire-and-forget
+    };
+
+    await supabase.from('predictions').insert(aiPrediction);
 
     return NextResponse.json({
-      risk:                  aiRisk,
-      confidence:            aiConfidence,
-      summary:               aiSummary,
-      predicted_multiplier:  aiPredMultiplier,
-      long_targets:          aiLongTargets,
-      should_bet:            finalBet,
+      ...aiPrediction,
+      risk: aiPrediction.predicted_risk, // map for frontend expectation
       recommended_bet_units: betSignal.recommended_bet_units,
-      skip_reason:           betSignal.skip_reason,
-      strategy:              strategyLabel,
-      cashout_target:        finalCashout,
-      strategy_reason:       strategyReason,
-      ai_model_used:         aiModelUsed,
       stats,
     });
 

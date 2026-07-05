@@ -318,8 +318,8 @@ export default function Dashboard() {
                 {predStatus === 'predicting' ? <><RefreshCw size={12} className="spin" /> Analyzing...</> : predStatus === 'done' ? 'Ready' : 'Waiting'}
               </span>
               {prediction?.ai_model_used && predStatus === 'done' && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: prediction.ai_model_used === 'stats-only' ? '#888' : '#a78bfa', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-                  {prediction.ai_model_used === 'stats-only' ? <><Calculator size={12} /> Stats Engine</> : <><Bot size={12} /> AI + Stats</>}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a78bfa', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                  <Bot size={12} /> AI + Stats
                 </span>
               )}
             </div>
