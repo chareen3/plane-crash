@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crash Auto Collector</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-logo">
+        <span class="logo-icon">📡</span>
+        <div class="header-text">
+          <h1 class="app-title">Crash Auto Collector</h1>
+          <span class="app-subtitle">Data Capture Tool</span>
+        </div>
+      </div>
+      <div class="header-badge">
+        <span id="badge-count" class="badge">0</span>
+      </div>
+    </header>
+
+    <!-- Warning Banner -->
+    <div class="warning-banner">
+      <span class="warning-icon">⚠️</span>
+      <p class="warning-text">
+        Collects <strong>on-screen / page-level data only</strong> for research &amp; analytics. Does <strong>not</strong> predict outcomes.
+      </p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="status-card">
+      <div class="status-row">
+        <div class="status-indicator-wrap">
+          <span id="status-dot" class="status-dot idle"></span>
+          <span id="status-text" class="status-text">Idle</span>
+        </div>
+        <span id="session-timer" class="session-timer">00:00:00</span>
+      </div>
+      <div class="divider"></div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-label">Total Rounds</span>
+          <span id="stat-rounds" class="stat-value">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Last Multiplier</span>
+          <span id="stat-multiplier" class="stat-value">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Events Captured</span>
+          <span id="stat-events" class="stat-value">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Data Size</span>
+          <span id="stat-size" class="stat-value">0 B</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button id="btn-start" class="btn btn-start" title="Begin automatic data capture from the active crash game tab">
+        <span class="btn-icon">▶</span>
+        <span>Start Auto Capture</span>
+      </button>
+      <button id="btn-stop" class="btn btn-stop" disabled title="Stop data capture">
+        <span class="btn-icon">■</span>
+        <span>Stop Capture</span>
+      </button>
+    </div>
+
+    <div class="controls secondary">
+      <button id="btn-export" class="btn btn-export" title="Export collected data as a JSON file">
+        <span class="btn-icon">⬇</span>
+        <span>Export JSON</span>
+      </button>
+      <button id="btn-clear" class="btn btn-clear" title="Clear all stored data (cannot be undone)">
+        <span class="btn-icon">🗑</span>
+        <span>Clear Data</span>
+      </button>
+    </div>
+
+    <!-- Live Feed -->
+    <div class="feed-section">
+      <div class="feed-header">
+        <span class="feed-title">Live Feed</span>
+        <span id="feed-count" class="feed-badge">0 events</span>
+      </div>
+      <div id="live-feed" class="live-feed">
+        <p class="feed-empty">No events yet. Start capture to begin collecting data.</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>v1.0.0 · For analytics only</span>
+      <button id="btn-debug" class="debug-toggle" title="Toggle debug mode">Debug</button>
+    </footer>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
