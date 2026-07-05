@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     const formattedRounds = rounds.map(r => ({
       round_number: r.id, // extension uses 'id' for round number
       crash_point: r.crashPoint,
+      created_at: r.crashTime || new Date().toISOString()
     }));
 
     const { data: insertedData, error } = await supabase

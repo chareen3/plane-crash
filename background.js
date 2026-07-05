@@ -213,7 +213,8 @@ async function postToDashboard(events) {
 
     const payload = completedRounds.map(e => ({
       id: e.roundIndex !== null ? String(e.roundIndex) : e.id, // Use roundIndex if available, otherwise id
-      crashPoint: e.multiplier
+      crashPoint: e.multiplier,
+      crashTime: e.capturedAt
     }));
 
     await fetch('http://localhost:3000/api/rounds', {
@@ -596,6 +597,23 @@ chrome.storage.local.get(STORAGE_KEYS.STATS).then(data => {
   if (stats) {
     Object.assign(state.stats, stats);
     updateBadge(stats.totalEvents || 0);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Inject Draggable Widget on Extension Icon Click
+// ---------------------------------------------------------------------------
+chrome.action.onClicked.addListener(async (tab) => {
+  if (tab && tab.id) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['widget.js']
+      });
+      log('Injected widget.js into tab', tab.id);
+    } catch (e) {
+      warn('Failed to inject widget.js:', e);
+    }
   }
 });
 

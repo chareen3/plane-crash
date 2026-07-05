@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Crash Auto Collector</title>
+  <title>Crash Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -11,93 +13,96 @@
 
     <!-- Header -->
     <header class="header">
-      <div class="header-logo">
-        <span class="logo-icon">📡</span>
-        <div class="header-text">
-          <h1 class="app-title">Crash Auto Collector</h1>
-          <span class="app-subtitle">Data Capture Tool</span>
+      <div class="header-left">
+        <div class="logo-ring">
+          <span class="logo-icon">✈</span>
+        </div>
+        <div>
+          <h1 class="app-title">Crash Tracker</h1>
+          <span class="app-subtitle">Live Data Capture</span>
         </div>
       </div>
-      <div class="header-badge">
-        <span id="badge-count" class="badge">0</span>
+      <div class="header-right">
+        <div id="status-pill" class="status-pill idle">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="status-text">Idle</span>
+        </div>
       </div>
     </header>
 
-    <!-- Warning Banner -->
-    <div class="warning-banner">
-      <span class="warning-icon">⚠️</span>
-      <p class="warning-text">
-        Collects <strong>on-screen / page-level data only</strong> for research &amp; analytics. Does <strong>not</strong> predict outcomes.
-      </p>
+    <!-- Big Last Crash Multiplier Hero -->
+    <div class="hero-card">
+      <div class="hero-label">Last Crash</div>
+      <div id="hero-multiplier" class="hero-value">—</div>
+      <div id="hero-time" class="hero-time">Waiting for crash...</div>
     </div>
 
-    <!-- Status Card -->
-    <div class="status-card">
-      <div class="status-row">
-        <div class="status-indicator-wrap">
-          <span id="status-dot" class="status-dot idle"></span>
-          <span id="status-text" class="status-text">Idle</span>
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-pill">
+        <span class="stat-icon">🎯</span>
+        <div>
+          <div class="stat-pill-label">Rounds</div>
+          <div id="stat-rounds" class="stat-pill-value">0</div>
         </div>
-        <span id="session-timer" class="session-timer">00:00:00</span>
       </div>
-      <div class="divider"></div>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <span class="stat-label">Total Rounds</span>
-          <span id="stat-rounds" class="stat-value">0</span>
+      <div class="stat-pill">
+        <span class="stat-icon">⚡</span>
+        <div>
+          <div class="stat-pill-label">Events</div>
+          <div id="stat-events" class="stat-pill-value">0</div>
         </div>
-        <div class="stat-item">
-          <span class="stat-label">Last Multiplier</span>
-          <span id="stat-multiplier" class="stat-value">—</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Events Captured</span>
-          <span id="stat-events" class="stat-value">0</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Data Size</span>
-          <span id="stat-size" class="stat-value">0 B</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-icon">⏱</span>
+        <div>
+          <div class="stat-pill-label">Session</div>
+          <div id="session-timer" class="stat-pill-value mono">00:00</div>
         </div>
       </div>
     </div>
 
-    <!-- Controls -->
-    <div class="controls">
-      <button id="btn-start" class="btn btn-start" title="Begin automatic data capture from the active crash game tab">
-        <span class="btn-icon">▶</span>
-        <span>Start Auto Capture</span>
+    <!-- Main Controls -->
+    <div class="controls-main">
+      <button id="btn-start" class="btn btn-start">
+        <span>▶</span> Start Capture
       </button>
-      <button id="btn-stop" class="btn btn-stop" disabled title="Stop data capture">
-        <span class="btn-icon">■</span>
-        <span>Stop Capture</span>
+      <button id="btn-stop" class="btn btn-stop" disabled>
+        <span>■</span> Stop
       </button>
     </div>
 
-    <div class="controls secondary">
-      <button id="btn-export" class="btn btn-export" title="Export collected data as a JSON file">
-        <span class="btn-icon">⬇</span>
-        <span>Export JSON</span>
+    <!-- Secondary Controls -->
+    <div class="controls-secondary">
+      <button id="btn-export" class="btn-icon-only" title="Export JSON">
+        <span>⬇</span>
       </button>
-      <button id="btn-clear" class="btn btn-clear" title="Clear all stored data (cannot be undone)">
-        <span class="btn-icon">🗑</span>
-        <span>Clear Data</span>
-
+      <button id="btn-clear" class="btn-icon-only danger" title="Clear Data">
+        <span>🗑</span>
+      </button>
+      <button id="btn-debug" class="btn-icon-only" title="Debug Mode">
+        <span>🐛</span>
+      </button>
+      <span id="badge-count" class="events-badge">0</span>
+    </div>
 
     <!-- Live Feed -->
     <div class="feed-section">
       <div class="feed-header">
-        <span class="feed-title">Live Feed</span>
-        <span id="feed-count" class="feed-badge">0 events</span>
+        <span>Live Feed</span>
+        <span id="feed-count" class="feed-count">0 events</span>
       </div>
       <div id="live-feed" class="live-feed">
-        <p class="feed-empty">No events yet. Start capture to begin collecting data.</p>
+        <div class="feed-empty">
+          <div class="feed-empty-icon">📡</div>
+          <p>Start capture to see live events</p>
+        </div>
       </div>
     </div>
 
     <!-- Footer -->
     <footer class="footer">
-      <span>v1.0.0 · For analytics only</span>
-      <button id="btn-debug" class="debug-toggle" title="Toggle debug mode">Debug</button>
+      <span>v1.0.0 · Analytics only · No predictions</span>
     </footer>
 
   </div>

@@ -18,12 +18,13 @@ const $ = id => document.getElementById(id);
 const els = {
   statusDot:       $('status-dot'),
   statusText:      $('status-text'),
+  statusPill:      $('status-pill'),
   sessionTimer:    $('session-timer'),
   statRounds:      $('stat-rounds'),
-  statMultiplier:  $('stat-multiplier'),
   statEvents:      $('stat-events'),
-  statSize:        $('stat-size'),
   badgeCount:      $('badge-count'),
+  heroMultiplier:  $('hero-multiplier'),
+  heroTime:        $('hero-time'),
   btnStart:        $('btn-start'),
   btnStop:         $('btn-stop'),
   btnExport:       $('btn-export'),
@@ -98,13 +99,13 @@ function stopTimer() {
 
 function setCapturing(isCapturing, sessionStart) {
   if (isCapturing) {
-    els.statusDot.className = 'status-dot active';
-    els.statusText.textContent = 'Capturing';
+    els.statusPill.className = 'status-pill active';
+    els.statusText.textContent = 'Live';
     els.btnStart.disabled = true;
     els.btnStop.disabled = false;
     if (sessionStart) startTimer(sessionStart);
   } else {
-    els.statusDot.className = 'status-dot idle';
+    els.statusPill.className = 'status-pill idle';
     els.statusText.textContent = 'Idle';
     els.btnStart.disabled = false;
     els.btnStop.disabled = true;
@@ -114,11 +115,19 @@ function setCapturing(isCapturing, sessionStart) {
 
 function updateStats(stats) {
   if (!stats) return;
-  els.statRounds.textContent      = stats.rounds ?? 0;
-  els.statMultiplier.textContent  = stats.lastMultiplier ?? '—';
-  els.statEvents.textContent      = stats.totalEvents ?? 0;
-  els.statSize.textContent        = formatBytes(stats.storedBytes ?? 0);
-  els.badgeCount.textContent      = stats.totalEvents ?? 0;
+  els.statRounds.textContent  = stats.rounds ?? 0;
+  els.statEvents.textContent  = stats.totalEvents ?? 0;
+  els.badgeCount.textContent  = stats.totalEvents ?? 0;
+
+  // Update hero multiplier if we have a last crash value
+  if (stats.lastMultiplier && stats.lastMultiplier !== '—') {
+    const val = parseFloat(stats.lastMultiplier);
+    els.heroMultiplier.textContent = isNaN(val) ? stats.lastMultiplier : val.toFixed(2) + 'x';
+    els.heroMultiplier.className = 'hero-value crashed';
+    // Remove animation class after it plays
+    setTimeout(() => { els.heroMultiplier.classList.remove('crashed'); }, 600);
+    els.heroTime.textContent = 'Crashed at ' + new Date().toLocaleTimeString();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -130,27 +139,32 @@ function addFeedEntry(event) {
   const empty = els.liveFeed.querySelector('.feed-empty');
   if (empty) empty.remove();
 
+  const isResult = event.eventType === 'round_result';
   const entry = document.createElement('div');
-  entry.className = `feed-entry type-${(event.eventType || 'unknown').replace(/_/g, '-')}`;
+  entry.className = `feed-entry${isResult ? ' result' : ''}`;
 
   const timeStr = new Date(event.capturedAt || Date.now())
     .toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-  // Build a short human-readable detail string
-  let detail = '';
-  if (event.multiplierText) detail += `×${event.multiplierText} `;
-  if (event.roundState)     detail += `[${event.roundState}] `;
-  if (event.currentTimer)   detail += `⏱${event.currentTimer} `;
-  if (event.historyValues?.length) detail += `history:${event.historyValues.slice(-3).join(',')}`;
-  if (!detail.trim() && event.rawTextSample) detail = event.rawTextSample.slice(0, 40);
-  if (!detail.trim()) detail = event.eventType || 'event';
+  const multVal = event.multiplier ?? null;
+  const multDisplay = multVal ? multVal.toFixed(2) + 'x' : (event.multiplierText || '—');
+
+  // Colour code multiplier
+  let multClass = '';
+  if (multVal !== null) {
+    if (multVal < 1.5) multClass = 'low';
+    else if (multVal >= 5) multClass = 'high';
+  }
+
+  const typeLabel = isResult ? '💥 Crash' : (event.eventType || 'event').replace(/_/g, ' ');
 
   entry.innerHTML = `
-    <span class="feed-entry-time">${timeStr}</span>
-    <div class="feed-entry-content">
-      <div class="feed-entry-type">${event.eventType || 'unknown'}</div>
-      <div class="feed-entry-detail" title="${detail.trim()}">${detail.trim()}</div>
+    <span class="entry-multiplier ${multClass}">${isResult ? multDisplay : '·'}</span>
+    <div class="entry-info">
+      <div class="entry-type">${typeLabel}</div>
+      <div class="entry-time">${timeStr}</div>
     </div>
+    <span class="entry-dot"></span>
   `;
 
   // Prepend newest at top
@@ -258,11 +272,16 @@ els.btnClear.addEventListener('click', async () => {
   try {
     const resp = await sendMessage({ type: 'CLEAR_DATA' });
     if (resp && resp.success) {
-      // Reset UI
       feedEntries = [];
-      els.liveFeed.innerHTML = '<p class="feed-empty">No events yet. Start capture to begin collecting data.</p>';
+      els.liveFeed.innerHTML = `
+        <div class="feed-empty">
+          <div class="feed-empty-icon">📡</div>
+          <p>Start capture to see live events</p>
+        </div>`;
       els.feedCount.textContent = '0 events';
-      updateStats({ rounds: 0, lastMultiplier: '—', totalEvents: 0, storedBytes: 0 });
+      updateStats({ rounds: 0, totalEvents: 0, storedBytes: 0 });
+      els.heroMultiplier.textContent = '—';
+      els.heroTime.textContent = 'Waiting for crash...';
     }
   } catch (e) {
     console.error('[CAC Popup] clear error:', e);

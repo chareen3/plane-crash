@@ -149,6 +149,8 @@ const cState = {
   retryTimer:     null,
   buffer:         [],
   lastMultiplier: null,
+  lastMultiplierTime: 0,
+  crashDetectorTimer: null,
   lastTimer:      null,
   lastRoundState: null,
   lastHistoryLen: 0,
@@ -306,6 +308,7 @@ function captureMultiplierTick() {
   const prevNum = parseMultiplier(cState.lastMultiplier);
   
   cState.lastMultiplier = text;
+  cState.lastMultiplierTime = Date.now(); // Mark time of change
   const mEl = queryFirst(SELECTORS.MULTIPLIER);
 
   // If the new multiplier is smaller than the previous one, the previous round just ended!
@@ -638,6 +641,30 @@ function startCollection(config = {}) {
 
   // Periodic flush to background
   cState.flushTimer = setInterval(flushToBackground, 3000);
+
+  // Crash staleness detector (if multiplier stops moving for >2s, assume crash)
+  cState.crashDetectorTimer = setInterval(() => {
+    if (!cState.lastMultiplierTime || !cState.lastMultiplier) return;
+    
+    const numVal = parseMultiplier(cState.lastMultiplier);
+    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 2000)) {
+      cState.roundIndex++;
+      const mEl = queryFirst(SELECTORS.MULTIPLIER);
+      const event = makeBaseEvent({
+        eventType:      'round_result',
+        source:         'staleness_detector',
+        multiplierText: String(numVal) + 'x',
+        multiplier:     numVal,
+        domPath:        getDomPath(mEl),
+      });
+      enqueueEvent(event);
+      log('Staleness crash detected:', numVal);
+      
+      // Reset so it doesn't fire twice for the same pause
+      cState.lastMultiplierTime = 0;
+      cState.lastMultiplier = null;
+    }
+  }, 1000);
 }
 
 function stopCollection() {
@@ -648,13 +675,19 @@ function stopCollection() {
     cState.observer.disconnect();
     cState.observer = null;
   }
-
-  clearInterval(cState.flushTimer);
-  clearTimeout(cState.retryTimer);
-  clearTimeout(snapshotTimer);
-
-  // Final flush
-  flushToBackground();
+  if (cState.flushTimer) {
+    clearInterval(cState.flushTimer);
+    cState.flushTimer = null;
+  }
+  if (cState.crashDetectorTimer) {
+    clearInterval(cState.crashDetectorTimer);
+    cState.crashDetectorTimer = null;
+  }
+  if (cState.retryTimer) {
+    clearTimeout(cState.retryTimer);
+    cState.retryTimer = null;
+  }
+  cState.buffer = [];
 }
 
 // ---------------------------------------------------------------------------
