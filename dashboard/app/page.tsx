@@ -110,7 +110,11 @@ export default function Dashboard() {
     if (res.ok) { const d = await res.json(); setWinRate(d); }
   }, []);
 
+  const isPredictingRef = useRef(false);
+
   const runPrediction = useCallback(async () => {
+    if (isPredictingRef.current) return; // prevent double-fire
+    isPredictingRef.current = true;
     setPredStatus('predicting');
     setIsPredicting(true);
     try {
@@ -121,7 +125,7 @@ export default function Dashboard() {
         else setPredStatus('idle');
       }
     } catch { setPredStatus('idle'); }
-    finally { setIsPredicting(false); }
+    finally { setIsPredicting(false); isPredictingRef.current = false; }
   }, []);
 
   useEffect(() => {
@@ -292,14 +296,20 @@ export default function Dashboard() {
                 </div>
               </>
             ) : (
-              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px', textAlign: 'left' }}>
-                <div className="bsb-cashout-label">EST. LOSS AVOIDED</div>
-                <div className="bsb-cashout-val" style={{ color: '#ff4d6d', fontWeight: '900' }}>
-                  +{CURRENCIES[currency].symbol}
-                  {CURRENCIES[currency].minBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div className="blink" style={{ background: 'rgba(255, 77, 109, 0.15)', border: '1px solid #ff4d6d', borderRadius: '8px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertTriangle size={14} color="#ff4d6d" />
+                  <span style={{ color: '#ff4d6d', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}>DANGER ZONE: DO NOT BET</span>
                 </div>
-                <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>
-                  AVOIDED RISK
+                <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px', textAlign: 'left' }}>
+                  <div className="bsb-cashout-label">EST. LOSS AVOIDED</div>
+                  <div className="bsb-cashout-val" style={{ color: '#ff4d6d', fontWeight: '900' }}>
+                    +{CURRENCIES[currency].symbol}
+                    {CURRENCIES[currency].minBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>
+                    AVOIDED RISK
+                  </div>
                 </div>
               </div>
             )}
@@ -314,21 +324,23 @@ export default function Dashboard() {
           <div className={`pred-panel ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
             <div className="pred-header">
               <span className="pred-title">NEXT ROUND — AI + STATISTICAL ANALYSIS</span>
-              <span className={`pred-status ${predStatus}`}>
-                {predStatus === 'predicting' ? <><RefreshCw size={12} className="spin" /> Analyzing...</> : predStatus === 'done' ? 'Ready' : 'Waiting'}
+              <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                {predStatus === 'predicting' ? <><RefreshCw size={12} className="spin" /> Analyzing...</> : predStatus === 'done' ? <><CheckCircle2 size={12} /> Ready</> : 'Waiting'}
               </span>
-              {prediction?.ai_model_used && predStatus === 'done' && (
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a78bfa', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-                  <Bot size={12} /> AI + Stats
-                </span>
-              )}
             </div>
+            {prediction?.ai_model_used && predStatus === 'done' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 12px', fontSize: '11px' }}>
+                  {RISK_EMOJI[prediction.risk]} {prediction.risk} RISK
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a78bfa', fontWeight: '700', background: 'rgba(167,139,250,0.1)', padding: '4px 10px', borderRadius: '20px' }}>
+                  <Bot size={11} /> AI + Stats
+                </span>
+              </div>
+            )}
             {prediction && stats ? (
               <>
                 <div className="risk-conf-row">
-                  <div className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`}>
-                    {RISK_EMOJI[prediction.risk]} {prediction.risk} RISK
-                  </div>
                   <div className="conf-bar-wrap">
                     <div className="conf-bar-track">
                       <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
@@ -339,19 +351,19 @@ export default function Dashboard() {
                 <div className="pred-summary">{prediction.summary}</div>
                 <div className="cashout-targets">
                   <div className="cashout-target safe">
-                    <div className="ct-label">\uD83D\uDEE1 Conservative</div>
+                    <div className="ct-label"><ShieldCheck size={13} /> Conservative</div>
                     <div className="ct-mult">{stats.conservativeCashout.toFixed(2)}x</div>
                     <div className="ct-pct">~90% hit rate</div>
                   </div>
                   <div className="cashout-target balanced">
-                    <div className="ct-label">\u2696\uFE0F Balanced</div>
+                    <div className="ct-label"><Scale size={13} /> Balanced</div>
                     <div className="ct-mult">{stats.p70SafeCashout.toFixed(2)}x</div>
                     <div className="ct-pct">~70% hit rate</div>
                   </div>
                   <div className="cashout-target risk">
-                    <div className="ct-label">\uD83D\uDE80 Aggressive</div>
-                    <div className="ct-mult">{stats.aggressiveCashout.toFixed(2)}x</div>
-                    <div className="ct-pct">~50% hit rate</div>
+                    <div className="ct-label"><Zap size={13} /> Aggressive</div>
+                    <div className="ct-mult">{(prediction.cashout_target ?? 0) >= 3 ? (prediction.cashout_target ?? 0).toFixed(2) : stats.aggressiveCashout.toFixed(2)}x</div>
+                    <div className="ct-pct">AI Target</div>
                   </div>
                 </div>
                 {stats.p90SafeCashout !== undefined && (

@@ -285,31 +285,61 @@ export function computeBetSignal(stats: CrashStats): {
 } {
   const reasons: string[] = [];
 
-  if (stats.currentLowStreak >= 4) reasons.push(`${stats.currentLowStreak} consecutive <2x rounds`);
-  if (stats.riskScore >= 72) reasons.push(`risk score ${stats.riskScore}/100`);
-  if (stats.trend === 'falling' && stats.recentMean < 1.8) reasons.push('falling trend below 1.8x avg');
-  if (stats.pUnder2 > 62) reasons.push(`${stats.pUnder2}% chance under 2x`);
+  // 1. Aggressive Skip Rules (triggers on 4+ low streak)
+  if (stats.currentLowStreak >= 4) {
+    reasons.push(`${stats.currentLowStreak} consecutive <2x rounds (streak threshold met)`);
+  }
+  if (stats.riskScore >= 72) {
+    reasons.push(`risk score is high (${stats.riskScore}/100)`);
+  }
+  if (stats.trend === 'falling' && stats.recentMean < 1.8) {
+    reasons.push('falling trend with recent mean below 1.8x');
+  }
+  if (stats.pUnder2 > 62) {
+    reasons.push(`high density of low crashes (${stats.pUnder2}% under 2x)`);
+  }
 
   if (reasons.length > 0) {
-    return { should_bet: false, skip_reason: reasons.join(' · '), strategy: 'SKIP', cashout_target: 0, recommended_bet_units: 0 };
+    return { 
+      should_bet: false, 
+      skip_reason: reasons.join(' · '), 
+      strategy: 'SKIP', 
+      cashout_target: 0, 
+      recommended_bet_units: 0 
+    };
   }
 
+  // 2. Default is CONSERVATIVE (1.05 - 1.19x cashout, backed by 70%+ hit rate)
   let strategy = 'CONSERVATIVE';
-  let cashout_target = stats.p99SafeCashout;
-  let recommended_bet_units = 1;
+  // Use p70SafeCashout (ensuring 70%+ hit rate) and clamp between 1.05x and 1.19x
+  let cashout_target = Math.max(1.05, Math.min(1.19, stats.p70SafeCashout));
+  let recommended_bet_units = 1.0;
 
-  if (stats.currentHighStreak >= 3 && stats.trend === 'rising') {
-    strategy = 'AGGRESSIVE';
-    cashout_target = stats.p80SafeCashout;
-    recommended_bet_units = 0.5; // lower bet on higher risk
-  } else if (stats.riskScore < 35 && stats.trend !== 'falling') {
+  // 3. BALANCED Strategy (moderate risk, targets 1.20 - 1.99x)
+  if (stats.riskScore < 50 && stats.ema >= 1.8 && stats.trend !== 'falling') {
     strategy = 'BALANCED';
-    cashout_target = stats.p90SafeCashout;
-    recommended_bet_units = 0.75;
+    cashout_target = Math.max(1.20, Math.min(1.99, stats.p60SafeCashout));
+    recommended_bet_units = 0.8;
   }
 
-  // Enforce a hard minimum on cashout target
-  cashout_target = Math.max(1.05, cashout_target);
+  // 4. AGGRESSIVE Strategy (requires ALL conditions: riskScore <= 40, EMA >= 2.5x, trend is rising, high streak >= 3)
+  if (
+    stats.riskScore <= 40 && 
+    stats.ema >= 2.5 && 
+    stats.trend === 'rising' && 
+    stats.currentHighStreak >= 3
+  ) {
+    strategy = 'AGGRESSIVE';
+    cashout_target = Math.max(2.50, stats.p50SafeCashout); // Target >= 2.50x based on median/hit rates
+    recommended_bet_units = 0.5;
+  }
+
+  // Double check target hit rate is supported by actual stats
+  const targetLvl = stats.targets?.find(t => Math.abs(t.target - Math.round(cashout_target)) <= 0.5);
+  if (targetLvl && targetLvl.hitRate < 20 && strategy === 'AGGRESSIVE') {
+    // downgrade target if stats don't support it
+    cashout_target = 2.0;
+  }
 
   return { should_bet: true, skip_reason: null, strategy, cashout_target, recommended_bet_units };
 }

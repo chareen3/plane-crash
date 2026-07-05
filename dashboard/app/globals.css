@@ -587,6 +587,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: nowrap;
 }
 
 .pred-title {
@@ -627,6 +630,10 @@ body {
   50% {
     opacity: 0.4;
   }
+}
+
+.blink {
+  animation: blink 1.5s infinite ease-in-out;
 }
 
 .pred-risk-row {

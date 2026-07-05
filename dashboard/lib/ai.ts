@@ -54,29 +54,29 @@ export function buildPrompt(stats: any, betSignal: any, timeData: {
     timeData.peakHours.find((h: any) => h.hour === timeData.currentUTCHour) ??
     { label: 'Unknown', tag: 'NORM', score: 50, note: 'No data' };
 
-  return `You are an expert crash game AI analyst for a 1xBet Aviator-style game.
-Analyze using BOTH time-based data AND statistical history, then decide:
-- Whether to bet or skip.
-- Whether to stay in the low cash-out zone (1.05-1.20x) or go higher (>=1.50x).
-- How much stake to use (very small, small, medium; never large).
+  return `You are a senior crash game quant analyst for 1xBet Aviator. Your signals are trusted by paying users who need accurate WINS. Users lose money if you predict wrong. Be rigorous.
 
-=== ROUND STATS (${stats.count} total rounds in DB) ===
+=== FULL DATABASE STATS (${stats.count} rounds analyzed) ===
 mean: ${stats.mean?.toFixed(3)}x | median: ${stats.median?.toFixed(3)}x | stdDev: ${stats.stdDev?.toFixed(3)}
 riskScore: ${stats.riskScore}/100 | riskLabel: ${stats.riskLabel}
-lowStreak: ${stats.currentLowStreak} | highStreak: ${stats.currentHighStreak ?? 0}
-trend: ${stats.trend} | EMA: ${stats.ema?.toFixed(3)}x
-p99SafeCashout: ${stats.p99SafeCashout?.toFixed(2)}x | p90SafeCashout: ${stats.p90SafeCashout?.toFixed(2)}x
+currentLowStreak: ${stats.currentLowStreak} | currentHighStreak: ${stats.currentHighStreak ?? 0} | longestLowStreak: ${stats.longestLowStreak}
+trend (last 20 vs prior): ${stats.trend} | EMA: ${stats.ema?.toFixed(3)}x | recentMean: ${stats.recentMean?.toFixed(3)}x | olderMean: ${stats.olderMean?.toFixed(3)}x
+volatility: ${stats.volatility}
+pUnder2: ${stats.pUnder2}% | p2to5: ${stats.p2to5}% | pOver5: ${stats.pOver5}%
+p99SafeCashout: ${stats.p99SafeCashout?.toFixed(2)}x | p95SafeCashout: ${stats.p95SafeCashout?.toFixed(2)}x | p90SafeCashout: ${stats.p90SafeCashout?.toFixed(2)}x
+p80: ${stats.p80SafeCashout?.toFixed(2)}x | p70: ${stats.p70SafeCashout?.toFixed(2)}x | p60: ${stats.p60SafeCashout?.toFixed(2)}x | p50: ${stats.p50SafeCashout?.toFixed(2)}x
+conservativeCashout: ${stats.conservativeCashout?.toFixed(2)}x | aggressiveCashout: ${stats.aggressiveCashout?.toFixed(2)}x
 
-=== LOW ZONE (1.05-1.20x) ===
-1.05x: ${t105?.hitRate?.toFixed(1) ?? '?'}% hit (last ${t105?.lastHitAgo ?? '?'} rounds ago) | longestGap: ${t105?.longestGap ?? '?'}
-1.10x: ${t110?.hitRate?.toFixed(1) ?? '?'}% hit (last ${t110?.lastHitAgo ?? '?'} rounds ago) | longestGap: ${t110?.longestGap ?? '?'}
-1.18x: ${t118?.hitRate?.toFixed(1) ?? '?'}% hit (last ${t118?.lastHitAgo ?? '?'} rounds ago)
-1.20x: ${t120?.hitRate?.toFixed(1) ?? '?'}% hit (last ${t120?.lastHitAgo ?? '?'} rounds ago)
-
-=== HIGHER TARGETS ===
-1.50x: ${t150?.hitRate?.toFixed(1) ?? '?'}% | 2.00x: ${t200?.hitRate?.toFixed(1) ?? '?'}% | 3.00x: ${t300?.hitRate?.toFixed(1) ?? '?'}%
-5.00x: ${t500?.hitRate?.toFixed(1) ?? '?'}% (last ${t500?.lastHitAgo ?? '?'} rounds ago)
-10.0x: ${t1000?.hitRate?.toFixed(1) ?? '?'}% (last ${t1000?.lastHitAgo ?? '?'} rounds ago)
+=== DETAILED TARGET HIT RATES ===
+1.05x: ${t105?.hitRate?.toFixed(1) ?? '?'}% overall | ${t105?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t105?.lastHitAgo ?? '?'} | longestGap: ${t105?.longestGap ?? '?'}
+1.10x: ${t110?.hitRate?.toFixed(1) ?? '?'}% overall | ${t110?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t110?.lastHitAgo ?? '?'} | longestGap: ${t110?.longestGap ?? '?'}
+1.18x: ${t118?.hitRate?.toFixed(1) ?? '?'}% overall | ${t118?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t118?.lastHitAgo ?? '?'}
+1.20x: ${t120?.hitRate?.toFixed(1) ?? '?'}% overall | ${t120?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t120?.lastHitAgo ?? '?'}
+1.50x: ${t150?.hitRate?.toFixed(1) ?? '?'}% overall | ${t150?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t150?.lastHitAgo ?? '?'}
+2.00x: ${t200?.hitRate?.toFixed(1) ?? '?'}% overall | ${t200?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t200?.lastHitAgo ?? '?'} | longestGap: ${t200?.longestGap ?? '?'}
+3.00x: ${t300?.hitRate?.toFixed(1) ?? '?'}% overall | ${t300?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t300?.lastHitAgo ?? '?'} | longestGap: ${t300?.longestGap ?? '?'}
+5.00x: ${t500?.hitRate?.toFixed(1) ?? '?'}% | lastHitAgo: ${t500?.lastHitAgo ?? '?'} | longestGap: ${t500?.longestGap ?? '?'}
+10.0x: ${t1000?.hitRate?.toFixed(1) ?? '?'}% | lastHitAgo: ${t1000?.lastHitAgo ?? '?'}
 
 === BACKEND SIGNAL ===
 baseShouldBet: ${betSignal.should_bet} | baseStrategy: ${betSignal.strategy}
@@ -86,18 +86,34 @@ baseCashoutTarget: ${betSignal.cashout_target} | skipReason: ${betSignal.skip_re
 UTC Hour: ${timeData.currentUTCHour} (${nowPeak.label}) | Local: ${timeData.currentLocalHour} ${timeData.currentAMPM}
 peakTag: ${nowPeak.tag} | peakScore: ${nowPeak.score}/100 | note: ${nowPeak.note}
 
-=== RULES ===
-1. If riskScore >= 80 AND EMA < 1.5x -> strictly SKIP.
-2. If riskScore >= 80 BUT EMA >= 2.0x (High Volatility/Hot Streak) -> Recommend CONSERVATIVE (1.05-1.15x) instead of SKIP, as momentum exists.
-3. If hitRate for 1.20x >= 75%, prioritize BALANCED strategy at 1.20x-1.49x.
-4. If riskScore <= 55 AND EMA >= 1.8x -> Confidently recommend AGGRESSIVE with a minimum target of 3.00x.
-5. If hitRate(3.00x) >= 20% -> Confidently recommend AGGRESSIVE with target >= 3.00x to catch the deep run.
-6. 5-10x targets: allowed when EMA > 2.5x and trend is rising, justify explicitly.
-7. Ensure cashout_target perfectly matches the strategy: CONSERVATIVE (<1.20x), BALANCED (1.20x-2.99x), AGGRESSIVE (>=3.00x).
+=== DECISION RULES ===
 
-Return EXACTLY this JSON (no other text):
-{"risk":"LOW|MEDIUM|HIGH","confidence":0-100,"should_bet":true|false,"strategy":"CONSERVATIVE|BALANCED|AGGRESSIVE|SKIP","cashout_target":1.10,"low_zone_target":1.10,"high_zone_target":null,"recommended_stake_pct":1-5,"summary":"2-3 sentences on time+risk+why"}`;
+SKIP RULES (prioritize safety):
+- SKIP if currentLowStreak >= 4 (triggers on 4+ low streak instead of 5+)
+- SKIP if riskScore >= 72
+- SKIP if trend is falling AND recentMean < 1.8x
+- SKIP if pUnder2 > 62%
+- When in doubt or signal matches skip parameters, output SKIP.
+
+CONSERVATIVE (DEFAULT strategy, safe 1.05-1.19x cashout):
+- Use as the default betting strategy for safety.
+- Choose a cashout target strictly between 1.05x and 1.19x.
+- Target must be backed by actual hit rate data (minimum 70%+ hit rate for safety, no guessing!).
+
+BALANCED (moderate strategy, cashout 1.20-1.99x):
+- Use when riskScore < 50 AND EMA >= 1.8x AND trend is NOT falling.
+- cashout_target: pick a target with >= 60% hit rate.
+
+AGGRESSIVE (high reward strategy, cashout >= 2.50x):
+- ONLY recommend if ALL conditions are met: riskScore <= 40 AND EMA >= 2.5x AND trend is rising AND currentHighStreak >= 3. (If even one condition is missing, downgrade to BALANCED or CONSERVATIVE).
+- cashout_target: backed by actual stats (minimum 20%+ hit rate).
+
+GOLDEN RULE: Every cashout target must be backed by actual hit rate data from the stats section. Never guess targets. Minimum hit rate requirements: CONSERVATIVE (70%+), BALANCED (60%+), AGGRESSIVE (20%+).
+
+Return EXACTLY this JSON (no other text, no markdown):
+{"risk":"LOW|MEDIUM|HIGH","confidence":0-100,"should_bet":true|false,"strategy":"CONSERVATIVE|BALANCED|AGGRESSIVE|SKIP","cashout_target":1.10,"summary":"2 sentences: what pattern you see and why this target"}`;
 }
+
 
 export async function callAI(prompt: string): Promise<{ result: any; model: string } | null> {
   if (!process.env.OPENROUTER_API_KEY) return null;
@@ -105,7 +121,7 @@ export async function callAI(prompt: string): Promise<{ result: any; model: stri
   for (const model of AI_MODELS) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 8000);
+      const timer = setTimeout(() => controller.abort(), 5000);
 
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -118,8 +134,8 @@ export async function callAI(prompt: string): Promise<{ result: any; model: stri
         body: JSON.stringify({
           model,
           messages: [{ role: 'user', content: prompt }],
-          temperature: 0.15,
-          max_tokens: 350,
+          temperature: 0.08,
+          max_tokens: 200,
         }),
         signal: controller.signal,
       });

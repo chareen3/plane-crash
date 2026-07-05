@@ -8,28 +8,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// ─── Paginated history fetch ───────────────────────────────────────────────
-async function fetchAllRounds() {
-  const rounds: any[] = [];
-  const PAGE_SIZE = 1000;
-  for (let i = 0; i < 50; i++) {
-    const { data, error } = await supabase
-      .from('crash_rounds')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1);
-    if (error || !data || data.length === 0) break;
-    rounds.push(...data);
-    if (data.length < PAGE_SIZE) break;
-  }
-  return rounds;
+// ─── Fast history fetch — 500 most recent rounds is statistically sufficient ──
+async function fetchRecentRounds() {
+  const { data, error } = await supabase
+    .from('crash_rounds')
+    .select('round_number, crash_point, created_at')
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error || !data) return [];
+  return data;
 }
 
 
 // ─── Main handler ──────────────────────────────────────────────────────────
 export async function GET() {
   try {
-    const rounds = await fetchAllRounds();
+    const rounds = await fetchRecentRounds();
     if (rounds.length < 3)
       return NextResponse.json({ error: 'Need 3+ rounds.' });
 
