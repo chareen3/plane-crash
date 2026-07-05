@@ -22,6 +22,7 @@ type Prediction = {
   strategy?: string;
   cashout_target?: number;
   strategy_reason?: string;
+  recommended_bet_units?: number;
   stats?: CrashStats;
 };
 type WinRate = { total: number; correct: number; winRate: number; byRisk: Record<string, { total: number; correct: number }> };
@@ -141,6 +142,10 @@ export default function Dashboard() {
           return updated;
         });
         setLastCrash(round);
+        
+        // Trigger prediction & winrate refresh to keep 100% synced across devices
+        fetchWinRate();
+        runPrediction();
       }).subscribe();
 
     return () => {
@@ -232,18 +237,27 @@ export default function Dashboard() {
             <span className="bsb-icon">{stratMeta.icon}</span>
             <div>
               <div className="bsb-action" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
-              {prediction.skip_reason && <div className="bsb-reason">\u26A0\uFE0F {prediction.skip_reason}</div>}
-              {prediction.strategy_reason && !prediction.skip_reason && <div className="bsb-reason">{prediction.strategy_reason}</div>}
+              <div className="bsb-reason">{prediction.skip_reason || prediction.strategy_reason || 'Highly confident statistical target.'}</div>
             </div>
           </div>
-          {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 && (
-            <div className="bsb-right">
-              <div className="bsb-cashout-label">Cashout at</div>
-              <div className="bsb-cashout-val" style={{ color: stratMeta.color }}>
-                {Number(prediction.cashout_target).toFixed(2)}x
+          {prediction.should_bet && prediction.cashout_target ? (
+            <div className="bsb-right" style={{ display: 'flex', gap: '20px' }}>
+              <div>
+                <div className="bsb-cashout-label">TARGET</div>
+                <div className="bsb-cashout-val" style={{ color: stratMeta.color }}>
+                  {Number(prediction.cashout_target).toFixed(2)}x
+                </div>
               </div>
+              {prediction.recommended_bet_units !== undefined && (
+                <div>
+                  <div className="bsb-cashout-label">REC. BET</div>
+                  <div className="bsb-cashout-val" style={{ color: prediction.recommended_bet_units > 0 ? '#00e5a0' : '#ff4d6d' }}>
+                    {prediction.recommended_bet_units} Unit
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -255,7 +269,7 @@ export default function Dashboard() {
             <div className="pred-header">
               <span className="pred-title">NEXT ROUND — STATISTICAL ANALYSIS</span>
               <span className={`pred-status ${predStatus}`}>
-                {predStatus === 'predicting' ? 'Analyzing...' : predStatus === 'done' ? 'Ready' : 'Waiting'}
+                {predStatus === 'predicting' ? '🔄 Analyzing Database... (Est. 2.4s)' : predStatus === 'done' ? 'Ready' : 'Waiting'}
               </span>
             </div>
             {prediction && stats ? (

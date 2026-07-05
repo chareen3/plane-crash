@@ -39,6 +39,8 @@ export interface CrashStats {
   targets: TargetLevel[];
 
   // Percentile-based safe cashout targets
+  p99SafeCashout: number;
+  p95SafeCashout: number;
   p90SafeCashout: number;
   p80SafeCashout: number;
   p70SafeCashout: number;
@@ -151,6 +153,8 @@ export function computeStats(values: number[]): CrashStats {
     return Math.round(((lo + hi) / 2) * 100) / 100;
   }
 
+  const p99SafeCashout = cashoutAtWinRate(99);
+  const p95SafeCashout = cashoutAtWinRate(95);
   const p90SafeCashout = cashoutAtWinRate(90);
   const p80SafeCashout = cashoutAtWinRate(80);
   const p70SafeCashout = cashoutAtWinRate(70);
@@ -232,7 +236,7 @@ export function computeStats(values: number[]): CrashStats {
     stdDev: +stdDev.toFixed(2), min: +min.toFixed(2), max: +max.toFixed(2),
     pUnder2, p2to5, pOver5,
     targets,
-    p90SafeCashout, p80SafeCashout, p70SafeCashout, p60SafeCashout, p50SafeCashout,
+    p99SafeCashout, p95SafeCashout, p90SafeCashout, p80SafeCashout, p70SafeCashout, p60SafeCashout, p50SafeCashout,
     ema, currentLowStreak, currentHighStreak, longestLowStreak,
     recentMean: +recentMean.toFixed(2), olderMean: +olderMean.toFixed(2), trend,
     suggestedCashout, suggestedCashoutWinRate,
@@ -250,6 +254,7 @@ function emptyStats(): CrashStats {
     count: 0, mean: 0, median: 0, stdDev: 0, min: 0, max: 0,
     pUnder2: 0, p2to5: 0, pOver5: 0,
     targets: emptyTargets,
+    p99SafeCashout: 1.05, p95SafeCashout: 1.10,
     p90SafeCashout: 1.2, p80SafeCashout: 1.5, p70SafeCashout: 1.8,
     p60SafeCashout: 2.5, p50SafeCashout: 3.0,
     ema: 0, currentLowStreak: 0, currentHighStreak: 0, longestLowStreak: 0,
@@ -275,6 +280,7 @@ export function computeBetSignal(stats: CrashStats): {
   skip_reason: string | null;
   strategy: string;
   cashout_target: number;
+  recommended_bet_units: number;
 } {
   const reasons: string[] = [];
 
@@ -284,23 +290,26 @@ export function computeBetSignal(stats: CrashStats): {
   if (stats.pUnder2 > 62) reasons.push(`${stats.pUnder2}% chance under 2x`);
 
   if (reasons.length > 0) {
-    return { should_bet: false, skip_reason: reasons.join(' · '), strategy: 'SKIP', cashout_target: 0 };
+    return { should_bet: false, skip_reason: reasons.join(' · '), strategy: 'SKIP', cashout_target: 0, recommended_bet_units: 0 };
   }
 
   let strategy = 'CONSERVATIVE';
-  let cashout_target = stats.p90SafeCashout;
+  let cashout_target = stats.p99SafeCashout;
+  let recommended_bet_units = 1;
 
   if (stats.currentHighStreak >= 3 && stats.trend === 'rising') {
     strategy = 'AGGRESSIVE';
-    cashout_target = stats.p70SafeCashout;
+    cashout_target = stats.p80SafeCashout;
+    recommended_bet_units = 0.5; // lower bet on higher risk
   } else if (stats.riskScore < 35 && stats.trend !== 'falling') {
     strategy = 'BALANCED';
-    cashout_target = stats.p80SafeCashout;
+    cashout_target = stats.p90SafeCashout;
+    recommended_bet_units = 0.75;
   }
 
   // Enforce a hard minimum on cashout target
-  cashout_target = Math.max(1.10, cashout_target);
+  cashout_target = Math.max(1.05, cashout_target);
 
-  return { should_bet: true, skip_reason: null, strategy, cashout_target };
+  return { should_bet: true, skip_reason: null, strategy, cashout_target, recommended_bet_units };
 }
 

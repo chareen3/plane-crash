@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats } from '../../../lib/stats';
+import { computeStats, computeBetSignal } from '../../../lib/stats';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,37 +9,7 @@ const supabase = createClient(
 
 // AI models removed for pure statistical confidence
 
-// ─── Bet signal logic ──────────────────────────────────────────────────────
-function computeBetSignal(stats: any): {
-  should_bet: boolean;
-  skip_reason: string | null;
-  strategy: string;
-  cashout_target: number;
-} {
-  const reasons: string[] = [];
-
-  if (stats.currentLowStreak >= 4) reasons.push(`${stats.currentLowStreak} consecutive <2x rounds`);
-  if (stats.riskScore >= 72) reasons.push(`risk score ${stats.riskScore}/100`);
-  if (stats.trend === 'falling' && stats.recentMean < 1.8) reasons.push('falling trend below 1.8x avg');
-  if (stats.pUnder2 > 62) reasons.push(`${stats.pUnder2}% chance under 2x`);
-
-  if (reasons.length > 0) {
-    return { should_bet: false, skip_reason: reasons.join(' · '), strategy: 'SKIP', cashout_target: 0 };
-  }
-
-  let strategy = 'CONSERVATIVE';
-  let cashout_target = stats.conservativeCashout;
-
-  if (stats.currentHighStreak >= 3 && stats.trend === 'rising') {
-    strategy = 'AGGRESSIVE';
-    cashout_target = stats.aggressiveCashout;
-  } else if (stats.riskScore < 35 && stats.trend !== 'falling') {
-    strategy = 'BALANCED';
-    cashout_target = stats.p70SafeCashout;
-  }
-
-  return { should_bet: true, skip_reason: null, strategy, cashout_target };
-}
+// computeBetSignal is imported from lib/stats.ts
 
 // Prompt builder removed
 
@@ -124,6 +94,7 @@ export async function GET() {
       predicted_multiplier: aiPredMultiplier,
       long_targets: aiLongTargets,
       should_bet: finalBet,
+      recommended_bet_units: betSignal.recommended_bet_units,
       skip_reason: betSignal.skip_reason,
       strategy: strategyLabel,
       cashout_target: finalCashout,
