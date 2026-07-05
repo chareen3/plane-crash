@@ -38,7 +38,10 @@ const SELECTORS = {
   // The live multiplier display (e.g. "2.34x")
   // Update this to match the element showing the current multiplier in flight
   MULTIPLIER: [
-    '.crash-game__counter', // 1xbet specific selector
+    '.crash-game__counter', // 1xbet specific
+    '.c-crash-game__counter',
+    '.crash-game__coef',
+    '.c-crash-game__coef',
     '[class*="multiplier"]',
     '[class*="coef"]',
     '[class*="coefficient"]',
@@ -54,6 +57,9 @@ const SELECTORS = {
   // History list rows — items showing past round results
   // Each element's text should contain a multiplier like "3.21x"
   HISTORY_ITEMS: [
+    '.crash-game__history-item', // 1xbet specific
+    '.c-crash-game__history-item',
+    '.c-crash-history__item',
     '[class*="history"] [class*="item"]',
     '[class*="history"] [class*="coef"]',
     '[class*="history"] [class*="odd"]',
@@ -67,6 +73,8 @@ const SELECTORS = {
 
   // History container (to watch for new rows being added)
   HISTORY_CONTAINER: [
+    '.crash-game__history', // 1xbet specific
+    '.c-crash-game__history',
     '[class*="history"]',
     '[class*="results"]',
     '[class*="previous-rounds"]',
@@ -87,6 +95,8 @@ const SELECTORS = {
 
   // Round state label (e.g. "Flying", "Crashed", "Waiting")
   ROUND_STATE: [
+    '.crash-game__status', // 1xbet specific
+    '.c-crash-game__status',
     '[class*="state"]',
     '[class*="status"]',
     '[class*="phase"]',

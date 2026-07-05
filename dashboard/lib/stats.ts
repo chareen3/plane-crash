@@ -391,17 +391,28 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
   }
 
   if (values.length >= 5) {
-    // oldest to newest of the last 4 (values[3] is oldest of the 4, values[0] is newest)
-    const currentSeq = [getTier(values[3]), getTier(values[2]), getTier(values[1]), getTier(values[0])]; 
-    const seqStr = currentSeq.join(',');
-    const seqOutcomes: number[] = [];
+    let currentSeq: string[] = [];
+    let seqOutcomes: number[] = [];
 
-    // Search historical data for this sequence
-    for (let i = 1; i < values.length - 4; i++) {
-      const histSeq = [getTier(values[i+3]), getTier(values[i+2]), getTier(values[i+1]), getTier(values[i])];
-      if (histSeq.join(',') === seqStr) {
-        seqOutcomes.push(values[i-1]); // the outcome is the round right after the sequence (which is i-1 because 0 is newest)
+    // Fallback from length 4 down to length 2 to ensure we get matches
+    for (let len = 4; len >= 2; len--) {
+      currentSeq = [];
+      for (let j = len - 1; j >= 0; j--) {
+        currentSeq.push(getTier(values[j]));
       }
+      const seqStr = currentSeq.join(',');
+      seqOutcomes = [];
+
+      for (let i = 1; i <= values.length - len; i++) {
+        const histSeq = [];
+        for (let j = len - 1; j >= 0; j--) {
+          histSeq.push(getTier(values[i+j]));
+        }
+        if (histSeq.join(',') === seqStr) {
+          seqOutcomes.push(values[i-1]);
+        }
+      }
+      if (seqOutcomes.length >= 1) break; // Found a match, stop dropping length
     }
 
     if (seqOutcomes.length >= 1) {
