@@ -207,8 +207,8 @@ async function flushBuffer() {
 
 async function postToDashboard(events) {
   try {
-    // We only care about events with a multiplier for the dashboard, usually eventType='crash'
-    const completedRounds = events.filter(e => typeof e.multiplier === 'number');
+    // Only post actual round results (final crash points) to the dashboard
+    const completedRounds = events.filter(e => e.eventType === 'round_result' && typeof e.multiplier === 'number');
     if (completedRounds.length === 0) return;
 
     const payload = completedRounds.map(e => ({
@@ -317,10 +317,10 @@ function broadcastToPopup(msg) {
 async function injectContentScript(tabId) {
   try {
     await chrome.scripting.executeScript({
-      target: { tabId },
+      target: { tabId, allFrames: true },
       files: ['content.js'],
     });
-    log('Content script injected into tab', tabId);
+    log('Content script injected into tab (all frames)', tabId);
 
     // Brief delay to let content script initialise
     await delay(300);
@@ -495,9 +495,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         await chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: state.debugMode });
         // Propagate to content script
         if (state.tabId) {
-          chrome.tabs.sendMessage(state.tabId, { type: 'SET_DEBUG', debug: state.debugMode }).catch(() => {});
+           chrome.tabs.sendMessage(state.tabId, { type: 'SET_DEBUG', debug: state.debugMode }).catch(() => {});
         }
         return { success: true };
+
+
+
 
       // ---- Content → Background ----
       case 'CAPTURE_EVENT':

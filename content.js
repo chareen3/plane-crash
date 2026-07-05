@@ -38,6 +38,7 @@ const SELECTORS = {
   // The live multiplier display (e.g. "2.34x")
   // Update this to match the element showing the current multiplier in flight
   MULTIPLIER: [
+    '.crash-game__counter', // 1xbet specific selector
     '[class*="multiplier"]',
     '[class*="coef"]',
     '[class*="coefficient"]',
@@ -301,10 +302,23 @@ function captureMultiplierTick() {
   if (!text) return null;
   if (text === cState.lastMultiplier) return null; // unchanged
 
-  cState.lastMultiplier = text;
   const numVal = parseMultiplier(text);
-
+  const prevNum = parseMultiplier(cState.lastMultiplier);
+  
+  cState.lastMultiplier = text;
   const mEl = queryFirst(SELECTORS.MULTIPLIER);
+
+  // If the new multiplier is smaller than the previous one, the previous round just ended!
+  if (numVal !== null && prevNum !== null && numVal < prevNum) {
+    cState.roundIndex++;
+    return makeBaseEvent({
+      eventType:      'round_result',
+      source:         'observer',
+      multiplierText: String(prevNum) + 'x',
+      multiplier:     prevNum,
+      domPath:        getDomPath(mEl),
+    });
+  }
 
   return makeBaseEvent({
     eventType:      'multiplier_tick',
