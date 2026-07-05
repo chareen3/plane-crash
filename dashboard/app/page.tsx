@@ -11,7 +11,14 @@ const supabase = createClient(
 );
 
 type Round = { id?: string; round_number: number; crash_point: number; created_at: string; _optimistic?: boolean };
-type Prediction = { risk: 'LOW' | 'MEDIUM' | 'HIGH'; confidence: number; summary: string; stats?: CrashStats };
+type Prediction = {
+  risk: 'LOW' | 'MEDIUM' | 'HIGH';
+  confidence: number;
+  summary: string;
+  predicted_multiplier?: number;
+  long_targets?: { x5: number; x10: number; x20: number };
+  stats?: CrashStats;
+};
 type WinRate = { total: number; correct: number; winRate: number; byRisk: Record<string, { total: number; correct: number }> };
 
 const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
@@ -32,6 +39,7 @@ export default function Dashboard() {
   const [localStats, setLocalStats] = useState<CrashStats | null>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predStatus, setPredStatus] = useState<'idle' | 'predicting' | 'done'>('idle');
+  const [betAmount, setBetAmount] = useState<string>('');
   const [ticker, setTicker] = useState(0);
   const heroRef = useRef<HTMLDivElement>(null);
   const predRef = useRef<HTMLDivElement>(null);
@@ -55,16 +63,7 @@ export default function Dashboard() {
     finally { setIsPredicting(false); }
   }, []);
 
-  const gradeAndPredict = useCallback(async (actualCrash: number) => {
-    // Grade first, then predict next
-    await fetch('/api/grade', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ actualCrashPoint: actualCrash }),
-    });
-    await fetchWinRate();
-    await runPrediction();
-  }, [fetchWinRate, runPrediction]);
+
 
   useEffect(() => {
     // Initial data load
@@ -83,19 +82,37 @@ export default function Dashboard() {
     // Zero-latency bridge from Extension content script
     const handleMessage = (evt: MessageEvent) => {
       if (evt.data?.type === 'EXTENSION_CRASH_LIVE') {
-        const round: Round = { ...evt.data.round, _optimistic: true };
-        setLastCrash(round);
-        setRounds(prev => {
-          // Prevent duplicates if Realtime arrives same time
-          if (prev.some(r => r.round_number === round.round_number)) return prev;
-          const updated = [round, ...prev].slice(0, 50);
-          setLocalStats(computeStats(updated.map(r => Number(r.crash_point))));
-          return updated;
-        });
+        const { round, prediction, stats } = evt.data;
+        
+        if (round) {
+          const roundObj: Round = { ...round, _optimistic: true };
+          setLastCrash(roundObj);
+          setRounds(prev => {
+            if (prev.some(r => r.round_number === roundObj.round_number)) return prev;
+            const updated = [roundObj, ...prev].slice(0, 50);
+            if (!stats) {
+              setLocalStats(computeStats(updated.map(r => Number(r.crash_point))));
+            }
+            return updated;
+          });
+        }
+
+        if (stats) {
+          setLocalStats(stats);
+        }
+
+        if (prediction) {
+          setPrediction(prediction);
+          setPredStatus('done');
+        }
+
         heroRef.current?.classList.remove('flash');
         void heroRef.current?.offsetWidth;
         heroRef.current?.classList.add('flash');
-        gradeAndPredict(Number(evt.data.round.crash_point));
+
+        fetchWinRate(); // Refresh the trust strip stats
+      } else if (evt.data?.type === 'EXTENSION_BET_CHANGE') {
+        setBetAmount(evt.data.amount);
       }
     };
     window.addEventListener('message', handleMessage);
@@ -141,6 +158,9 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="topbar-right">
+          {betAmount && (
+            <span className="bet-badge">💰 Bet Amount: {betAmount} USD</span>
+          )}
           <span className="live-badge"><span className="live-dot" />LIVE</span>
           <button className="ai-btn" onClick={runPrediction} disabled={isPredicting || rounds.length === 0}>
             {isPredicting ? '⏳ Analyzing...' : '🧠 Refresh AI'}
@@ -229,6 +249,15 @@ export default function Dashboard() {
                     <div className="cashout-sub">
                       {stats.suggestedCashoutWinRate}% of past rounds reached this — {prediction.risk} RISK
                     </div>
+                    
+                    {/* RECOMMENDED STAKE */}
+                    <div className="stake-recommendation">
+                      💰 Recommended Bet: <span className="stake-val">{
+                        prediction.risk === 'HIGH' ? '❌ SKIP (0x)' :
+                        prediction.risk === 'MEDIUM' ? '💵 1.0x Base Stake' :
+                        '🔥 2.0x Base Stake (Calm)'
+                      }</span>
+                    </div>
                   </div>
                 </div>
 
@@ -253,6 +282,33 @@ export default function Dashboard() {
 
                 {/* AI summary */}
                 <div className="pred-summary">{prediction.summary}</div>
+
+                {/* AI Expected Ceiling & Long Targets Forecast */}
+                {prediction.predicted_multiplier !== undefined && (
+                  <div className="ai-ceiling-forecast">
+                    <span className="ceiling-label">🔮 AI EXPECTED CEILING</span>
+                    <span className="ceiling-val">{Number(prediction.predicted_multiplier).toFixed(2)}x</span>
+                  </div>
+                )}
+
+                {prediction.long_targets && (
+                  <div className="ai-long-forecast">
+                    <div className="long-targets-row">
+                      <div className="long-target-col">
+                        <span className="lt-val">{prediction.long_targets.x5}%</span>
+                        <span className="lt-lbl">5x Target</span>
+                      </div>
+                      <div className="long-target-col">
+                        <span className="lt-val">{prediction.long_targets.x10}%</span>
+                        <span className="lt-lbl">10x Target</span>
+                      </div>
+                      <div className="long-target-col">
+                        <span className="lt-val">{prediction.long_targets.x20}%</span>
+                        <span className="lt-lbl">20x Target</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Probability bars */}
                 <div className="pred-bars">

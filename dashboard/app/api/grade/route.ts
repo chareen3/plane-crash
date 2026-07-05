@@ -15,17 +15,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'actualCrashPoint required' }, { status: 400 });
     }
 
-    // Find the most recent UNGRADED prediction
-    const { data: pred, error: fetchErr } = await supabase
+    // Find the prediction for this round that hasn't been graded yet
+    let query = supabase
       .from('predictions')
       .select('id, predicted_risk')
-      .is('was_correct', null)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+      .is('was_correct', null);
+    
+    if (typeof roundNumber === 'number') {
+      query = query.eq('round_number', roundNumber);
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data: pred, error: fetchErr } = await query.limit(1).maybeSingle();
 
     if (fetchErr || !pred) {
-      // No ungraded prediction — nothing to grade
+      // No prediction for this round / ungraded — nothing to grade
       return NextResponse.json({ graded: false });
     }
 

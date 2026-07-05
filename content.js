@@ -356,20 +356,46 @@ function captureRoundStateChange() {
   if (lower.includes('wait') || lower.includes('next'))     normalisedState = 'waiting';
   else if (lower.includes('fly') || lower.includes('crash')) normalisedState = lower.includes('crash') ? 'crashed' : 'flying';
 
-  // If we just detected a crash, treat as round result
   const isResult = normalisedState === 'crashed';
   const mult     = cState.lastMultiplier;
   const multVal  = parseMultiplier(mult);
 
+  if (isResult) {
+    // The user requested a 2-second delay after the crash class is detected
+    // to allow the UI to fully settle and the final multiplier to stop moving.
+    setTimeout(() => {
+      cState.roundIndex++;
+      // Re-read the multiplier to get the absolute final frozen value
+      const finalMultText = readText(SELECTORS.MULTIPLIER) || mult;
+      const finalMultVal = parseMultiplier(finalMultText) || multVal;
+      
+      const delayedEvent = makeBaseEvent({
+        eventType:      'round_result',
+        source:         'observer_delayed',
+        roundState:     'crashed',
+        multiplierText: finalMultText,
+        multiplier:     finalMultVal,
+      });
+      enqueueEvent(delayedEvent);
+    }, 2000);
+
+    // Immediately return just the state change, not the crash result yet
+    return makeBaseEvent({
+      eventType:      'state_change',
+      source:         'observer',
+      roundState:     'crashed',
+      multiplierText: mult,
+      multiplier:     multVal,
+    });
+  }
+
   const event = makeBaseEvent({
-    eventType:      isResult ? 'round_result' : 'state_change',
+    eventType:      'state_change',
     source:         'observer',
     roundState:     normalisedState,
     multiplierText: mult,
     multiplier:     multVal,
   });
-
-  if (isResult) cState.roundIndex++;
 
   return event;
 }
@@ -493,6 +519,30 @@ function debouncedSnapshot(delay = 600) {
 // MutationObserver setup
 // ---------------------------------------------------------------------------
 
+function setupBetListeners() {
+  try {
+    const inputs = queryAll(SELECTORS.BET_AMOUNT);
+    inputs.forEach(input => {
+      if (input.dataset.cacListening) return;
+      input.dataset.cacListening = 'true';
+      const handler = () => {
+        const val = input.value || input.textContent || '';
+        if (!val.trim()) return;
+        chrome.runtime.sendMessage({
+          type: 'BET_AMOUNT_CHANGE',
+          amount: val.trim()
+        }).catch(() => {});
+      };
+      input.addEventListener('input', handler);
+      input.addEventListener('change', handler);
+      // Run immediately
+      handler();
+    });
+  } catch (err) {
+    warn('Error setting up bet listeners:', err);
+  }
+}
+
 function setupObserver() {
   if (cState.observer) {
     cState.observer.disconnect();
@@ -502,8 +552,14 @@ function setupObserver() {
   const root = queryFirst(SELECTORS.GAME_ROOT) || document.body;
   log('Attaching MutationObserver to:', getDomPath(root));
 
+  // Initialize listeners
+  setupBetListeners();
+
   cState.observer = new MutationObserver((mutations) => {
     if (!cState.active) return;
+
+    // Refresh bet listeners in case DOM changed
+    setupBetListeners();
 
     let hasHistoryChange = false;
     let hasMultiplierChange = false;
@@ -647,12 +703,12 @@ function startCollection(config = {}) {
   // Periodic flush to background
   cState.flushTimer = setInterval(flushToBackground, 3000);
 
-  // Crash staleness detector — if multiplier stops moving for >400ms, assume crashed
+  // Crash staleness detector — if multiplier stops moving for >2000ms, assume crashed
   cState.crashDetectorTimer = setInterval(() => {
     if (!cState.lastMultiplierTime || !cState.lastMultiplier) return;
     
     const numVal = parseMultiplier(cState.lastMultiplier);
-    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 400)) {
+    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 2000)) {
       cState.roundIndex++;
       const mEl = queryFirst(SELECTORS.MULTIPLIER);
       const event = makeBaseEvent({

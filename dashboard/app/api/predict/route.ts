@@ -21,11 +21,31 @@ export async function GET() {
       return NextResponse.json({ error: 'Not enough data yet (need 3+ rounds).' });
     }
 
-    // 2. Compute local stats instantly (no AI needed yet)
+    const lastRoundNumber = rounds[0]?.round_number ?? 0;
+    const nextRoundNumber = lastRoundNumber + 1;
+
+    // Check if we already have a prediction stored for this next round
+    const { data: existingPred } = await supabase
+      .from('predictions')
+      .select('*')
+      .eq('round_number', nextRoundNumber)
+      .limit(1)
+      .maybeSingle();
+
+    // Compute stats for values
     const values = rounds.map(r => Number(r.crash_point));
     const stats = computeStats(values);
 
-    const lastRoundNumber = rounds[0]?.round_number ?? 0;
+    if (existingPred) {
+      return NextResponse.json({
+        risk: existingPred.predicted_risk,
+        confidence: existingPred.confidence,
+        summary: existingPred.summary,
+        predicted_multiplier: existingPred.predicted_multiplier,
+        long_targets: existingPred.long_targets,
+        stats,
+      });
+    }
     const recentHistory = values.slice(0, 20).reverse().join(', ');
 
     // 3. Build a precise, structured AI prompt
@@ -44,13 +64,25 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
 {
   "risk": "LOW" | "MEDIUM" | "HIGH",
   "confidence": <integer 0-100>,
-  "summary": "<2 sentences max — describe the pattern and risk for next round>"
+  "summary": "<2 sentences max — describe the pattern and risk for next round>",
+  "predicted_multiplier": <number (expected maximum multiplier ceiling for next round, e.g. 1.85, 4.20, 15.00)>,
+  "long_targets": {
+    "x5": <integer 0-100 (probability next round reaches 5x)>,
+    "x10": <integer 0-100 (probability next round reaches 10x)>,
+    "x20": <integer 0-100 (probability next round reaches 20x)>
+  }
 }`;
 
     // 4. Call OpenRouter with a faster, smaller model
     let aiRisk = stats.riskLabel;
     let aiConfidence = stats.confidence;
     let aiSummary = `Based on ${stats.count} rounds, the avg crash is ${stats.mean}x. Statistical risk score is ${stats.riskScore}/100.`;
+    let aiPredMultiplier = stats.suggestedCashout;
+    let aiLongTargets = {
+      x5: stats.targets.find(t => t.target === 5.0)?.hitRate ?? 20,
+      x10: stats.targets.find(t => t.target === 10.0)?.hitRate ?? 10,
+      x20: stats.targets.find(t => t.target === 20.0)?.hitRate ?? 5
+    };
 
     try {
       const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -63,7 +95,7 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
         body: JSON.stringify({
           model: 'google/gemma-2-9b-it:free',
           messages: [{ role: 'user', content: prompt }],
-          max_tokens: 150,
+          max_tokens: 200,
           temperature: 0.3,
         }),
         signal: AbortSignal.timeout(5000), // 5s max — fallback to stats if slow
@@ -79,6 +111,14 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
           aiRisk = parsed.risk;
           aiConfidence = parsed.confidence ?? aiConfidence;
           aiSummary = parsed.summary;
+          aiPredMultiplier = parsed.predicted_multiplier ?? aiPredMultiplier;
+          if (parsed.long_targets) {
+            aiLongTargets = {
+              x5: parsed.long_targets.x5 ?? aiLongTargets.x5,
+              x10: parsed.long_targets.x10 ?? aiLongTargets.x10,
+              x20: parsed.long_targets.x20 ?? aiLongTargets.x20
+            };
+          }
         }
       }
     } catch (_) {
@@ -90,13 +130,17 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
       predicted_risk: aiRisk,
       confidence: aiConfidence,
       summary: aiSummary,
-      round_number: lastRoundNumber,
+      round_number: nextRoundNumber,
+      predicted_multiplier: aiPredMultiplier,
+      long_targets: aiLongTargets
     });
 
     return NextResponse.json({
       risk: aiRisk,
       confidence: aiConfidence,
       summary: aiSummary,
+      predicted_multiplier: aiPredMultiplier,
+      long_targets: aiLongTargets,
       stats,
     });
 

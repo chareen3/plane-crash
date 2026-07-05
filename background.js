@@ -49,11 +49,13 @@ const state = {
   tabUrl: null,
   sessionStart: null,
   buffer: [],          // unsaved events
+  recentEvents: [],    // sliding window of recent events for compiling summaries
   seenFingerprints: new Set(),
   debugMode: false,
   stats: {
     rounds: 0,
     lastMultiplier: '—',
+    lastCrash: '—',
     totalEvents: 0,
     storedBytes: 0,
   },
@@ -195,8 +197,8 @@ async function flushBuffer() {
     // Broadcast stats to any open popups
     broadcastToPopup({ type: 'STATS_UPDATE', stats: state.stats });
 
-    // --- NEW: Post to Dashboard API ---
-    await postToDashboard(toSave);
+    // Save backup to Supabase
+    await saveToSupabase(toSave);
 
   } catch (e) {
     warn('flushBuffer error:', e);
@@ -255,31 +257,89 @@ async function saveToSupabase(events) {
   }
 }
 
-async function postToDashboard(events) {
-  // Save directly to Supabase (works without dashboard running)
-  await saveToSupabase(events);
+function compileRoundSummary(roundIndex, events) {
+  const roundEvents = events.filter(e => e.roundIndex === roundIndex);
+  if (roundEvents.length === 0) return null;
 
-  // Also try to notify the local dashboard if it's running (optional)
+  roundEvents.sort((a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime());
+  const first = roundEvents[0];
+  const last  = roundEvents[roundEvents.length - 1];
+
+  const resultEv = roundEvents.find(e => e.eventType === 'round_result');
+  const finalMult = resultEv?.multiplier ?? last?.multiplier ?? null;
+  const finalMultText = resultEv?.multiplierText ?? last?.multiplierText ?? null;
+
+  // Collect unique history values seen during this round
+  const historySnapshot = Array.from(
+    new Set(
+      roundEvents
+        .filter(e => e.historyValues)
+        .flatMap(e => e.historyValues)
+    )
+  );
+
+  const startedAt  = first.capturedAt;
+  const endedAt    = last.capturedAt;
+  const durationMs = endedAt && startedAt
+    ? new Date(endedAt).getTime() - new Date(startedAt).getTime()
+    : null;
+
+  return {
+    round_number: roundIndex,
+    started_at: startedAt,
+    ended_at: endedAt,
+    final_multiplier: finalMult,
+    final_multiplier_text: finalMultText,
+    duration_ms: durationMs,
+    event_count: roundEvents.length,
+    history_snapshot: historySnapshot,
+    notes: resultEv ? 'round_result captured' : 'inferred from events'
+  };
+}
+
+async function postRoundResultToDashboard(roundEvent) {
   try {
-    const completedRounds = events.filter(e => e.eventType === 'round_result' && typeof e.multiplier === 'number');
-    if (completedRounds.length === 0) return;
+    const roundNumber = roundEvent.roundIndex;
+    const summary = compileRoundSummary(roundNumber, state.recentEvents);
 
-    const payload = completedRounds.map(e => ({
-      id: e.roundIndex !== null ? String(e.roundIndex) : e.id,
-      crashPoint: e.multiplier,
-      crashTime: e.capturedAt
-    }));
+    const payload = {
+      round: {
+        round_number: roundNumber,
+        crash_point: roundEvent.multiplier,
+        created_at: roundEvent.capturedAt || new Date().toISOString()
+      },
+      summary: summary
+    };
 
-    await fetch('http://localhost:3000/api/rounds', {
+    const res = await fetch('http://localhost:3000/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(2000), // 2s timeout — don't block if server is down
+      signal: AbortSignal.timeout(6000), // Allow 6s for DB write + AI prediction run
     });
-    log(`Also notified local dashboard with ${payload.length} round(s)`);
+
+    if (res.ok) {
+      const data = await res.json();
+      log('Successfully sent crash round to dashboard and ran prediction:', data);
+      
+      // Broadcast the updated state and prediction directly to the dashboard tabs!
+      if (data.success && data.round && data.prediction) {
+        chrome.tabs.query({ url: "*://localhost:3000/*" }, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'EXTENSION_CRASH_LIVE',
+              round: data.round,
+              prediction: data.prediction,
+              stats: data.stats
+            }).catch(() => {});
+          });
+        });
+      }
+    } else {
+      warn('Dashboard POST failed:', res.status, await res.text());
+    }
   } catch (err) {
-    // Silently ignore — dashboard may not be running, Supabase already has the data
-    log('Local dashboard not reachable (ok, Supabase save succeeded)');
+    warn('postRoundResultToDashboard error (dashboard server might be down):', err.message);
   }
 }
 
@@ -337,6 +397,11 @@ function ingestEvent(rawEvent) {
   state.stats.totalEvents++;
   if (event.eventType === 'round_result' || event.eventType === 'history_item') {
     state.stats.rounds++;
+    if (event.multiplier !== null) {
+      state.stats.lastCrash = `${event.multiplier}x`;
+    } else if (event.multiplierText) {
+      state.stats.lastCrash = event.multiplierText;
+    }
   }
   if (event.multiplierText) {
     state.stats.lastMultiplier = event.multiplierText;
@@ -345,14 +410,22 @@ function ingestEvent(rawEvent) {
   }
 
   state.buffer.push(event);
+
+  // Maintain sliding window for recentEvents
+  state.recentEvents.push(event);
+  if (state.recentEvents.length > 500) {
+    state.recentEvents.shift();
+  }
+
   log('Event ingested:', event.eventType, event.fingerprint);
 
   // Broadcast to popup
   broadcastToPopup({ type: 'NEW_EVENT', event, stats: { ...state.stats } });
 
-  // 🔥 If this is a crash result, save to Supabase IMMEDIATELY (don't wait for flush timer)
+  // 🔥 If this is a crash result, save to Supabase AND notify dashboard immediately
   if (event.eventType === 'round_result') {
     saveToSupabase([event]);
+    postRoundResultToDashboard(event);
   }
 
   // Auto-flush if batch size reached
@@ -572,6 +645,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (Array.isArray(msg.events)) {
           msg.events.forEach(e => ingestEvent(e));
         }
+        return { received: true };
+
+      case 'BET_AMOUNT_CHANGE':
+        chrome.tabs.query({ url: "*://localhost:3000/*" }, (tabs) => {
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'EXTENSION_BET_CHANGE',
+              amount: msg.amount
+            }).catch(() => {});
+          });
+        });
         return { received: true };
 
       case 'CONTENT_READY':

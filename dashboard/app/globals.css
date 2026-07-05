@@ -558,3 +558,87 @@ html, body {
   font-style: italic;
   opacity: 0.7;
 }
+
+/* ── Bet Badge ── */
+.bet-badge {
+  background: rgba(255, 200, 74, 0.15);
+  border: 1px solid rgba(255, 200, 74, 0.3);
+  color: var(--yellow);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── AI Expected Ceiling ── */
+.ai-ceiling-forecast {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(167, 139, 250, 0.08);
+  border: 1px dashed rgba(167, 139, 250, 0.3);
+  border-radius: 8px;
+  margin: 6px 0;
+}
+.ceiling-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.8px;
+}
+.ceiling-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 800;
+  color: #a78bfa;
+}
+
+/* ── AI Long Forecast ── */
+.ai-long-forecast {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 6px 0;
+}
+.long-targets-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.long-target-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.lt-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.lt-lbl {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+/* ── Stake Recommendation ── */
+.stake-recommendation {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.stake-val {
+  color: var(--yellow);
+  font-weight: 800;
+}

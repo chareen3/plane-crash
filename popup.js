@@ -120,9 +120,9 @@ function updateStats(stats) {
   els.badgeCount.textContent  = stats.totalEvents ?? 0;
 
   // Update hero multiplier if we have a last crash value
-  if (stats.lastMultiplier && stats.lastMultiplier !== '—') {
-    const val = parseFloat(stats.lastMultiplier);
-    els.heroMultiplier.textContent = isNaN(val) ? stats.lastMultiplier : val.toFixed(2) + 'x';
+  if (stats.lastCrash && stats.lastCrash !== '—') {
+    const val = parseFloat(stats.lastCrash);
+    els.heroMultiplier.textContent = isNaN(val) ? stats.lastCrash : val.toFixed(2) + 'x';
     els.heroMultiplier.className = 'hero-value crashed';
     // Remove animation class after it plays
     setTimeout(() => { els.heroMultiplier.classList.remove('crashed'); }, 600);
