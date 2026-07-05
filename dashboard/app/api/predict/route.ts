@@ -8,20 +8,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// ─── Fast history fetch — 500 most recent rounds is statistically sufficient ──
+// ─── Full history fetch — paginated up to 50,000 rounds with timestamps ──
 async function fetchRecentRounds() {
-  const { data, error } = await supabase
-    .from('crash_rounds')
-    .select('round_number, crash_point, created_at')
-    .order('created_at', { ascending: false })
-    .limit(500);
-  if (error || !data) return [];
-  return data;
+  const rounds: { round_number: number; crash_point: number; created_at: string }[] = [];
+  const PAGE_SIZE = 1000;
+  for (let i = 0; i < 50; i++) {
+    const { data, error } = await supabase
+      .from('crash_rounds')
+      .select('round_number, crash_point, created_at')
+      .order('created_at', { ascending: false })
+      .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1);
+    if (error || !data || data.length === 0) break;
+    rounds.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rounds;
 }
 
 
 // ─── Main handler ──────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const rounds = await fetchRecentRounds();
     if (rounds.length < 3)
@@ -37,7 +43,7 @@ export async function GET() {
       .eq('round_number', nextRoundNumber)
       .maybeSingle();
 
-    const values = rounds.map((r: any) => Number(r.crash_point));
+    const values = rounds.map(r => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
     // ── Compute stats immediately ──
     const stats = computeStats(values);
@@ -67,6 +73,9 @@ export async function GET() {
         strategy_reason: existingPred.strategy_reason,
         ai_model_used: existingPred.ai_model_used ?? 'stats-only',
         stats,
+        swing_target: existingPred.swing_target,
+        volatility_phase: existingPred.volatility_phase ?? betSignal.volatility_phase,
+        recommended_stake_pct: existingPred.recommended_stake_pct ?? betSignal.recommended_stake_pct,
       });
     }
 
@@ -89,6 +98,10 @@ export async function GET() {
     // ── Wait for AI prediction ──
     const prompt = buildPrompt(stats, betSignal, timeData);
     
+    let swingTarget = betSignal.swing_target;
+    let volatilityPhase = betSignal.volatility_phase;
+    let recommendedStakePct = betSignal.recommended_stake_pct;
+
     try {
       const aiResponse = await callAI(prompt);
       if (aiResponse) {
@@ -98,12 +111,21 @@ export async function GET() {
         if (['LOW','MEDIUM','HIGH'].includes(ai.risk)) aiRisk = ai.risk;
         if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = ai.confidence;
         if (typeof ai.summary === 'string' && ai.summary.length > 5) aiSummary = ai.summary;
-        if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
-          aiPredMultiplier = ai.cashout_target;
-          finalCashout = ai.cashout_target;
+        
+        // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
+        if (betSignal.strategy !== 'SKIP') {
+          if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
+            aiPredMultiplier = ai.cashout_target;
+            finalCashout = ai.cashout_target;
+          }
+          if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) strategyLabel = ai.strategy;
+          if (typeof ai.should_bet === 'boolean') finalBet = ai.should_bet;
         }
-        if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) strategyLabel = ai.strategy;
-        if (typeof ai.should_bet === 'boolean') finalBet = ai.should_bet;
+        
+        if (typeof ai.swing_target === 'number' || ai.swing_target === null) swingTarget = ai.swing_target;
+        if (typeof ai.volatility_phase === 'string') volatilityPhase = ai.volatility_phase;
+        if (typeof ai.recommended_stake_pct === 'number') recommendedStakePct = ai.recommended_stake_pct;
+
         if (typeof ai.summary === 'string') {
           strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.summary;
         }
@@ -111,6 +133,7 @@ export async function GET() {
     } catch (err) {
       console.error('[AI CALL] Error:', err);
     }
+
 
     const aiPrediction = {
       predicted_risk:       aiRisk,
@@ -125,6 +148,9 @@ export async function GET() {
       strategy:             strategyLabel,
       strategy_reason:      strategyReason,
       ai_model_used:        aiModelUsed,
+      swing_target:         swingTarget,
+      volatility_phase:     volatilityPhase,
+      recommended_stake_pct: recommendedStakePct,
     };
 
     await supabase.from('predictions').insert(aiPrediction);

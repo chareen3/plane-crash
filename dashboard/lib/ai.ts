@@ -36,7 +36,7 @@ export function buildPrompt(stats: any, betSignal: any, timeData: {
   currentLocalHour: number;
   currentAMPM: string;
   peakHours: any[];
-}, mode: string = 'balanced') {
+}) {
   const t = (mult: number) =>
     stats.targets?.find((x: any) => Math.abs(x.target - mult) < 0.01);
 
@@ -54,66 +54,94 @@ export function buildPrompt(stats: any, betSignal: any, timeData: {
     timeData.peakHours.find((h: any) => h.hour === timeData.currentUTCHour) ??
     { label: 'Unknown', tag: 'NORM', score: 50, note: 'No data' };
 
-  return `You are a senior crash game quant analyst for 1xBet Aviator. Your signals are trusted by paying users who need accurate WINS. Users lose money if you predict wrong. Be rigorous.
+  // Calculate session volatility phase
+  const stdDev = stats.stdDev || 0;
+  let volatilityPhase = 'NORMAL';
+  if (stdDev < 1.5) volatilityPhase = 'CALM';
+  else if (stdDev > 3.5) volatilityPhase = 'VOLATILE';
 
-=== FULL DATABASE STATS (${stats.count} rounds analyzed) ===
-mean: ${stats.mean?.toFixed(3)}x | median: ${stats.median?.toFixed(3)}x | stdDev: ${stats.stdDev?.toFixed(3)}
-riskScore: ${stats.riskScore}/100 | riskLabel: ${stats.riskLabel}
-currentLowStreak: ${stats.currentLowStreak} | currentHighStreak: ${stats.currentHighStreak ?? 0} | longestLowStreak: ${stats.longestLowStreak}
-trend (last 20 vs prior): ${stats.trend} | EMA: ${stats.ema?.toFixed(3)}x | recentMean: ${stats.recentMean?.toFixed(3)}x | olderMean: ${stats.olderMean?.toFixed(3)}x
-volatility: ${stats.volatility}
-pUnder2: ${stats.pUnder2}% | p2to5: ${stats.p2to5}% | pOver5: ${stats.pOver5}%
-p99SafeCashout: ${stats.p99SafeCashout?.toFixed(2)}x | p95SafeCashout: ${stats.p95SafeCashout?.toFixed(2)}x | p90SafeCashout: ${stats.p90SafeCashout?.toFixed(2)}x
-p80: ${stats.p80SafeCashout?.toFixed(2)}x | p70: ${stats.p70SafeCashout?.toFixed(2)}x | p60: ${stats.p60SafeCashout?.toFixed(2)}x | p50: ${stats.p50SafeCashout?.toFixed(2)}x
-conservativeCashout: ${stats.conservativeCashout?.toFixed(2)}x | aggressiveCashout: ${stats.aggressiveCashout?.toFixed(2)}x
+  let patternStr = 'None detected for current streak.';
+  if (stats.detectedPatterns && stats.detectedPatterns.length > 0) {
+    const p = stats.detectedPatterns[0];
+    patternStr = `Pattern: ${p.patternName}\nHistorically occurred ${p.occurrences} times in this dataset.\n`;
+    if (p.p90) patternStr += `90% Safe Target: ${p.p90}x | 80% Safe Target: ${p.p80}x | 50% Median: ${p.p50}x\n`;
+    patternStr += `Next round exact hit rates: ` + p.nextRoundWinRates.map((w: any) => `${w.target}x: ${w.hitRate}%`).join(' | ');
+  }
 
-=== DETAILED TARGET HIT RATES ===
-1.05x: ${t105?.hitRate?.toFixed(1) ?? '?'}% overall | ${t105?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t105?.lastHitAgo ?? '?'} | longestGap: ${t105?.longestGap ?? '?'}
-1.10x: ${t110?.hitRate?.toFixed(1) ?? '?'}% overall | ${t110?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t110?.lastHitAgo ?? '?'} | longestGap: ${t110?.longestGap ?? '?'}
-1.18x: ${t118?.hitRate?.toFixed(1) ?? '?'}% overall | ${t118?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t118?.lastHitAgo ?? '?'}
-1.20x: ${t120?.hitRate?.toFixed(1) ?? '?'}% overall | ${t120?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t120?.lastHitAgo ?? '?'}
-1.50x: ${t150?.hitRate?.toFixed(1) ?? '?'}% overall | ${t150?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t150?.lastHitAgo ?? '?'}
-2.00x: ${t200?.hitRate?.toFixed(1) ?? '?'}% overall | ${t200?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t200?.lastHitAgo ?? '?'} | longestGap: ${t200?.longestGap ?? '?'}
-3.00x: ${t300?.hitRate?.toFixed(1) ?? '?'}% overall | ${t300?.recentHitRate ?? '?'}% recent | lastHitAgo: ${t300?.lastHitAgo ?? '?'} | longestGap: ${t300?.longestGap ?? '?'}
-5.00x: ${t500?.hitRate?.toFixed(1) ?? '?'}% | lastHitAgo: ${t500?.lastHitAgo ?? '?'} | longestGap: ${t500?.longestGap ?? '?'}
-10.0x: ${t1000?.hitRate?.toFixed(1) ?? '?'}% | lastHitAgo: ${t1000?.lastHitAgo ?? '?'}
+  let timeStr = 'None available.';
+  if (stats.timePattern) {
+    const tp = stats.timePattern;
+    timeStr = `Current Minute: ${tp.minute} (historically occurred ${tp.occurrences} times in the DB).\n`;
+    timeStr += `90% Safe Target: ${tp.p90}x | 50% Median: ${tp.p50}x\n`;
+    timeStr += `Hit Rates during this minute: ` + tp.hitRates.map((w: any) => `${w.target}x: ${w.hitRate}%`).join(' | ');
+  }
 
-=== BACKEND SIGNAL ===
-baseShouldBet: ${betSignal.should_bet} | baseStrategy: ${betSignal.strategy}
-baseCashoutTarget: ${betSignal.cashout_target} | skipReason: ${betSignal.skip_reason ?? 'None'}
+  let seqStr = 'None available.';
+  if (stats.sequenceMatch) {
+    const sq = stats.sequenceMatch;
+    seqStr = `Current Shape Sequence: [${sq.sequence.join(', ')}]\n`;
+    seqStr += `This exact sequence occurred ${sq.occurrences} times historically.\n`;
+    seqStr += `Next Round Probabilities -> INSTANT Crash: ${sq.pInstantNext}% | Safe (>=1.15): ${sq.pSafeNext}% | High (>=5.0): ${sq.pHighNext}%\n`;
+  }
 
-=== TIME CONTEXT ===
-UTC Hour: ${timeData.currentUTCHour} (${nowPeak.label}) | Local: ${timeData.currentLocalHour} ${timeData.currentAMPM}
-peakTag: ${nowPeak.tag} | peakScore: ${nowPeak.score}/100 | note: ${nowPeak.note}
+  return `You are an Advanced Pattern Recognition & Strategy Engine for crash games. Your goal is to maximize predictive accuracy by analyzing streaks, momentum, cycles, and volatility. You actively look for patterns and recovery cycles in the historical data to formulate high-accuracy predictions, rather than dismissing the sequence as pure randomness.
 
-=== DECISION RULES ===
+=== CURRENT SESSION STATS ===
+Rounds Analyzed: ${stats.count}
+Mean Multiplier: ${stats.mean?.toFixed(2)}x | Median: ${stats.median?.toFixed(2)}x
+Standard Deviation (stdDev): ${stats.stdDev?.toFixed(2)}
+Calculated Session Phase: ${volatilityPhase} (CALM / NORMAL / VOLATILE)
+Streak Info: ${stats.currentLowStreak} consecutive low crashes (<2x) | ${stats.currentHighStreak ?? 0} consecutive high rounds (>=2x)
+Trend (Recent vs Older): ${stats.trend} | EMA: ${stats.ema?.toFixed(2)}x
 
-SKIP RULES (prioritize safety):
-- SKIP if currentLowStreak >= 4 (triggers on 4+ low streak instead of 5+)
-- SKIP if riskScore >= 72
-- SKIP if trend is falling AND recentMean < 1.8x
-- SKIP if pUnder2 > 62%
-- When in doubt or signal matches skip parameters, output SKIP.
+=== DETECTED HISTORICAL PATTERNS (Conditional Probability) ===
+${patternStr}
 
-CONSERVATIVE (DEFAULT strategy, safe 1.05-1.19x cashout):
-- Use as the default betting strategy for safety.
-- Choose a cashout target strictly between 1.05x and 1.19x.
-- Target must be backed by actual hit rate data (minimum 70%+ hit rate for safety, no guessing!).
+=== N-GRAM SEQUENCE ENGINE ===
+${seqStr}
 
-BALANCED (moderate strategy, cashout 1.20-1.99x):
-- Use when riskScore < 50 AND EMA >= 1.8x AND trend is NOT falling.
-- cashout_target: pick a target with >= 60% hit rate.
+=== MINUTE TIMING PROFILE ===
+${timeStr}
 
-AGGRESSIVE (high reward strategy, cashout >= 2.50x):
-- ONLY recommend if ALL conditions are met: riskScore <= 40 AND EMA >= 2.5x AND trend is rising AND currentHighStreak >= 3. (If even one condition is missing, downgrade to BALANCED or CONSERVATIVE).
-- cashout_target: backed by actual stats (minimum 20%+ hit rate).
+=== TIME-ZONE & HOUR PROFILE ===
+Current UTC Hour: ${timeData.currentUTCHour} (${nowPeak.label})
+Peak Hour Tag: ${nowPeak.tag} | Hour Traffic Score: ${nowPeak.score}/100 | Volume Note: ${nowPeak.note}
 
-GOLDEN RULE: Every cashout target must be backed by actual hit rate data from the stats section. Never guess targets. Minimum hit rate requirements: CONSERVATIVE (70%+), BALANCED (60%+), AGGRESSIVE (20%+).
+=== GENERAL TARGET HIT RATES (Overall Dataset) ===
+1.05x: ${t105?.hitRate?.toFixed(1) ?? '?'}%
+1.10x: ${t110?.hitRate?.toFixed(1) ?? '?'}%
+1.18x: ${t118?.hitRate?.toFixed(1) ?? '?'}%
+1.20x: ${t120?.hitRate?.toFixed(1) ?? '?'}%
+1.50x: ${t150?.hitRate?.toFixed(1) ?? '?'}%
+2.00x: ${t200?.hitRate?.toFixed(1) ?? '?'}%
+3.00x: ${t300?.hitRate?.toFixed(1) ?? '?'}%
+5.00x: ${t500?.hitRate?.toFixed(1) ?? '?'}%
 
-Return EXACTLY this JSON (no other text, no markdown):
-{"risk":"LOW|MEDIUM|HIGH","confidence":0-100,"should_bet":true|false,"strategy":"CONSERVATIVE|BALANCED|AGGRESSIVE|SKIP","cashout_target":1.10,"summary":"2 sentences: what pattern you see and why this target"}`;
+=== BACKEND STATS RECOMMENDATION ===
+Suggested Strategy: ${betSignal.strategy} | Suggested Target: ${betSignal.cashout_target}x | Skip Reason: ${betSignal.skip_reason ?? 'None'}
+Suggested Swing: ${betSignal.swing_target ? betSignal.swing_target + 'x' : 'None'} | Recommended Stake: ${betSignal.recommended_stake_pct}% bankroll | Strategy Reason: ${betSignal.strategy_reason ?? 'None'}
+
+=== STRATEGY DECISION RULES ===
+1. FIND PATTERNS: Actively look for cycles. If there's a long gap of low crashes, look for an upcoming recovery. If a DETECTED HISTORICAL PATTERN shows a high win rate (>70%) for a specific target, strongly consider overriding other rules to follow the historical pattern.
+2. WARMUP PHASE: If the recommendation is SKIP due to recent losses, tell the user the system is in a "Warmup Phase" analyzing patterns to guarantee 90% accuracy. Recommend observing without betting.
+3. CONSERVATIVE BETTING: If the strategy is CONSERVATIVE, recommend a safe cashout target dynamically chosen between 1.05x and 1.19x depending on volatility.
+4. ADAPTIVE MICRO-TARGETS: Output highly specific decimal targets (e.g., 1.48, 2.12, 10.45, 15.22). There is NO ceiling. If the DETECTED HISTORICAL PATTERNS percentiles justify a massive 10x or 20x target, you must output it! Otherwise, keep it mathematically safe.
+5. RNG REALITY CHECK & VOLATILITY RANGES: Crash games use provably fair SHA-256 hashes with a strict 3% house edge. Do NOT fall for the "illusion of patterns". If the Volatility Range Scanner detects the algorithm trapped in the MICRO_RANGE (<1.05x) or wildly bouncing between UPPER and MICRO ranges, you must prioritize Bankroll Protection and recommend a SKIP. Only recommend aggressive bets if the N-Gram Sequence Engine provides a verified, high-volume safety net.
+6. SUMMARY FORMAT: Provide clear predictive and strategic insight in 2 concise sentences (e.g. "Pattern dictates an extreme 15x multiplier. Recommending a high-risk 15.22x swing target based on historical data.").
+
+Return EXACTLY this JSON format (no markdown code blocks, no other text):
+{
+  "risk": "LOW|MEDIUM|HIGH",
+  "confidence": 0-100,
+  "should_bet": true|false,
+  "strategy": "CONSERVATIVE|BALANCED|AGGRESSIVE|SKIP",
+  "cashout_target": 1.19,
+  "swing_target": 1.80,
+  "recommended_stake_pct": 1-5,
+  "volatility_phase": "CALM|NORMAL|VOLATILE",
+  "summary": "<2-sentence predictive strategy based on patterns>"
+}`;
 }
-
 
 export async function callAI(prompt: string): Promise<{ result: any; model: string } | null> {
   if (!process.env.OPENROUTER_API_KEY) return null;

@@ -98,18 +98,18 @@ export async function POST(request: Request) {
       }
     }
 
-    // 4. Fetch the entire database history (up to 50,000 rounds)
-    let historyRounds: { crash_point: number }[] = [];
+    // 4. Fetch the entire database history (up to 50,000 rounds) with timestamps
+    let historyRounds: { crash_point: number; created_at: string }[] = [];
     const PAGE_SIZE = 1000;
     for (let i = 0; i < 50; i++) {
       const { data: pageData, error: pageErr } = await supabase
         .from('crash_rounds')
-        .select('crash_point')
+        .select('crash_point, created_at')
         .order('created_at', { ascending: false })
         .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1);
       
       if (pageErr || !pageData || pageData.length === 0) break;
-      historyRounds.push(...(pageData as { crash_point: number }[]));
+      historyRounds.push(...(pageData as { crash_point: number; created_at: string }[]));
       if (pageData.length < PAGE_SIZE) break;
     }
 
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const values = historyRounds.map(r => Number(r.crash_point));
+    const values = historyRounds.map((r: any) => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
     // Compute complete stats for recommendations across the entire dataset (no slice!)
     const stats = computeStats(values);
@@ -165,6 +165,10 @@ export async function POST(request: Request) {
       new Promise<null>(resolve => setTimeout(() => resolve(null), 4000)),
     ]);
 
+    let swingTarget = betSignal.swing_target;
+    let volatilityPhase = betSignal.volatility_phase;
+    let recommendedStakePct = betSignal.recommended_stake_pct;
+
     if (aiResponse) {
       const { result: ai, model } = aiResponse;
       aiModelUsed = model;
@@ -172,12 +176,20 @@ export async function POST(request: Request) {
       if (['LOW','MEDIUM','HIGH'].includes(ai.risk))                              aiRisk = ai.risk;
       if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = ai.confidence;
       if (typeof ai.summary === 'string' && ai.summary.length > 5)                aiSummary = ai.summary;
-      if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
-        aiPredMultiplier = ai.cashout_target;
-        finalCashout     = ai.cashout_target;
+
+      // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
+      if (betSignal.strategy !== 'SKIP') {
+        if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
+          aiPredMultiplier = ai.cashout_target;
+          finalCashout     = ai.cashout_target;
+        }
+        if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy))  strategyLabel = ai.strategy;
+        if (typeof ai.should_bet === 'boolean')                                      finalBet = ai.should_bet;
       }
-      if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy))  strategyLabel = ai.strategy;
-      if (typeof ai.should_bet === 'boolean')                                      finalBet = ai.should_bet;
+
+      if (typeof ai.swing_target === 'number' || ai.swing_target === null)        swingTarget = ai.swing_target;
+      if (typeof ai.volatility_phase === 'string')                                volatilityPhase = ai.volatility_phase;
+      if (typeof ai.recommended_stake_pct === 'number')                           recommendedStakePct = ai.recommended_stake_pct;
       if (typeof ai.summary === 'string') {
         strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.summary;
       }
@@ -199,6 +211,9 @@ export async function POST(request: Request) {
         strategy:             strategyLabel,
         strategy_reason:      strategyReason,
         ai_model_used:        aiModelUsed,
+        swing_target:         swingTarget,
+        volatility_phase:     volatilityPhase,
+        recommended_stake_pct: recommendedStakePct,
       })
       .select()
       .maybeSingle();
@@ -227,6 +242,9 @@ export async function POST(request: Request) {
         cashout_target: finalCashout,
         strategy_reason: strategyReason,
         ai_model_used: aiModelUsed,
+        swing_target: swingTarget,
+        volatility_phase: volatilityPhase,
+        recommended_stake_pct: recommendedStakePct,
       }
     });
 

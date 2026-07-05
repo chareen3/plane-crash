@@ -20,6 +20,37 @@ export interface TargetLevel {
   lastHitAgo: number;   // how many rounds ago this last triggered (0 = just now)
   longestGap: number;   // worst dry-spell: max consecutive rounds without hitting
   ev: number;           // expected value per unit bet = (hitRate/100 * target) - 1
+  mathProb: number;     // theoretical probability based on 97% RTP (0–100)
+}
+
+export interface PatternMatch {
+  patternName: string;
+  occurrences: number;
+  nextRoundWinRates: { target: number; hitRate: number }[];
+  p90?: number;
+  p80?: number;
+  p50?: number;
+}
+
+export interface TimePatternMatch {
+  minute: number;
+  occurrences: number;
+  p90: number;
+  p80: number;
+  p50: number;
+  hitRates: { target: number; hitRate: number }[];
+}
+
+export interface SequenceMatch {
+  sequence: string[];
+  occurrences: number;
+  pInstantNext: number; 
+  pSafeNext: number; 
+  pMedNext: number; 
+  pHighNext: number; 
+  p90: number; 
+  p80: number;
+  p50: number;
 }
 
 export interface CrashStats {
@@ -71,11 +102,16 @@ export interface CrashStats {
   riskLabel: 'LOW' | 'MEDIUM' | 'HIGH';
   confidence: number;
   volatility: 'low' | 'normal' | 'high';
+  detectedPatterns: PatternMatch[];
+  timePattern?: TimePatternMatch;
+  sequenceMatch?: SequenceMatch;
+  recentOutcomes: number[];
 }
 
-export function computeStats(values: number[]): CrashStats {
-  if (values.length === 0) return emptyStats();
-
+export function computeStats(rawRounds: { crash_point: number, created_at: string }[]): CrashStats {
+  if (rawRounds.length === 0) return emptyStats();
+  const values = rawRounds.map(r => Number(r.crash_point));
+  
   const n = values.length;
   const sorted = [...values].sort((a, b) => a - b);
 
@@ -126,6 +162,9 @@ export function computeStats(values: number[]): CrashStats {
     // Positive EV = statistically favorable historically
     const ev = Math.round(((hitRate / 100) * target - 1) * 100) / 100;
 
+    // Theoretical probability formula: P(reach m) = 0.97 / m. Expressed as percentage 0-100
+    const mathProb = Math.round((0.97 / target) * 1000) / 10;
+
     // Signal
     let signal: TargetLevel['signal'];
     if (hitRate >= 80) signal = 'SAFE';
@@ -133,7 +172,7 @@ export function computeStats(values: number[]): CrashStats {
     else if (hitRate >= 25) signal = 'RISKY';
     else signal = 'RARE';
 
-    return { target, hitCount, hitRate, recentHitRate, signal, lastHitAgo, longestGap, ev };
+    return { target, hitCount, hitRate, recentHitRate, signal, lastHitAgo, longestGap, ev, mathProb };
   });
 
   // ── Percentile-based safe cashout targets ──
@@ -232,6 +271,165 @@ export function computeStats(values: number[]): CrashStats {
 
   const confidence = Math.min(100, Math.round((n / 50) * 100));
 
+  // ── Pattern Detection (Conditional Probabilities) ──
+  const detectedPatterns: PatternMatch[] = [];
+
+  function analyzeStreakPattern(streakLen: number, type: 'low' | 'high') {
+    if (streakLen === 0) return;
+    const outcomes: number[] = [];
+    
+    for (let i = 1; i < n - streakLen - 1; i++) {
+      let match = true;
+      for (let j = 1; j <= streakLen; j++) {
+        const v = values[i + j];
+        if (type === 'low' && v >= 2) { match = false; break; }
+        if (type === 'high' && v < 2) { match = false; break; }
+      }
+      if (!match) continue;
+
+      const boundary = values[i + streakLen + 1];
+      if (type === 'low' && boundary < 2) match = false;
+      if (type === 'high' && boundary >= 2) match = false;
+
+      if (match) {
+        outcomes.push(values[i]);
+      }
+    }
+
+    if (outcomes.length >= 5) { // Strict requirement: Minimum 5 occurrences to avoid low-sample noise
+      const pTargets = [1.2, 1.5, 2.0, 3.0, 5.0];
+      const winRates = pTargets.map(t => {
+        const hits = outcomes.filter(o => o >= t).length;
+        return { target: t, hitRate: Math.round((hits / outcomes.length) * 100) };
+      });
+
+      const sortedOutcomes = [...outcomes].sort((a, b) => a - b);
+      function getP(targetPct: number) {
+        let lo = sortedOutcomes[0], hi = sortedOutcomes[sortedOutcomes.length - 1];
+        for (let i = 0; i < 50; i++) {
+          const mid = (lo + hi) / 2;
+          const wr = (outcomes.filter(v => v >= mid).length / outcomes.length) * 100;
+          if (wr > targetPct) lo = mid; else hi = mid;
+        }
+        return Math.min(30.00, Math.max(1.01, Math.round(((lo + hi) / 2) * 100) / 100));
+      }
+
+      // Fix 4: Confidence Score filter — only trust patterns with occurrences * bestHitRate >= 4
+      const p2WinRate = winRates.find(w => w.target === 2.0)?.hitRate ?? 0;
+      const p15WinRate = winRates.find(w => w.target === 1.5)?.hitRate ?? 0;
+      const bestHitRate = Math.max(p2WinRate, p15WinRate) / 100;
+      const confidenceScore = outcomes.length * bestHitRate;
+
+      if (confidenceScore >= 4.0) { // Only high-confidence patterns pass through
+        detectedPatterns.push({
+          patternName: `Exactly ${streakLen} consecutive ${type} crashes`,
+          occurrences: outcomes.length,
+          nextRoundWinRates: winRates,
+          p90: getP(90),
+          p80: getP(80),
+          p50: getP(50)
+        });
+      }
+    }
+  }
+
+  if (currentLowStreak > 0) analyzeStreakPattern(currentLowStreak, 'low');
+  if (currentHighStreak > 0) analyzeStreakPattern(currentHighStreak, 'high');
+
+  // ── Minute Timing Pattern ──
+  let timePattern: TimePatternMatch | undefined = undefined;
+  if (rawRounds[0]?.created_at) {
+    const currentMinute = new Date(rawRounds[0].created_at).getMinutes();
+    
+    const minuteOutcomes: number[] = [];
+    for (const r of rawRounds) {
+      if (r.created_at) {
+        const m = new Date(r.created_at).getMinutes();
+        if (m === currentMinute) {
+          minuteOutcomes.push(Number(r.crash_point));
+        }
+      }
+    }
+    
+    if (minuteOutcomes.length >= 10) {
+      const sortedM = [...minuteOutcomes].sort((a, b) => a - b);
+      function getMP(targetPct: number) {
+        let lo = sortedM[0], hi = sortedM[sortedM.length - 1];
+        for (let i = 0; i < 50; i++) {
+          const mid = (lo + hi) / 2;
+          const wr = (minuteOutcomes.filter(v => v >= mid).length / minuteOutcomes.length) * 100;
+          if (wr > targetPct) lo = mid; else hi = mid;
+        }
+        return Math.min(30.00, Math.max(1.01, Math.round(((lo + hi) / 2) * 100) / 100));
+      }
+
+      const pTargets = [1.2, 1.5, 2.0, 3.0, 5.0];
+      const mHitRates = pTargets.map(t => {
+        const hits = minuteOutcomes.filter(o => o >= t).length;
+        return { target: t, hitRate: Math.round((hits / minuteOutcomes.length) * 100) };
+      });
+
+      timePattern = {
+        minute: currentMinute,
+        occurrences: minuteOutcomes.length,
+        p90: getMP(90),
+        p80: getMP(80),
+        p50: getMP(50),
+        hitRates: mHitRates
+      };
+    }
+  }
+
+  // ── Sequence N-Gram Matching ──
+  let sequenceMatch: SequenceMatch | undefined = undefined;
+  
+  function getTier(v: number): string {
+    if (v < 1.10) return 'INSTANT';
+    if (v < 2.0) return 'LOW';
+    if (v < 5.0) return 'MED';
+    return 'HIGH';
+  }
+
+  if (values.length >= 5) {
+    // oldest to newest of the last 4 (values[3] is oldest of the 4, values[0] is newest)
+    const currentSeq = [getTier(values[3]), getTier(values[2]), getTier(values[1]), getTier(values[0])]; 
+    const seqStr = currentSeq.join(',');
+    const seqOutcomes: number[] = [];
+
+    // Search historical data for this sequence
+    for (let i = 1; i < values.length - 4; i++) {
+      const histSeq = [getTier(values[i+3]), getTier(values[i+2]), getTier(values[i+1]), getTier(values[i])];
+      if (histSeq.join(',') === seqStr) {
+        seqOutcomes.push(values[i-1]); // the outcome is the round right after the sequence (which is i-1 because 0 is newest)
+      }
+    }
+
+    if (seqOutcomes.length >= 5) {
+      const sortedOutcomes = [...seqOutcomes].sort((a, b) => a - b);
+      function getSP(targetPct: number) {
+        let lo = sortedOutcomes[0], hi = sortedOutcomes[sortedOutcomes.length - 1];
+        for (let i = 0; i < 50; i++) {
+          const mid = (lo + hi) / 2;
+          const wr = (seqOutcomes.filter(v => v >= mid).length / seqOutcomes.length) * 100;
+          if (wr > targetPct) lo = mid; else hi = mid;
+        }
+        return Math.min(30.00, Math.max(1.01, Math.round(((lo + hi) / 2) * 100) / 100));
+      }
+
+      sequenceMatch = {
+        sequence: currentSeq,
+        occurrences: seqOutcomes.length,
+        pInstantNext: Math.round((seqOutcomes.filter(v => v < 1.10).length / seqOutcomes.length) * 100),
+        pSafeNext: Math.round((seqOutcomes.filter(v => v >= 1.15).length / seqOutcomes.length) * 100),
+        pMedNext: Math.round((seqOutcomes.filter(v => v >= 2.0).length / seqOutcomes.length) * 100),
+        pHighNext: Math.round((seqOutcomes.filter(v => v >= 5.0).length / seqOutcomes.length) * 100),
+        p90: getSP(90),
+        p80: getSP(80),
+        p50: getSP(50)
+      };
+    }
+  }
+
   return {
     count: n, mean: +mean.toFixed(2), median: +median.toFixed(2),
     stdDev: +stdDev.toFixed(2), min: +min.toFixed(2), max: +max.toFixed(2),
@@ -242,7 +440,8 @@ export function computeStats(values: number[]): CrashStats {
     recentMean: +recentMean.toFixed(2), olderMean: +olderMean.toFixed(2), trend,
     suggestedCashout, suggestedCashoutWinRate,
     conservativeCashout, aggressiveCashout,
-    riskScore, riskLabel, confidence, volatility,
+    riskScore, riskLabel, confidence, volatility, detectedPatterns, timePattern, sequenceMatch,
+    recentOutcomes: values.slice(0, 10)
   };
 }
 
@@ -250,6 +449,7 @@ function emptyStats(): CrashStats {
   const emptyTargets = [1.2, 1.5, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0].map(target => ({
     target, hitCount: 0, hitRate: 0, recentHitRate: 0,
     signal: 'RARE' as const, lastHitAgo: -1, longestGap: 0, ev: -1,
+    mathProb: Math.round((0.97 / target) * 1000) / 10,
   }));
   return {
     count: 0, mean: 0, median: 0, stdDev: 0, min: 0, max: 0,
@@ -262,7 +462,8 @@ function emptyStats(): CrashStats {
     recentMean: 0, olderMean: 0, trend: 'flat',
     suggestedCashout: 1.5, suggestedCashoutWinRate: 0,
     conservativeCashout: 1.2, aggressiveCashout: 2.0,
-    riskScore: 50, riskLabel: 'MEDIUM', confidence: 0, volatility: 'normal',
+    riskScore: 50, riskLabel: 'MEDIUM', confidence: 0, volatility: 'normal', detectedPatterns: [],
+    recentOutcomes: []
   };
 }
 
@@ -282,21 +483,67 @@ export function computeBetSignal(stats: CrashStats): {
   strategy: string;
   cashout_target: number;
   recommended_bet_units: number;
+  swing_target: number | null;
+  volatility_phase: 'CALM' | 'NORMAL' | 'VOLATILE';
+  recommended_stake_pct: number;
+  strategy_reason?: string;
 } {
   const reasons: string[] = [];
 
-  // 1. Aggressive Skip Rules (triggers on 4+ low streak)
+  // Determine volatility phase using stdDev
+  const stdDev = stats.stdDev || 0;
+  let volatility_phase: 'CALM' | 'NORMAL' | 'VOLATILE' = 'NORMAL';
+  if (stdDev < 1.5) volatility_phase = 'CALM';
+  else if (stdDev > 3.5) volatility_phase = 'VOLATILE';
+
+  // 1. Aggressive Skip & WARMUP Rules
   if (stats.currentLowStreak >= 4) {
-    reasons.push(`${stats.currentLowStreak} consecutive <2x rounds (streak threshold met)`);
+    reasons.push(`${stats.currentLowStreak} consecutive <2x rounds (WARMUP Phase activated to safely analyze patterns)`);
   }
-  if (stats.riskScore >= 72) {
-    reasons.push(`risk score is high (${stats.riskScore}/100)`);
+  if (stats.currentHighStreak >= 6) {
+    reasons.push(`${stats.currentHighStreak} consecutive \u22652x rounds (Regression to mean likely. WARMUP Phase activated)`);
   }
-  if (stats.trend === 'falling' && stats.recentMean < 1.8) {
-    reasons.push('falling trend with recent mean below 1.8x');
+  if (stats.riskScore >= 80) {
+    reasons.push(`risk score is extremely high (${stats.riskScore}/100)`);
   }
-  if (stats.pUnder2 > 62) {
-    reasons.push(`high density of low crashes (${stats.pUnder2}% under 2x)`);
+  if (stats.trend === 'falling' && stats.recentMean < 1.6) {
+    reasons.push('falling trend with recent mean below 1.6x');
+  }
+  if (stats.pUnder2 > 70) {
+    reasons.push(`extreme density of low crashes (${stats.pUnder2}% under 2x)`);
+  }
+  if (volatility_phase === 'VOLATILE' && stats.currentLowStreak >= 3) {
+    reasons.push('highly volatile session with low crashes (WARMUP Phase)');
+  }
+  
+  if (stats.sequenceMatch && stats.sequenceMatch.pInstantNext >= 30) {
+    reasons.push(`N-Gram Sequence Engine detects massive ${stats.sequenceMatch.pInstantNext}% chance of INSTANT crash. Blocking conservative bet.`);
+  }
+
+  // 1.5 Volatility Range Scanner (Micro & Bounce detection) — Fix 3: Tightened thresholds
+  if (stats.recentOutcomes && stats.recentOutcomes.length >= 3) {
+    const r1 = stats.recentOutcomes[0]; // newest
+    const r2 = stats.recentOutcomes[1];
+    const r3 = stats.recentOutcomes[2];
+
+    const isMicro = (v: number) => v < 1.10; // Tightened from 1.05 to 1.10 for earlier detection
+    const isLower = (v: number) => v >= 1.05 && v < 1.20;
+    const isUpper = (v: number) => v >= 2.00;
+
+    // Check if trapped in micro range (any 2 consecutive <1.10x is danger)
+    if (isMicro(r1) && isMicro(r2)) {
+      reasons.push(`RNG Volatility Scanner: Trapped in MICRO_RANGE (<1.10x). Hard SKIP to avoid take-back cycle.`);
+    }
+
+    // Check for wild bouncing (High Variance Take-back cycle)
+    if ((isUpper(r1) && isMicro(r2) && isUpper(r3)) || (isMicro(r1) && isUpper(r2) && isMicro(r3))) {
+      reasons.push(`RNG Volatility Scanner: Wild UPPER-MICRO bouncing detected. Hard SKIP due to unsafe variance.`);
+    }
+
+    // Check for grinding zone (3 consecutive LOWER_RANGE rounds — algorithm about to break out or drop)
+    if (isLower(r1) && isLower(r2) && isLower(r3)) {
+      reasons.push(`RNG Volatility Scanner: Grinding in LOWER_RANGE (1.05-1.19x). Skipping until breakout confirmed.`);
+    }
   }
 
   if (reasons.length > 0) {
@@ -305,42 +552,102 @@ export function computeBetSignal(stats: CrashStats): {
       skip_reason: reasons.join(' · '), 
       strategy: 'SKIP', 
       cashout_target: 0, 
-      recommended_bet_units: 0 
+      recommended_bet_units: 0,
+      swing_target: null,
+      volatility_phase,
+      recommended_stake_pct: 0
     };
   }
 
-  // 2. Default is CONSERVATIVE (1.05 - 1.19x cashout, backed by 70%+ hit rate)
+  // 2. Default is CONSERVATIVE — Fix 1: Use p95SafeCashout (ultra-safe 1.04x–1.09x range)
   let strategy = 'CONSERVATIVE';
-  // Use p70SafeCashout (ensuring 70%+ hit rate) and clamp between 1.05x and 1.19x
-  let cashout_target = Math.max(1.05, Math.min(1.19, stats.p70SafeCashout));
+  const p95 = stats.p95SafeCashout;
+  // Clamp between 1.04x and 1.10x for maximum hit rate on conservative bets
+  let cashout_target = Math.max(1.04, Math.min(1.10, p95));
   let recommended_bet_units = 1.0;
+  let recommended_stake_pct = 2; // 2% bankroll default
+  let swing_target: number | null = null;
+  let strategy_reason: string | undefined;
+
+  // If CALM, we can afford slightly wider targets and larger stake
+  if (volatility_phase === 'CALM') {
+    cashout_target = Math.max(1.05, Math.min(1.15, stats.p90SafeCashout)); // Slightly higher in calm
+    recommended_stake_pct = 3;
+  }
 
   // 3. BALANCED Strategy (moderate risk, targets 1.20 - 1.99x)
-  if (stats.riskScore < 50 && stats.ema >= 1.8 && stats.trend !== 'falling') {
+  if (stats.riskScore < 45 && stats.ema >= 1.8 && stats.trend === 'rising') {
     strategy = 'BALANCED';
-    cashout_target = Math.max(1.20, Math.min(1.99, stats.p60SafeCashout));
+    cashout_target = Math.max(1.20, Math.min(1.80, stats.p70SafeCashout)); // Use p70 instead of p60
     recommended_bet_units = 0.8;
+    recommended_stake_pct = volatility_phase === 'CALM' ? 3 : 2;
+    swing_target = 1.8;
   }
 
-  // 4. AGGRESSIVE Strategy (requires ALL conditions: riskScore <= 40, EMA >= 2.5x, trend is rising, high streak >= 3)
-  if (
-    stats.riskScore <= 40 && 
-    stats.ema >= 2.5 && 
-    stats.trend === 'rising' && 
-    stats.currentHighStreak >= 3
-  ) {
-    strategy = 'AGGRESSIVE';
-    cashout_target = Math.max(2.50, stats.p50SafeCashout); // Target >= 2.50x based on median/hit rates
-    recommended_bet_units = 0.5;
+  // 4. Pattern Override Strategy — Fix 2: Sequence-gated AGGRESSIVE (dual confirmation required)
+  if (stats.detectedPatterns && stats.detectedPatterns.length > 0) {
+    const pattern = stats.detectedPatterns[0];
+    if (pattern.occurrences >= 5) {
+      const p2 = pattern.nextRoundWinRates.find(w => w.target === 2.0);
+      const p15 = pattern.nextRoundWinRates.find(w => w.target === 1.5);
+      
+      // Dual-gate: Pattern must show 80%+ AND N-Gram must confirm 75%+ safe next
+      const seqSafe = stats.sequenceMatch ? stats.sequenceMatch.pSafeNext >= 75 : true;
+
+      if (p2 && p2.hitRate >= 80 && seqSafe) {
+        strategy = 'AGGRESSIVE';
+        // Fix #3: Use global p80SafeCashout from full 50k dataset instead of tiny pattern sample
+        cashout_target = Math.max(1.5, Math.min(20.0, stats.p80SafeCashout));
+        swing_target = pattern.p50 && pattern.p50 >= 5 ? Math.min(pattern.p50, 15.0) : stats.p60SafeCashout;
+        recommended_stake_pct = 2;
+        strategy_reason = `Dual-confirmed: Pattern '${pattern.patternName}' + N-Gram ${stats.sequenceMatch?.pSafeNext ?? 'N/A'}% safe. Global 80% safe target: ${cashout_target}x`;
+      } else if (p15 && p15.hitRate >= 75) {
+        strategy = 'BALANCED';
+        cashout_target = Math.max(1.20, Math.min(1.80, stats.p70SafeCashout)); // Use global p70
+        swing_target = 1.8;
+        recommended_stake_pct = 2;
+        strategy_reason = `Pattern '${pattern.patternName}' p70 global target: ${cashout_target}x`;
+      }
+    }
   }
 
-  // Double check target hit rate is supported by actual stats
-  const targetLvl = stats.targets?.find(t => Math.abs(t.target - Math.round(cashout_target)) <= 0.5);
-  if (targetLvl && targetLvl.hitRate < 20 && strategy === 'AGGRESSIVE') {
-    // downgrade target if stats don't support it
-    cashout_target = 2.0;
+  // 5. Time-based Override (Strict 80% safe cashout ceiling)
+  if (stats.timePattern && strategy !== 'SKIP') {
+    const tp = stats.timePattern;
+    if (tp.p80 >= 2.0 && strategy !== 'AGGRESSIVE') {
+      strategy = 'AGGRESSIVE';
+      cashout_target = Math.min(25.0, tp.p80);
+      swing_target = tp.p80;
+      strategy_reason = `Minute ${tp.minute} historically has an 80% safe target of ${tp.p80}x`;
+    }
   }
 
-  return { should_bet: true, skip_reason: null, strategy, cashout_target, recommended_bet_units };
+  // Fix #5: UTC Time-Zone Safety Window — clamp conservative targets during high-variance UTC hours
+  const utcHour = new Date().getUTCHours();
+  const isVolatileHour = (utcHour >= 12 && utcHour <= 14) || (utcHour >= 22 || utcHour <= 1);
+  if (isVolatileHour && strategy !== 'SKIP') {
+    if (strategy === 'AGGRESSIVE') {
+      // Downgrade to BALANCED during volatile UTC hours
+      strategy = 'BALANCED';
+      cashout_target = Math.max(1.20, Math.min(1.60, stats.p70SafeCashout));
+      swing_target = 1.6;
+      strategy_reason = `UTC hour ${utcHour} is a high-variance window. Downgraded to BALANCED for safety.`;
+    } else if (strategy === 'CONSERVATIVE') {
+      // Extra safe during volatile hours
+      cashout_target = Math.max(1.04, Math.min(1.08, stats.p95SafeCashout));
+    }
+  }
+
+  return {  
+    should_bet: true, 
+    skip_reason: null, 
+    strategy, 
+    cashout_target, 
+    recommended_bet_units,
+    swing_target,
+    volatility_phase,
+    recommended_stake_pct,
+    strategy_reason
+  };
 }
 

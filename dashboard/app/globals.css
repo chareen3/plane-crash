@@ -1080,7 +1080,7 @@ body {
 
 .target-table-head {
   display: grid;
-  grid-template-columns: 52px 1fr 60px 64px 52px;
+  grid-template-columns: 52px 64px 1fr 60px 64px 52px;
   gap: 8px;
   padding: 6px 8px;
   font-size: 9px;
@@ -1093,7 +1093,7 @@ body {
 
 .target-row {
   display: grid;
-  grid-template-columns: 52px 1fr 60px 64px 52px;
+  grid-template-columns: 52px 64px 1fr 60px 64px 52px;
   gap: 8px;
   align-items: center;
   padding: 7px 8px;
@@ -1168,6 +1168,13 @@ body {
 
 .target-recent.down {
   color: var(--red);
+}
+
+.target-math {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-dim);
+  font-weight: 600;
 }
 
 .target-last {
