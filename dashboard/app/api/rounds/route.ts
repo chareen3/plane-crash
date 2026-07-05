@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats, gradePrediction } from '../../../lib/stats';
+import { computeStats, gradePrediction, computeBetSignal } from '../../../lib/stats';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,17 +58,17 @@ export async function POST(request: Request) {
     }
 
     const latestRoundNumber = maxRoundData && maxRoundData.length > 0 ? Number(maxRoundData[0].round_number) : 0;
-    const roundNumber = latestRoundNumber + 1;
+    const roundNumber = typeof round.round_number === 'number' ? round.round_number : (latestRoundNumber + 1);
     const crashPoint = Number(round.crash_point);
 
     // 1. Insert completed round details into crash_rounds
     const { data: insertedRound, error: roundErr } = await supabase
       .from('crash_rounds')
-      .upsert({
+      .insert({
         round_number: roundNumber,
         crash_point: crashPoint,
         created_at: round.created_at || new Date().toISOString()
-      }, { onConflict: 'round_number' })
+      })
       .select()
       .single();
 
@@ -114,20 +114,32 @@ export async function POST(request: Request) {
         crashPoint
       );
 
-      await supabase
+      const { error: updateErr } = await supabase
         .from('predictions')
         .update({ actual_crash_point: crashPoint, was_correct: wasCorrect })
         .eq('id', pred.id);
+      if (updateErr) {
+        console.error('Failed to update prediction grading:', updateErr);
+      }
     }
 
-    // 4. Fetch the last 200 rounds to compute rolling features
-    const { data: historyRounds, error: historyErr } = await supabase
-      .from('crash_rounds')
-      .select('crash_point')
-      .order('created_at', { ascending: false })
-      .limit(200);
+    // 4. Fetch the entire database history (up to 50,000 rounds)
+    let historyRounds: { crash_point: number }[] = [];
+    const PAGE_SIZE = 1000;
+    for (let i = 0; i < 50; i++) {
+      const { data: pageData, error: pageErr } = await supabase
+        .from('crash_rounds')
+        .select('crash_point')
+        .order('created_at', { ascending: false })
+        .range(i * PAGE_SIZE, (i + 1) * PAGE_SIZE - 1);
+      
+      if (pageErr || !pageData || pageData.length === 0) break;
+      historyRounds.push(...(pageData as { crash_point: number }[]));
+      if (pageData.length < PAGE_SIZE) break;
+    }
 
-    if (historyErr || !historyRounds || historyRounds.length < 3) {
+
+    if (historyRounds.length < 3) {
       // Return early if not enough data to predict
       return NextResponse.json({
         success: true,
@@ -178,7 +190,7 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
   }
 }`;
 
-    // AI Prediction Fallbacks
+    // AI Prediction Fallbacks (Now the primary statistical logic)
     let aiRisk = stats.riskLabel;
     let aiConfidence = stats.confidence;
     let aiSummary = `Based on ${stats.count} rounds, the avg crash is ${stats.mean}x. Statistical risk score is ${stats.riskScore}/100.`;
@@ -189,45 +201,7 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
       x20: stats.targets.find(t => t.target === 20.0)?.hitRate ?? 5
     };
 
-    try {
-      const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://crash-tracker.app',
-        },
-        body: JSON.stringify({
-          model: 'google/gemma-2-9b-it:free',
-          messages: [{ role: 'user', content: prompt }],
-          max_tokens: 200,
-          temperature: 0.3,
-        }),
-        signal: AbortSignal.timeout(5000), // 5s timeout
-      });
-
-      if (aiRes.ok) {
-        const aiData = await aiRes.json();
-        const raw = aiData.choices?.[0]?.message?.content || '';
-        const jsonStr = raw.replace(/```json?/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(jsonStr);
-        if (parsed.risk && parsed.summary) {
-          aiRisk = parsed.risk;
-          aiConfidence = parsed.confidence ?? aiConfidence;
-          aiSummary = parsed.summary;
-          aiPredMultiplier = parsed.predicted_multiplier ?? aiPredMultiplier;
-          if (parsed.long_targets) {
-            aiLongTargets = {
-              x5: parsed.long_targets.x5 ?? aiLongTargets.x5,
-              x10: parsed.long_targets.x10 ?? aiLongTargets.x10,
-              x20: parsed.long_targets.x20 ?? aiLongTargets.x20
-            };
-          }
-        }
-      }
-    } catch (_) {
-      // Fallback already set
-    }
+    const betSignal = computeBetSignal(stats);
 
     // 6. Save the next prediction to Supabase
     const { data: insertedPred, error: predErr } = await supabase
@@ -251,13 +225,17 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
       success: true,
       round: insertedRound,
       stats,
-      prediction: insertedPred || {
+      prediction: insertedPred ? {
+        ...insertedPred,
+        ...betSignal
+      } : {
         predicted_risk: aiRisk,
         confidence: aiConfidence,
         summary: aiSummary,
         round_number: nextRoundNumber,
         predicted_multiplier: aiPredMultiplier,
-        long_targets: aiLongTargets
+        long_targets: aiLongTargets,
+        ...betSignal
       }
     });
 

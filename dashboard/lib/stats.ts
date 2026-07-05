@@ -264,9 +264,43 @@ function emptyStats(): CrashStats {
  * Grade a prediction: was the risk label correct for the actual outcome?
  */
 export function gradePrediction(predicted: 'LOW' | 'MEDIUM' | 'HIGH', actual: number): boolean {
-  if (predicted === 'LOW')    return actual < 2;
+  if (predicted === 'HIGH')    return actual < 2;
   if (predicted === 'MEDIUM') return actual >= 2 && actual < 5;
-  if (predicted === 'HIGH')   return actual >= 5;
+  if (predicted === 'LOW')   return actual >= 5;
   return false;
+}
+
+export function computeBetSignal(stats: CrashStats): {
+  should_bet: boolean;
+  skip_reason: string | null;
+  strategy: string;
+  cashout_target: number;
+} {
+  const reasons: string[] = [];
+
+  if (stats.currentLowStreak >= 4) reasons.push(`${stats.currentLowStreak} consecutive <2x rounds`);
+  if (stats.riskScore >= 72) reasons.push(`risk score ${stats.riskScore}/100`);
+  if (stats.trend === 'falling' && stats.recentMean < 1.8) reasons.push('falling trend below 1.8x avg');
+  if (stats.pUnder2 > 62) reasons.push(`${stats.pUnder2}% chance under 2x`);
+
+  if (reasons.length > 0) {
+    return { should_bet: false, skip_reason: reasons.join(' · '), strategy: 'SKIP', cashout_target: 0 };
+  }
+
+  let strategy = 'CONSERVATIVE';
+  let cashout_target = stats.p90SafeCashout;
+
+  if (stats.currentHighStreak >= 3 && stats.trend === 'rising') {
+    strategy = 'AGGRESSIVE';
+    cashout_target = stats.p70SafeCashout;
+  } else if (stats.riskScore < 35 && stats.trend !== 'falling') {
+    strategy = 'BALANCED';
+    cashout_target = stats.p80SafeCashout;
+  }
+
+  // Enforce a hard minimum on cashout target
+  cashout_target = Math.max(1.10, cashout_target);
+
+  return { should_bet: true, skip_reason: null, strategy, cashout_target };
 }
 

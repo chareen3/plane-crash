@@ -29,10 +29,10 @@ type WinRate = { total: number; correct: number; winRate: number; byRisk: Record
 const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
 const RISK_EMOJI: Record<string, string> = { LOW: '\uD83D\uDFE2', MEDIUM: '\uD83D\uDFE1', HIGH: '\uD83D\uDD34' };
 const STRATEGY_META: Record<string, { color: string; icon: string; label: string }> = {
-  SKIP:         { color: '#ff4d6d', icon: '\uD83D\uDEAB', label: 'SKIP THIS ROUND' },
+  SKIP: { color: '#ff4d6d', icon: '\uD83D\uDEAB', label: 'SKIP THIS ROUND' },
   CONSERVATIVE: { color: '#00e5a0', icon: '\uD83D\uDEE1\uFE0F', label: 'CONSERVATIVE BET' },
-  BALANCED:     { color: '#ffc84a', icon: '\u2696\uFE0F', label: 'BALANCED BET' },
-  AGGRESSIVE:   { color: '#a78bfa', icon: '\uD83D\uDE80', label: 'AGGRESSIVE BET' },
+  BALANCED: { color: '#ffc84a', icon: '\u2696\uFE0F', label: 'BALANCED BET' },
+  AGGRESSIVE: { color: '#a78bfa', icon: '\uD83D\uDE80', label: 'AGGRESSIVE BET' },
 };
 
 function classifyRisk(v: number) { return v < 2 ? 'red' : v < 5 ? 'yellow' : 'green'; }
@@ -168,27 +168,35 @@ export default function Dashboard() {
         <div className="topbar-right">
           {betAmount && <span className="bet-badge">\uD83D\uDCB0 Bet: {betAmount} USD</span>}
           <span className="live-badge"><span className="live-dot" />LIVE</span>
+          <button className="ai-btn" onClick={async () => {
+            if (confirm('Are you sure you want to clear all data?')) {
+              await fetch('/api/reset', { method: 'POST' });
+              window.location.reload();
+            }
+          }}>
+            🗑️ Reset
+          </button>
           <button className="ai-btn" onClick={runPrediction} disabled={isPredicting || rounds.length === 0}>
-            {isPredicting ? '\u23F3 Analyzing...' : '\uD83E\uDDE0 Refresh AI'}
+            {isPredicting ? 'Analyzing...' : 'Refresh AI'}
           </button>
         </div>
       </header>
 
       <div className="trust-strip">
         <div className="trust-item">
-          <span className="trust-icon">\uD83C\uDFAF</span>
-          <div><div className="trust-label">Total Predictions</div><div className="trust-value">{winRate.total}</div></div>
+          <span className="trust-icon">🎯</span>
+          <div><div className="trust-label">24h Predictions</div><div className="trust-value">{winRate.total}</div></div>
         </div>
         <div className="trust-divider" />
         <div className="trust-item">
-          <span className="trust-icon">\u2705</span>
+          <span className="trust-icon">✅</span>
           <div><div className="trust-label">Correct Calls</div><div className="trust-value green">{winRate.correct}</div></div>
         </div>
         <div className="trust-divider" />
         <div className="trust-item">
-          <span className="trust-icon">\uD83D\uDCCA</span>
+          <span className="trust-icon">📊</span>
           <div>
-            <div className="trust-label">Accuracy</div>
+            <div className="trust-label">24h Accuracy</div>
             <div className={`trust-value ${winRate.winRate >= 60 ? 'green' : winRate.winRate >= 40 ? 'yellow' : 'red'}`}>
               {winRate.winRate}%
             </div>
@@ -196,7 +204,7 @@ export default function Dashboard() {
         </div>
         <div className="trust-divider" />
         <div className="trust-item">
-          <span className="trust-icon">\uD83D\uDCC8</span>
+          <span className="trust-icon">📈</span>
           <div><div className="trust-label">Rounds Tracked</div><div className="trust-value">{rounds.length}</div></div>
         </div>
         {winRate.byRisk && Object.keys(winRate.byRisk).length > 0 && (<>
@@ -245,9 +253,9 @@ export default function Dashboard() {
         <div className="left-col">
           <div className={`pred-panel ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
             <div className="pred-header">
-              <span className="pred-title">\u26A1 NEXT ROUND \u2014 AI ANALYSIS</span>
+              <span className="pred-title">NEXT ROUND — STATISTICAL ANALYSIS</span>
               <span className={`pred-status ${predStatus}`}>
-                {predStatus === 'predicting' ? '\uD83D\uDD04 Analyzing...' : predStatus === 'done' ? '\u2705 Ready' : '\u23F8 Waiting'}
+                {predStatus === 'predicting' ? 'Analyzing...' : predStatus === 'done' ? 'Ready' : 'Waiting'}
               </span>
             </div>
             {prediction && stats ? (
@@ -281,10 +289,10 @@ export default function Dashboard() {
                     <div className="ct-pct">~50% hit rate</div>
                   </div>
                 </div>
-                {prediction.predicted_multiplier !== undefined && (
-                  <div className="ai-ceiling-forecast">
-                    <span className="ceiling-label">\uD83D\uDD2E AI EXPECTED CEILING</span>
-                    <span className="ceiling-val">{Number(prediction.predicted_multiplier).toFixed(2)}x</span>
+                {stats.p90SafeCashout !== undefined && (
+                  <div className="ai-ceiling-forecast" style={{ background: 'rgba(0, 229, 160, 0.15)', borderColor: '#00e5a0', marginTop: '16px' }}>
+                    <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold' }}>⭐ HIGHLY CONFIDENT NEXT CASHOUT (90% ACCURACY)</span>
+                    <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
                   </div>
                 )}
                 {prediction.long_targets && (
@@ -360,7 +368,7 @@ export default function Dashboard() {
 
         <div className="right-col">
           <div className="panel">
-            <div className="panel-title">\uD83D\uDCC8 Crash History</div>
+            <div className="panel-title">Crash History</div>
             <div className="chart-wrap">
               {rounds.length > 1 && (() => {
                 const pts = [...rounds].reverse().slice(0, 40);
@@ -403,7 +411,7 @@ export default function Dashboard() {
           </div>
 
           <div className="panel">
-            <div className="panel-title">\uD83C\uDFAF Target Hit Rates ({rounds.length} rounds)</div>
+            <div className="panel-title">Target Hit Rates ({rounds.length} rounds)</div>
             {stats && stats.count > 0 ? (
               <div className="target-table">
                 <div className="target-table-head">
@@ -435,7 +443,7 @@ export default function Dashboard() {
           </div>
 
           <div className="panel feed-panel">
-            <div className="panel-title">\u26A1 Live Feed</div>
+            <div className="panel-title">Live Feed</div>
             <div className="feed-list">
               {rounds.length === 0
                 ? <div className="feed-empty">Waiting for crash data...</div>
