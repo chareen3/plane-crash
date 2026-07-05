@@ -98,7 +98,8 @@ export function computeStats(values: number[]): CrashStats {
   const pOver5  = Math.round((over5   / n) * 100);
 
   // ── Per-level target analysis ──
-  const TARGET_LEVELS = [1.2, 1.5, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0];
+  const TARGET_LEVELS = [1.05, 1.10, 1.18, 1.2, 1.5, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0];
+
   const recent20 = values.slice(0, Math.min(20, n));
 
   const targets: TargetLevel[] = TARGET_LEVELS.map(target => {

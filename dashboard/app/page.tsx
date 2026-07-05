@@ -23,6 +23,7 @@ type Prediction = {
   cashout_target?: number;
   strategy_reason?: string;
   recommended_bet_units?: number;
+  ai_model_used?: string;
   stats?: CrashStats;
 };
 type WinRate = { total: number; correct: number; winRate: number; byRisk: Record<string, { total: number; correct: number }> };
@@ -267,10 +268,15 @@ export default function Dashboard() {
         <div className="left-col">
           <div className={`pred-panel ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
             <div className="pred-header">
-              <span className="pred-title">NEXT ROUND — STATISTICAL ANALYSIS</span>
+              <span className="pred-title">NEXT ROUND — AI + STATISTICAL ANALYSIS</span>
               <span className={`pred-status ${predStatus}`}>
-                {predStatus === 'predicting' ? '🔄 Analyzing Database... (Est. 2.4s)' : predStatus === 'done' ? 'Ready' : 'Waiting'}
+                {predStatus === 'predicting' ? '🔄 Analyzing...' : predStatus === 'done' ? 'Ready' : 'Waiting'}
               </span>
+              {prediction?.ai_model_used && predStatus === 'done' && (
+                <span style={{ fontSize: '10px', color: prediction.ai_model_used === 'stats-only' ? '#888' : '#a78bfa', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                  {prediction.ai_model_used === 'stats-only' ? '📊 Stats Engine' : '🤖 AI + Stats'}
+                </span>
+              )}
             </div>
             {prediction && stats ? (
               <>
