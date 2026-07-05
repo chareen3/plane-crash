@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     // Find the prediction for this round that hasn't been graded yet
     let query = supabase
       .from('predictions')
-      .select('id, predicted_risk')
+      .select('id, predicted_risk, should_bet, cashout_target, predicted_multiplier')
       .is('was_correct', null);
     
     if (typeof roundNumber === 'number') {
@@ -34,10 +34,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ graded: false });
     }
 
-    const wasCorrect = gradePrediction(
-      pred.predicted_risk as 'LOW' | 'MEDIUM' | 'HIGH',
-      actualCrashPoint
-    );
+    const isSkip = pred.should_bet === false;
+    let wasCorrect = false;
+
+    if (isSkip) {
+      // Correctly skipped if it crashed low (< 1.5x)
+      wasCorrect = actualCrashPoint < 1.5;
+    } else {
+      // Correctly bet if it reached or exceeded our cashout target
+      const target = Number(pred.cashout_target || pred.predicted_multiplier || 1.10);
+      wasCorrect = actualCrashPoint >= target;
+    }
 
     // Update with the actual result
     await supabase
@@ -45,14 +52,15 @@ export async function POST(request: Request) {
       .update({ actual_crash_point: actualCrashPoint, was_correct: wasCorrect })
       .eq('id', pred.id);
 
-    // Compute updated win rate stats
+    // Compute updated win rate stats (only active bets count for the accuracy winrate)
     const { data: allGraded } = await supabase
       .from('predictions')
-      .select('was_correct')
+      .select('was_correct, should_bet')
       .not('was_correct', 'is', null);
 
-    const total = allGraded?.length ?? 0;
-    const correct = allGraded?.filter(p => p.was_correct).length ?? 0;
+    const activeBets = allGraded?.filter(p => p.should_bet !== false) ?? [];
+    const total = activeBets.length;
+    const correct = activeBets.filter(p => p.was_correct).length;
     const winRate = total > 0 ? Math.round((correct / total) * 100) : 0;
 
     return NextResponse.json({ graded: true, wasCorrect, winRate, total, correct });
@@ -69,19 +77,37 @@ export async function GET() {
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('predictions')
-      .select('was_correct, predicted_risk, actual_crash_point, created_at, confidence, summary')
+      .select('was_correct, predicted_risk, actual_crash_point, created_at, confidence, summary, should_bet, cashout_target, predicted_multiplier')
       .not('was_correct', 'is', null)
       .gte('created_at', yesterday)
       .order('created_at', { ascending: false })
       .limit(100);
 
-    const total = data?.length ?? 0;
-    const correct = data?.filter(p => p.was_correct).length ?? 0;
+    const activeBets = data?.filter(p => p.should_bet !== false) ?? [];
+    const total = activeBets.length;
+    const correct = activeBets.filter(p => p.was_correct).length;
     const winRate = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    let totalProfitUnits = 0;
+    let totalLosses = 0;
+    let totalWins = 0;
+
+    for (const p of activeBets) {
+      if (p.was_correct !== null) {
+        if (p.was_correct) {
+          const target = Number(p.cashout_target || p.predicted_multiplier || 1.10);
+          totalProfitUnits += (target - 1);
+          totalWins++;
+        } else {
+          totalProfitUnits -= 1;
+          totalLosses++;
+        }
+      }
+    }
 
     // Break down by risk type
     const byRisk = { LOW: { total: 0, correct: 0 }, MEDIUM: { total: 0, correct: 0 }, HIGH: { total: 0, correct: 0 } };
-    for (const p of data ?? []) {
+    for (const p of activeBets) {
       const r = p.predicted_risk as 'LOW' | 'MEDIUM' | 'HIGH';
       if (byRisk[r]) {
         byRisk[r].total++;
@@ -89,7 +115,16 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ total, correct, winRate, byRisk, recent: data?.slice(0, 10) });
+    return NextResponse.json({
+      total,
+      correct,
+      winRate,
+      byRisk,
+      totalProfitUnits: Number(totalProfitUnits.toFixed(2)),
+      totalLosses,
+      totalWins,
+      recent: data?.slice(0, 10)
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

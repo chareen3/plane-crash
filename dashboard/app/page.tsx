@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Calculator } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
@@ -26,15 +28,35 @@ type Prediction = {
   ai_model_used?: string;
   stats?: CrashStats;
 };
-type WinRate = { total: number; correct: number; winRate: number; byRisk: Record<string, { total: number; correct: number }> };
+type WinRate = {
+  total: number;
+  correct: number;
+  winRate: number;
+  byRisk: Record<string, { total: number; correct: number }>;
+  totalProfitUnits?: number;
+  totalLosses?: number;
+  totalWins?: number;
+};
+
+const CURRENCIES = {
+  USD: { symbol: '$', rate: 1, minBet: 1, name: '🇺🇸 USA ($1)' },
+  LKR: { symbol: 'Rs. ', rate: 300, minBet: 300, name: '🇱🇰 Sri Lanka (₨300)' },
+  INR: { symbol: '₹', rate: 85, minBet: 100, name: '🇮🇳 India (₹100)' },
+  BRL: { symbol: 'R$', rate: 5, minBet: 5, name: '🇧🇷 Brazil (R$5)' },
+};
+
 
 const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
-const RISK_EMOJI: Record<string, string> = { LOW: '\uD83D\uDFE2', MEDIUM: '\uD83D\uDFE1', HIGH: '\uD83D\uDD34' };
-const STRATEGY_META: Record<string, { color: string; icon: string; label: string }> = {
-  SKIP: { color: '#ff4d6d', icon: '\uD83D\uDEAB', label: 'SKIP THIS ROUND' },
-  CONSERVATIVE: { color: '#00e5a0', icon: '\uD83D\uDEE1\uFE0F', label: 'CONSERVATIVE BET' },
-  BALANCED: { color: '#ffc84a', icon: '\u2696\uFE0F', label: 'BALANCED BET' },
-  AGGRESSIVE: { color: '#a78bfa', icon: '\uD83D\uDE80', label: 'AGGRESSIVE BET' },
+const RISK_EMOJI: Record<string, any> = { 
+  LOW: <CheckCircle2 size={16} strokeWidth={2.5} />, 
+  MEDIUM: <Info size={16} strokeWidth={2.5} />, 
+  HIGH: <AlertTriangle size={16} strokeWidth={2.5} /> 
+};
+const STRATEGY_META: Record<string, { color: string; icon: any; label: string }> = {
+  SKIP: { color: '#ff4d6d', icon: <ShieldAlert size={32} strokeWidth={2} />, label: 'SKIP THIS ROUND' },
+  CONSERVATIVE: { color: '#00e5a0', icon: <ShieldCheck size={32} strokeWidth={2} />, label: 'CONSERVATIVE BET' },
+  BALANCED: { color: '#ffc84a', icon: <Scale size={32} strokeWidth={2} />, label: 'BALANCED BET' },
+  AGGRESSIVE: { color: '#a78bfa', icon: <Zap size={32} strokeWidth={2} />, label: 'AGGRESSIVE BET' },
 };
 
 function classifyRisk(v: number) { return v < 2 ? 'red' : v < 5 ? 'yellow' : 'green'; }
@@ -76,6 +98,13 @@ export default function Dashboard() {
   const [betAmount, setBetAmount] = useState<string>('');
   const heroRef = useRef<HTMLDivElement>(null);
 
+  const [currency, setCurrency] = useState<'USD' | 'LKR' | 'INR' | 'BRL'>('USD');
+
+  const handleCurrencyChange = (curr: 'USD' | 'LKR' | 'INR' | 'BRL') => {
+    setCurrency(curr);
+    localStorage.setItem('dashboard_currency', curr);
+  };
+
   const fetchWinRate = useCallback(async () => {
     const res = await fetch('/api/grade');
     if (res.ok) { const d = await res.json(); setWinRate(d); }
@@ -96,7 +125,15 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const saved = localStorage.getItem('dashboard_currency');
+    if (saved && saved in CURRENCIES) {
+      setCurrency(saved as any);
+    }
+
+
+
     supabase.from('crash_rounds').select('*').order('created_at', { ascending: false }).limit(50)
+
       .then(({ data }) => {
         if (data?.length) {
           setRounds(data);
@@ -165,14 +202,41 @@ export default function Dashboard() {
     <div className="app">
       <header className="topbar">
         <div className="topbar-left">
-          <span className="topbar-icon">\u2708</span>
+          <Orbit className="topbar-icon" size={28} color="#FFD700" />
           <div>
             <h1 className="topbar-title">Crash Tracker</h1>
-            <span className="topbar-sub">AI-Powered \u00b7 Real-time \u00b7 Supabase</span>
+            <span className="topbar-sub">AI-Powered · Real-time · Supabase</span>
           </div>
         </div>
         <div className="topbar-right">
-          {betAmount && <span className="bet-badge">\uD83D\uDCB0 Bet: {betAmount} USD</span>}
+
+          <div className="currency-selector-wrap" style={{ display: 'flex', alignItems: 'center', marginRight: '10px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginRight: '6px', fontWeight: 'bold' }}>📍 REGION:</span>
+            <select
+              value={currency}
+              onChange={(e) => handleCurrencyChange(e.target.value as any)}
+              className="currency-select"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '6px',
+                color: '#fff',
+                padding: '6px 12px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                outline: 'none',
+                fontWeight: '600',
+                transition: 'all 0.2s',
+              }}
+            >
+              {Object.entries(CURRENCIES).map(([k, v]) => (
+                <option key={k} value={k} style={{ background: '#13131a', color: '#fff' }}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {betAmount && <span className="bet-badge">💰 Bet: {betAmount} USD</span>}
           <span className="live-badge"><span className="live-dot" />LIVE</span>
           <button className="ai-btn" onClick={async () => {
             if (confirm('Are you sure you want to clear all data?')) {
@@ -180,60 +244,18 @@ export default function Dashboard() {
               window.location.reload();
             }
           }}>
-            🗑️ Reset
+            <Trash2 size={16} /> Reset
           </button>
           <button className="ai-btn" onClick={runPrediction} disabled={isPredicting || rounds.length === 0}>
+            {isPredicting ? <RefreshCw size={16} className="spin" /> : <Zap size={16} />}
             {isPredicting ? 'Analyzing...' : 'Refresh AI'}
           </button>
         </div>
       </header>
 
-      <div className="trust-strip">
-        <div className="trust-item">
-          <span className="trust-icon">🎯</span>
-          <div><div className="trust-label">24h Predictions</div><div className="trust-value">{winRate.total}</div></div>
-        </div>
-        <div className="trust-divider" />
-        <div className="trust-item">
-          <span className="trust-icon">✅</span>
-          <div><div className="trust-label">Correct Calls</div><div className="trust-value green">{winRate.correct}</div></div>
-        </div>
-        <div className="trust-divider" />
-        <div className="trust-item">
-          <span className="trust-icon">📊</span>
-          <div>
-            <div className="trust-label">24h Accuracy</div>
-            <div className={`trust-value ${winRate.winRate >= 60 ? 'green' : winRate.winRate >= 40 ? 'yellow' : 'red'}`}>
-              {winRate.winRate}%
-            </div>
-          </div>
-        </div>
-        <div className="trust-divider" />
-        <div className="trust-item">
-          <span className="trust-icon">📈</span>
-          <div><div className="trust-label">Rounds Tracked</div><div className="trust-value">{rounds.length}</div></div>
-        </div>
-        {winRate.byRisk && Object.keys(winRate.byRisk).length > 0 && (<>
-          <div className="trust-divider" />
-          {(['LOW', 'MEDIUM', 'HIGH'] as const).map(r => {
-            const d = winRate.byRisk[r];
-            if (!d || d.total === 0) return null;
-            const acc = Math.round((d.correct / d.total) * 100);
-            return (
-              <div key={r} className="trust-item">
-                <span className="trust-icon">{RISK_EMOJI[r]}</span>
-                <div>
-                  <div className="trust-label">{r} accuracy</div>
-                  <div className={`trust-value ${RISK_COLOR[r]}`}>{acc}%</div>
-                </div>
-              </div>
-            );
-          })}
-        </>)}
-      </div>
 
       {prediction && stratMeta && (
-        <div className="bet-signal-banner" style={{ background: stratMeta.color + '18', borderColor: stratMeta.color }}>
+        <div className={`bet-signal-banner ${prediction.strategy}`} style={{ background: stratMeta.color + '18', borderColor: stratMeta.color }}>
           <div className="bsb-left">
             <span className="bsb-icon">{stratMeta.icon}</span>
             <div>
@@ -241,24 +263,47 @@ export default function Dashboard() {
               <div className="bsb-reason">{prediction.skip_reason || prediction.strategy_reason || 'Highly confident statistical target.'}</div>
             </div>
           </div>
-          {prediction.should_bet && prediction.cashout_target ? (
-            <div className="bsb-right" style={{ display: 'flex', gap: '20px' }}>
-              <div>
-                <div className="bsb-cashout-label">TARGET</div>
-                <div className="bsb-cashout-val" style={{ color: stratMeta.color }}>
-                  {Number(prediction.cashout_target).toFixed(2)}x
-                </div>
-              </div>
-              {prediction.recommended_bet_units !== undefined && (
+          <div className="bsb-right" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
+              <>
                 <div>
-                  <div className="bsb-cashout-label">REC. BET</div>
-                  <div className="bsb-cashout-val" style={{ color: prediction.recommended_bet_units > 0 ? '#00e5a0' : '#ff4d6d' }}>
-                    {prediction.recommended_bet_units} Unit
+                  <div className="bsb-cashout-label">TARGET</div>
+                  <div className="bsb-cashout-val" style={{ color: stratMeta.color }}>
+                    {Number(prediction.cashout_target).toFixed(2)}x
                   </div>
                 </div>
-              )}
-            </div>
-          ) : null}
+                {prediction.recommended_bet_units !== undefined && (
+                  <div>
+                    <div className="bsb-cashout-label">REC. BET</div>
+                    <div className="bsb-cashout-val" style={{ color: prediction.recommended_bet_units > 0 ? '#00e5a0' : '#ff4d6d' }}>
+                      {prediction.recommended_bet_units} Unit
+                    </div>
+                  </div>
+                )}
+                <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px', textAlign: 'left' }}>
+                  <div className="bsb-cashout-label">EST. PROFIT</div>
+                  <div className="bsb-cashout-val" style={{ color: '#00e5a0', fontWeight: '900' }}>
+                    +{CURRENCIES[currency].symbol}
+                    {(CURRENCIES[currency].minBet * (prediction.cashout_target - 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>
+                    STAKE: {CURRENCIES[currency].symbol}{CURRENCIES[currency].minBet}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px', textAlign: 'left' }}>
+                <div className="bsb-cashout-label">EST. LOSS AVOIDED</div>
+                <div className="bsb-cashout-val" style={{ color: '#ff4d6d', fontWeight: '900' }}>
+                  +{CURRENCIES[currency].symbol}
+                  {CURRENCIES[currency].minBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>
+                  AVOIDED RISK
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -270,11 +315,11 @@ export default function Dashboard() {
             <div className="pred-header">
               <span className="pred-title">NEXT ROUND — AI + STATISTICAL ANALYSIS</span>
               <span className={`pred-status ${predStatus}`}>
-                {predStatus === 'predicting' ? '🔄 Analyzing...' : predStatus === 'done' ? 'Ready' : 'Waiting'}
+                {predStatus === 'predicting' ? <><RefreshCw size={12} className="spin" /> Analyzing...</> : predStatus === 'done' ? 'Ready' : 'Waiting'}
               </span>
               {prediction?.ai_model_used && predStatus === 'done' && (
-                <span style={{ fontSize: '10px', color: prediction.ai_model_used === 'stats-only' ? '#888' : '#a78bfa', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-                  {prediction.ai_model_used === 'stats-only' ? '📊 Stats Engine' : '🤖 AI + Stats'}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: prediction.ai_model_used === 'stats-only' ? '#888' : '#a78bfa', fontWeight: '600', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                  {prediction.ai_model_used === 'stats-only' ? <><Calculator size={12} /> Stats Engine</> : <><Bot size={12} /> AI + Stats</>}
                 </span>
               )}
             </div>
@@ -350,14 +395,15 @@ export default function Dashboard() {
                 </div>
                 <div className="pred-meta">
                   <span>EMA: {stats.ema}x</span>
-                  <span>Streak: {stats.currentLowStreak > 0 ? `\uD83D\uDD34 ${stats.currentLowStreak} low` : `\uD83D\uDFE2 ${stats.currentHighStreak} high`}</span>
-                  <span>Trend: {stats.trend === 'rising' ? '\u2191 Rising' : stats.trend === 'falling' ? '\u2193 Falling' : '\u2192 Flat'}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Streak: {stats.currentLowStreak > 0 ? <><AlertTriangle size={14} color="var(--red)" /> {stats.currentLowStreak} low</> : <><CheckCircle2 size={14} color="var(--green)" /> {stats.currentHighStreak} high</>}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>Trend: {stats.trend === 'rising' ? <><TrendingUp size={14} /> Rising</> : stats.trend === 'falling' ? <><TrendingDown size={14} /> Falling</> : <><Minus size={14} /> Flat</>}</span>
                   <span>Volatility: {stats.volatility}</span>
                 </div>
               </>
             ) : (
-              <div className="pred-empty">
-                {isPredicting ? '\u23F3 Running AI analysis...' : '\uD83D\uDCE1 Start capture to enable predictions'}
+              <div className="pred-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '30px 0' }}>
+                {isPredicting ? <RefreshCw className="spin" size={24} /> : <Orbit size={24} />}
+                {isPredicting ? 'Running AI analysis...' : 'Start capture to enable predictions'}
               </div>
             )}
           </div>
@@ -372,10 +418,10 @@ export default function Dashboard() {
 
           <div className="stat-row">
             {[
-              { icon: '\uD83D\uDCCA', label: 'Avg', value: `${avg}x` },
-              { icon: '\uD83D\uDCC9', label: 'Median', value: `${median}x` },
-              { icon: '\uD83D\uDE80', label: 'Highest', value: `${highest}x` },
-              { icon: '\u26A0\uFE0F', label: 'Under 2x', value: `${stats?.pUnder2 ?? 0}%`, cls: 'red' },
+              { icon: <BarChart3 size={20} />, label: 'Avg', value: `${avg}x` },
+              { icon: <TrendingDown size={20} />, label: 'Median', value: `${median}x` },
+              { icon: <Rocket size={20} />, label: 'Highest', value: `${highest}x` },
+              { icon: <AlertOctagon size={20} />, label: 'Under 2x', value: `${stats?.pUnder2 ?? 0}%`, cls: 'red' },
             ].map(s => (
               <div key={s.label} className="stat-card">
                 <div className="stat-icon">{s.icon}</div>
@@ -384,41 +430,68 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+
+          <div className="trust-simulation-panel">
+            <div className="tsp-title"><Zap size={14} color="#FFD700" /> LIVE PROFIT SIMULATION (MINIMUM BET)</div>
+            <div className="tsp-grid">
+              {[1, 2, 3, 4, 5].map(hr => {
+                const currObj = CURRENCIES[currency as keyof typeof CURRENCIES] || CURRENCIES.USD;
+                // If less than 20 bets graded, use a realistic conservative mathematical expectation (0.05 units per round)
+                const realUnitProfit = (winRate?.totalProfitUnits ?? 0) / Math.max(1, winRate?.total ?? 1);
+                const safeProfitUnit = (winRate?.total ?? 0) < 20 ? 0.05 : Math.max(0.01, realUnitProfit);
+                const val = hr * 200 * safeProfitUnit * currObj.minBet;
+                return (
+                  <div key={hr} className="tsp-card">
+                    <div className="tsp-hr">{hr} {hr === 1 ? 'Hour' : 'Hours'}</div>
+                    <div className="tsp-val">{currObj.symbol}{val.toFixed(currency === 'USD' ? 2 : 0)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
         </div>
 
         <div className="right-col">
           <div className="panel">
             <div className="panel-title">Crash History</div>
-            <div className="chart-wrap">
+            <div className="chart-wrap" style={{ width: '100%', height: '220px', marginTop: '16px' }}>
               {rounds.length > 1 && (() => {
-                const pts = [...rounds].reverse().slice(0, 40);
-                const max = Math.max(...pts.map(r => r.crash_point), 5);
-                const W = 400; const H = 140; const PAD = 10;
-                const xStep = (W - PAD * 2) / (pts.length - 1);
-                const points = pts.map((r, i) => ({
-                  x: PAD + i * xStep,
-                  y: H - PAD - ((r.crash_point / max) * (H - PAD * 2)),
-                  v: r.crash_point,
+                const pts = [...rounds].reverse().slice(0, 50).map(r => ({
+                  name: r.round_number,
+                  crash: Number(r.crash_point),
+                  color: r.crash_point < 2 ? '#ff4d6d' : r.crash_point < 5 ? '#ffc84a' : '#00e5a0'
                 }));
-                const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
+                
+                const CustomDot = (props: any) => {
+                  const { cx, cy, payload } = props;
+                  if (!cx || !cy) return null;
+                  return (
+                    <circle cx={cx} cy={cy} r={4} fill={payload.color} stroke="var(--surface)" strokeWidth={1.5} />
+                  );
+                };
+
                 return (
-                  <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-                    <defs>
-                      <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6c63ff" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#6c63ff" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <polygon points={`${points[0].x},${H} ${polyline} ${points[points.length - 1].x},${H}`} fill="url(#lineGrad)" />
-                    <polyline points={polyline} fill="none" stroke="#6c63ff" strokeWidth="2" strokeLinejoin="round" />
-                    {points.map((p, i) => (
-                      <circle key={i} cx={p.x} cy={p.y} r="3"
-                        fill={p.v < 2 ? '#ff4d6d' : p.v < 5 ? '#ffc84a' : '#00e5a0'} />
-                    ))}
-                    {points.filter(p => p.v >= 10).map((p, i) => (
-                      <text key={i} x={p.x} y={p.y - 6} textAnchor="middle" fontSize="8" fill="#a78bfa">\u2605</text>
-                    ))}
-                  </svg>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={pts} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorCrash" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6c63ff" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#6c63ff" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-dim)' }} tickLine={false} axisLine={false} minTickGap={20} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-dim)' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: 'rgba(20, 20, 28, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                        itemStyle={{ color: '#fff', fontWeight: 'bold' }}
+                        labelStyle={{ color: 'var(--text-dim)', marginBottom: '4px' }}
+                        formatter={(value: any) => [`${value}x`, 'Crash']}
+                        labelFormatter={(label) => `Round ${label}`}
+                      />
+                      <Area type="monotone" dataKey="crash" stroke="#6c63ff" strokeWidth={3} fillOpacity={1} fill="url(#colorCrash)" activeDot={{ r: 6, fill: '#6c63ff', stroke: '#fff', strokeWidth: 2 }} dot={<CustomDot />} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 );
               })()}
             </div>

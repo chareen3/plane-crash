@@ -1,41 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { computeStats, gradePrediction, computeBetSignal } from '../../../lib/stats';
+import { PEAK_HOURS_UTC, buildPrompt, callAI } from '../../../lib/ai';
+
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface WindowStats {
-  count: number;
-  mean: number;
-  median: number;
-  stdDev: number;
-  pUnder2: number;
-}
 
-function computeWindowStats(wValues: number[]): WindowStats | null {
-  if (wValues.length === 0) return null;
-  const n = wValues.length;
-  const sorted = [...wValues].sort((a, b) => a - b);
-  const mean = wValues.reduce((s, v) => s + v, 0) / n;
-  const median = n % 2 === 0
-    ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
-    : sorted[Math.floor(n / 2)];
-  const variance = wValues.reduce((s, v) => s + (v - mean) ** 2, 0) / n;
-  const stdDev = Math.sqrt(variance);
-  const under2 = wValues.filter(v => v < 2).length;
-  const pUnder2 = Math.round((under2 / n) * 100);
 
-  return {
-    count: n,
-    mean: Number(mean.toFixed(2)),
-    median: Number(median.toFixed(2)),
-    stdDev: Number(stdDev.toFixed(2)),
-    pUnder2
-  };
-}
 
 export async function POST(request: Request) {
   try {
@@ -151,71 +126,82 @@ export async function POST(request: Request) {
 
     const values = historyRounds.map(r => Number(r.crash_point));
 
-    // Compute stats for 20, 50, and 200 round windows
-    const stats20 = computeWindowStats(values.slice(0, 20));
-    const stats50 = computeWindowStats(values.slice(0, 50));
-    const stats200 = computeWindowStats(values);
-
-    // Compute complete stats for recommendations / page view
-    const stats = computeStats(values.slice(0, 50));
-
-    // 5. Build prompt and run next prediction
-    const recentHistory = values.slice(0, 20).reverse().join(', ');
+    // Compute complete stats for recommendations across the entire dataset (no slice!)
+    const stats = computeStats(values);
+    const betSignal = computeBetSignal(stats);
     const nextRoundNumber = roundNumber + 1;
 
-    const prompt = `You are a statistical analyst reviewing crash game data.
+    // Time context
+    const now = new Date();
+    const timeData = {
+      currentUTCHour: now.getUTCHours(),
+      currentLocalHour: now.getHours(),
+      currentAMPM: now.getHours() >= 12 ? 'PM' : 'AM',
+      peakHours: PEAK_HOURS_UTC,
+    };
 
-Recent crash points (oldest → newest): [${recentHistory}]
-
-Rolling features computed over different round windows:
-- Last 20 rounds (Short-term): Mean ${stats20?.mean}x | Median ${stats20?.median}x | StdDev ${stats20?.stdDev} | % <2x: ${stats20?.pUnder2}%
-- Last 50 rounds (Mid-term): Mean ${stats50?.mean}x | Median ${stats50?.median}x | StdDev ${stats50?.stdDev} | % <2x: ${stats50?.pUnder2}%
-- Last 200 rounds (Long-term): Mean ${stats200?.mean}x | Median ${stats200?.median}x | StdDev ${stats200?.stdDev} | % <2x: ${stats200?.pUnder2}%
-
-Current Streaks & Trends:
-- Consecutive low rounds (<2x): ${stats.currentLowStreak}
-- Volatility: ${stats.volatility}
-- Suggested cashout target: ${stats.suggestedCashout}x (with historical hit rate of ${stats.suggestedCashoutWinRate}%)
-
-Your task: Based ONLY on these statistics, respond with valid JSON (no markdown, no explanation):
-{
-  "risk": "LOW" | "MEDIUM" | "HIGH",
-  "confidence": <integer 0-100>,
-  "summary": "<2 sentences max — describe the pattern and risk for next round>",
-  "predicted_multiplier": <number (expected maximum multiplier ceiling for next round, e.g. 1.85, 4.20, 15.00)>,
-  "long_targets": {
-    "x5": <integer 0-100 (probability next round reaches 5x)>,
-    "x10": <integer 0-100 (probability next round reaches 10x)>,
-    "x20": <integer 0-100 (probability next round reaches 20x)>
-  }
-}`;
-
-    // AI Prediction Fallbacks (Now the primary statistical logic)
-    let aiRisk = stats.riskLabel;
-    let aiConfidence = stats.confidence;
-    let aiSummary = `Based on ${stats.count} rounds, the avg crash is ${stats.mean}x. Statistical risk score is ${stats.riskScore}/100.`;
-    let aiPredMultiplier = stats.suggestedCashout;
-    let aiLongTargets = {
-      x5: stats.targets.find(t => t.target === 5.0)?.hitRate ?? 20,
+    // Stats-only fallbacks
+    let aiRisk = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
+    let aiConfidence = Math.min(stats.confidence, 85);
+    let aiSummary = `${stats.count} rounds analyzed. Risk: ${stats.riskScore}/100. EMA: ${stats.ema}x. ${betSignal.should_bet ? 'BET signal.' : 'SKIP signal.'}`;
+    let aiPredMultiplier = stats.p99SafeCashout;
+    const aiLongTargets = {
+      x5:  stats.targets.find(t => t.target === 5.0)?.hitRate ?? 20,
       x10: stats.targets.find(t => t.target === 10.0)?.hitRate ?? 10,
       x20: stats.targets.find(t => t.target === 20.0)?.hitRate ?? 5
     };
+    let strategyLabel = betSignal.strategy;
+    let strategyReason = betSignal.skip_reason ?? 'Stats-only baseline.';
+    let finalBet = strategyLabel === 'SKIP' ? false : betSignal.should_bet;
+    let finalCashout = strategyLabel === 'SKIP' ? 0 : betSignal.cashout_target;
+    let aiModelUsed = 'stats-only';
 
-    const betSignal = computeBetSignal(stats);
+    // Parallel AI call
+    const prompt = buildPrompt(stats, betSignal, timeData);
+    const aiCallPromise = callAI(prompt);
+
+    const aiResponse = await Promise.race([
+      aiCallPromise,
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 4000)),
+    ]);
+
+    if (aiResponse) {
+      const { result: ai, model } = aiResponse;
+      aiModelUsed = model;
+
+      if (['LOW','MEDIUM','HIGH'].includes(ai.risk))                              aiRisk = ai.risk;
+      if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = ai.confidence;
+      if (typeof ai.summary === 'string' && ai.summary.length > 5)                aiSummary = ai.summary;
+      if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
+        aiPredMultiplier = ai.cashout_target;
+        finalCashout     = ai.cashout_target;
+      }
+      if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy))  strategyLabel = ai.strategy;
+      if (typeof ai.should_bet === 'boolean')                                      finalBet = ai.should_bet;
+      if (typeof ai.summary === 'string') {
+        strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.summary;
+      }
+    }
 
     // 6. Save the next prediction to Supabase
     const { data: insertedPred, error: predErr } = await supabase
       .from('predictions')
       .insert({
-        predicted_risk: aiRisk,
-        confidence: aiConfidence,
-        summary: aiSummary,
-        round_number: nextRoundNumber,
+        predicted_risk:       aiRisk,
+        confidence:           aiConfidence,
+        summary:              aiSummary,
+        round_number:         nextRoundNumber,
         predicted_multiplier: aiPredMultiplier,
-        long_targets: aiLongTargets
+        long_targets:         aiLongTargets,
+        should_bet:           finalBet,
+        skip_reason:          betSignal.skip_reason,
+        cashout_target:       finalCashout,
+        strategy:             strategyLabel,
+        strategy_reason:      strategyReason,
+        ai_model_used:        aiModelUsed,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (predErr) {
       console.error('Failed to save prediction:', predErr);
@@ -227,7 +213,6 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
       stats,
       prediction: insertedPred ? {
         ...insertedPred,
-        ...betSignal
       } : {
         predicted_risk: aiRisk,
         confidence: aiConfidence,
@@ -235,7 +220,13 @@ Your task: Based ONLY on these statistics, respond with valid JSON (no markdown,
         round_number: nextRoundNumber,
         predicted_multiplier: aiPredMultiplier,
         long_targets: aiLongTargets,
-        ...betSignal
+        should_bet: finalBet,
+        recommended_bet_units: betSignal.recommended_bet_units,
+        skip_reason: betSignal.skip_reason,
+        strategy: strategyLabel,
+        cashout_target: finalCashout,
+        strategy_reason: strategyReason,
+        ai_model_used: aiModelUsed,
       }
     });
 
