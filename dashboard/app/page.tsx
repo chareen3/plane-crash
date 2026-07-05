@@ -104,10 +104,25 @@ export default function Dashboard() {
 
   const [currency, setCurrency] = useState<'USD' | 'LKR' | 'INR' | 'BRL'>('USD');
   const [mathExplainerOpen, setMathExplainerOpen] = useState(true); // default open to educate the user
+  const [activeGame, setActiveGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
 
   const handleCurrencyChange = (curr: 'USD' | 'LKR' | 'INR' | 'BRL') => {
     setCurrency(curr);
     localStorage.setItem('dashboard_currency', curr);
+  };
+
+  const handleGameChange = (game: '1xbet' | 'aviator' | 'luckyjet') => {
+    setActiveGame(game);
+    setPredStatus('predicting');
+    setIsPredicting(true);
+    fetch(`/api/predict?game=${game}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(d => {
+        if (d && d.risk) { setPrediction(d); setPredStatus('done'); }
+        else setPredStatus('idle');
+      })
+      .catch(() => setPredStatus('idle'))
+      .finally(() => setIsPredicting(false));
   };
 
   const fetchWinRate = useCallback(async () => {
@@ -123,7 +138,7 @@ export default function Dashboard() {
     setPredStatus('predicting');
     setIsPredicting(true);
     try {
-      const res = await fetch('/api/predict');
+      const res = await fetch(`/api/predict?game=${activeGame}`);
       if (res.ok) {
         const d = await res.json();
         if (d.risk) { setPrediction(d); setPredStatus('done'); }
@@ -131,7 +146,7 @@ export default function Dashboard() {
       }
     } catch { setPredStatus('idle'); }
     finally { setIsPredicting(false); isPredictingRef.current = false; }
-  }, []);
+  }, [activeGame]);
 
   useEffect(() => {
     const savedCurr = localStorage.getItem('dashboard_currency');
@@ -264,6 +279,48 @@ export default function Dashboard() {
         </div>
       </header>
 
+      <div className="game-selector-container" style={{
+        display: 'flex',
+        gap: '12px',
+        padding: '12px 24px',
+        background: 'rgba(255, 255, 255, 0.01)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        flexWrap: 'wrap'
+      }}>
+        <span style={{ fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', marginRight: '8px', letterSpacing: '0.5px' }}>GAME MODE:</span>
+        {[
+          { id: '1xbet', label: '1xBet Crash', desc: 'Target: 1.10x - 1.80x' },
+          { id: 'aviator', label: 'Aviator', desc: 'Target: 1.15x - 1.60x' },
+          { id: 'luckyjet', label: 'Lucky Jet', desc: 'Target: 1.08x - 1.70x' }
+        ].map(g => (
+          <button
+            key={g.id}
+            onClick={() => handleGameChange(g.id as any)}
+            style={{
+              background: activeGame === g.id ? 'linear-gradient(135deg, #7c3aed, #a78bfa)' : 'rgba(255,255,255,0.03)',
+              border: '1px solid',
+              borderColor: activeGame === g.id ? '#a78bfa' : 'rgba(255,255,255,0.08)',
+              color: activeGame === g.id ? '#fff' : '#888',
+              borderRadius: '8px',
+              padding: '6px 14px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '700',
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              transition: 'all 0.2s ease-in-out',
+            }}
+          >
+            <span>{g.label}</span>
+            <span style={{ fontSize: '9px', opacity: 0.7, fontWeight: 'normal' }}>{g.desc}</span>
+          </button>
+        ))}
+      </div>
+
 
       {prediction && stratMeta && (
         <div className={`bet-signal-banner ${prediction.strategy}`} style={{ background: stratMeta.color + '18', borderColor: stratMeta.color }}>
@@ -289,32 +346,12 @@ export default function Dashboard() {
                     {prediction.recommended_stake_pct ?? ((prediction.recommended_bet_units ?? 1) * 2)}%
                   </div>
                 </div>
-                <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px', textAlign: 'left' }}>
-                  <div className="bsb-cashout-label">EST. PROFIT</div>
-                  <div className="bsb-cashout-val" style={{ color: '#00e5a0', fontWeight: '900' }}>
-                    +{CURRENCIES[currency].symbol}
-                    {(CURRENCIES[currency].minBet * (prediction.cashout_target - 1)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                  <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>
-                    STAKE: {CURRENCIES[currency].symbol}{CURRENCIES[currency].minBet}
-                  </div>
-                </div>
               </>
             ) : (
               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                 <div className="blink" style={{ background: 'rgba(255, 77, 109, 0.15)', border: '1px solid #ff4d6d', borderRadius: '8px', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <AlertTriangle size={14} color="#ff4d6d" />
                   <span style={{ color: '#ff4d6d', fontSize: '11px', fontWeight: '800', letterSpacing: '0.5px' }}>DANGER ZONE: DO NOT BET</span>
-                </div>
-                <div style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px', textAlign: 'left' }}>
-                  <div className="bsb-cashout-label">EST. LOSS AVOIDED</div>
-                  <div className="bsb-cashout-val" style={{ color: '#ff4d6d', fontWeight: '900' }}>
-                    +{CURRENCIES[currency].symbol}
-                    {CURRENCIES[currency].minBet.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                  <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase' }}>
-                    AVOIDED RISK
-                  </div>
                 </div>
               </div>
             )}
@@ -478,61 +515,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* ── MATH OF CRASH GAMES PANEL ── */}
-          <div className="panel math-explainer-panel" style={{ marginTop: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            <div 
-              className="panel-title" 
-              onClick={() => setMathExplainerOpen(!mathExplainerOpen)}
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calculator size={18} color="#a78bfa" />
-                The Math of Crash Games
-              </span>
-              <span style={{ fontSize: '12px', color: '#888' }}>{mathExplainerOpen ? 'Collapse ▲' : 'Expand ▼'}</span>
-            </div>
-            
-            {mathExplainerOpen && (
-              <div className="math-explainer-content" style={{ marginTop: '12px', fontSize: '12px', color: '#ccc', display: 'flex', flexDirection: 'column', gap: '10px', lineHeight: '1.4' }}>
-                <p>
-                  In crash games (1xBet, Aviator, etc.), each round's outcome is independent and governed by a <strong>heavy-tailed probability distribution</strong>.
-                </p>
-                
-                <div style={{ background: 'rgba(167, 139, 250, 0.06)', borderLeft: '3px solid #a78bfa', padding: '10px', borderRadius: '4px', fontFamily: 'monospace' }}>
-                  P(reach multiplier m) ≈ RTP / m
-                </div>
-                
-                <p>
-                  For a <strong>97% RTP</strong> game, the chance of reaching 2.0x is 48.5% ($0.97 / 2$). The chance of reaching 10.0x is just 9.7%.
-                </p>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: 'rgba(255,255,255,0.01)', padding: '10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div>
-                    <strong style={{ color: '#ff4d6d' }}>💥 Why You Lose:</strong>
-                    <ul style={{ paddingLeft: '14px', margin: '4px 0', fontSize: '11px', color: '#aaa' }}>
-                      <li>3% are instant-crashes (1.00x)</li>
-                      <li>50% crash at or below 2.00x</li>
-                      <li>90% crash at or below 10.00x</li>
-                      <li>Chasing losses leads to tilt</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <strong style={{ color: '#00e5a0' }}>🛡️ Coach Strategy:</strong>
-                    <ul style={{ paddingLeft: '14px', margin: '4px 0', fontSize: '11px', color: '#aaa' }}>
-                      <li>Target low (1.10x–1.30x)</li>
-                      <li>Keep stake at 1-2% of bankroll</li>
-                      <li>Skip volatile sessions</li>
-                      <li>Use split bets for fun swings</li>
-                    </ul>
-                  </div>
-                </div>
-                
-                <p style={{ fontSize: '10px', color: '#888', fontStyle: 'italic', margin: '0' }}>
-                  * No algorithm can predict the exact multiplier of the next round. Good bankroll strategy is the only way to stay ahead of variance.
-                </p>
-              </div>
-            )}
-          </div>
+
 
 
           <div className="hero" ref={heroRef}>
@@ -556,25 +539,6 @@ export default function Dashboard() {
                 <div className={`stat-value ${s.cls ?? ''}`}>{s.value}</div>
               </div>
             ))}
-          </div>
-
-          <div className="trust-simulation-panel">
-            <div className="tsp-title"><Zap size={14} color="#FFD700" /> LIVE PROFIT SIMULATION (MINIMUM BET)</div>
-            <div className="tsp-grid">
-              {[1, 2, 3, 4, 5].map(hr => {
-                const currObj = CURRENCIES[currency as keyof typeof CURRENCIES] || CURRENCIES.USD;
-                // If less than 20 bets graded, use a realistic conservative mathematical expectation (0.05 units per round)
-                const realUnitProfit = (winRate?.totalProfitUnits ?? 0) / Math.max(1, winRate?.total ?? 1);
-                const safeProfitUnit = (winRate?.total ?? 0) < 20 ? 0.05 : Math.max(0.01, realUnitProfit);
-                const val = hr * 200 * safeProfitUnit * currObj.minBet;
-                return (
-                  <div key={hr} className="tsp-card">
-                    <div className="tsp-hr">{hr} {hr === 1 ? 'Hour' : 'Hours'}</div>
-                    <div className="tsp-val">{currObj.symbol}{val.toFixed(currency === 'USD' ? 2 : 0)}</div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
 
         </div>

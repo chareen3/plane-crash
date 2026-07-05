@@ -43,11 +43,14 @@ export async function GET(request: Request) {
       .eq('round_number', nextRoundNumber)
       .maybeSingle();
 
+    const url = new URL(request.url);
+    const gameType = (url.searchParams.get('game') || '1xbet') as '1xbet' | 'aviator' | 'luckyjet';
+
     const values = rounds.map(r => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
     // ── Compute stats immediately ──
     const stats = computeStats(values);
-    const betSignal = computeBetSignal(stats);
+    const betSignal = computeBetSignal(stats, gameType);
 
     const now = new Date();
     const timeData = {

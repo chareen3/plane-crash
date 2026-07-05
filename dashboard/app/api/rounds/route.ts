@@ -127,8 +127,9 @@ export async function POST(request: Request) {
     const values = historyRounds.map((r: any) => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
     // Compute complete stats for recommendations across the entire dataset (no slice!)
+    const gameType = body.gameType || '1xbet';
     const stats = computeStats(values);
-    const betSignal = computeBetSignal(stats);
+    const betSignal = computeBetSignal(stats, gameType);
     const nextRoundNumber = roundNumber + 1;
 
     // Time context

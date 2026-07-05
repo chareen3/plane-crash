@@ -134,7 +134,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
   const pOver5  = Math.round((over5   / n) * 100);
 
   // ── Per-level target analysis ──
-  const TARGET_LEVELS = [1.05, 1.10, 1.18, 1.2, 1.5, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0];
+  const TARGET_LEVELS = [1.05, 1.10, 1.18, 1.2, 1.5, 1.8, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0];
 
   const recent20 = values.slice(0, Math.min(20, n));
 
@@ -446,7 +446,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
 }
 
 function emptyStats(): CrashStats {
-  const emptyTargets = [1.2, 1.5, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0].map(target => ({
+  const emptyTargets = [1.05, 1.10, 1.18, 1.2, 1.5, 1.8, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0].map(target => ({
     target, hitCount: 0, hitRate: 0, recentHitRate: 0,
     signal: 'RARE' as const, lastHitAgo: -1, longestGap: 0, ev: -1,
     mathProb: Math.round((0.97 / target) * 1000) / 10,
@@ -477,7 +477,7 @@ export function gradePrediction(predicted: 'LOW' | 'MEDIUM' | 'HIGH', actual: nu
   return false;
 }
 
-export function computeBetSignal(stats: CrashStats): {
+export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator' | 'luckyjet' = '1xbet'): {
   should_bet: boolean;
   skip_reason: string | null;
   strategy: string;
@@ -496,53 +496,23 @@ export function computeBetSignal(stats: CrashStats): {
   if (stdDev < 1.5) volatility_phase = 'CALM';
   else if (stdDev > 3.5) volatility_phase = 'VOLATILE';
 
-  // 1. Aggressive Skip & WARMUP Rules
-  if (stats.currentLowStreak >= 4) {
-    reasons.push(`${stats.currentLowStreak} consecutive <2x rounds (WARMUP Phase activated to safely analyze patterns)`);
-  }
-  if (stats.currentHighStreak >= 6) {
-    reasons.push(`${stats.currentHighStreak} consecutive \u22652x rounds (Regression to mean likely. WARMUP Phase activated)`);
-  }
-  if (stats.riskScore >= 80) {
-    reasons.push(`risk score is extremely high (${stats.riskScore}/100)`);
-  }
-  if (stats.trend === 'falling' && stats.recentMean < 1.6) {
-    reasons.push('falling trend with recent mean below 1.6x');
-  }
-  if (stats.pUnder2 > 70) {
-    reasons.push(`extreme density of low crashes (${stats.pUnder2}% under 2x)`);
-  }
-  if (volatility_phase === 'VOLATILE' && stats.currentLowStreak >= 3) {
-    reasons.push('highly volatile session with low crashes (WARMUP Phase)');
-  }
-  
-  if (stats.sequenceMatch && stats.sequenceMatch.pInstantNext >= 30) {
-    reasons.push(`N-Gram Sequence Engine detects massive ${stats.sequenceMatch.pInstantNext}% chance of INSTANT crash. Blocking conservative bet.`);
+  // 1. SKIP Round Range Isolation Check
+  const lastCrashVal = stats.recentOutcomes && stats.recentOutcomes.length > 0 ? stats.recentOutcomes[0] : 1.5;
+  const inSkipRange = lastCrashVal >= 1.04 && lastCrashVal <= 1.18;
+
+  if (inSkipRange) {
+    reasons.push(`Last crash of ${lastCrashVal.toFixed(2)}x is in the dangerous 1.04x-1.18x grinding range.`);
   }
 
-  // 1.5 Volatility Range Scanner (Micro & Bounce detection) — Fix 3: Tightened thresholds
+  // 1.5 Volatility Range Scanner (Micro detection only for stake adjustments)
+  let ultraMicroDetected = false;
   if (stats.recentOutcomes && stats.recentOutcomes.length >= 3) {
-    const r1 = stats.recentOutcomes[0]; // newest
-    const r2 = stats.recentOutcomes[1];
-    const r3 = stats.recentOutcomes[2];
+    const r1 = stats.recentOutcomes[0];
+    const isUltraMicro = (v: number) => v < 1.04;
 
-    const isMicro = (v: number) => v < 1.10; // Tightened from 1.05 to 1.10 for earlier detection
-    const isLower = (v: number) => v >= 1.05 && v < 1.20;
-    const isUpper = (v: number) => v >= 2.00;
-
-    // Check if trapped in micro range (any 2 consecutive <1.10x is danger)
-    if (isMicro(r1) && isMicro(r2)) {
-      reasons.push(`RNG Volatility Scanner: Trapped in MICRO_RANGE (<1.10x). Hard SKIP to avoid take-back cycle.`);
-    }
-
-    // Check for wild bouncing (High Variance Take-back cycle)
-    if ((isUpper(r1) && isMicro(r2) && isUpper(r3)) || (isMicro(r1) && isUpper(r2) && isMicro(r3))) {
-      reasons.push(`RNG Volatility Scanner: Wild UPPER-MICRO bouncing detected. Hard SKIP due to unsafe variance.`);
-    }
-
-    // Check for grinding zone (3 consecutive LOWER_RANGE rounds — algorithm about to break out or drop)
-    if (isLower(r1) && isLower(r2) && isLower(r3)) {
-      reasons.push(`RNG Volatility Scanner: Grinding in LOWER_RANGE (1.05-1.19x). Skipping until breakout confirmed.`);
+    // Preemptive warning check for any single ultra-micro round to halve the stake
+    if (isUltraMicro(r1)) {
+      ultraMicroDetected = true;
     }
   }
 
@@ -559,11 +529,22 @@ export function computeBetSignal(stats: CrashStats): {
     };
   }
 
-  // 2. Default is CONSERVATIVE — Fix 1: Use p95SafeCashout (ultra-safe 1.04x–1.09x range)
+  // 2. Default is CONSERVATIVE — Custom target limits per game type
   let strategy = 'CONSERVATIVE';
-  const p95 = stats.p95SafeCashout;
-  // Clamp between 1.04x and 1.10x for maximum hit rate on conservative bets
-  let cashout_target = Math.max(1.04, Math.min(1.10, p95));
+  const p90 = stats.p90SafeCashout;
+  
+  let minConservative = 1.10;
+  let maxConservative = 1.80;
+  
+  if (gameType === 'aviator') {
+    minConservative = 1.15;
+    maxConservative = 1.60;
+  } else if (gameType === 'luckyjet') {
+    minConservative = 1.08;
+    maxConservative = 1.70;
+  }
+  
+  let cashout_target = Math.max(minConservative, Math.min(maxConservative, p90));
   let recommended_bet_units = 1.0;
   let recommended_stake_pct = 2; // 2% bankroll default
   let swing_target: number | null = null;
@@ -571,12 +552,13 @@ export function computeBetSignal(stats: CrashStats): {
 
   // If CALM, we can afford slightly wider targets and larger stake
   if (volatility_phase === 'CALM') {
-    cashout_target = Math.max(1.05, Math.min(1.15, stats.p90SafeCashout)); // Slightly higher in calm
+    cashout_target = Math.max(minConservative + 0.05, Math.min(maxConservative, stats.p90SafeCashout)); // Slightly higher in calm
     recommended_stake_pct = 3;
   }
 
-  // 3. BALANCED Strategy (moderate risk, targets 1.20 - 1.99x)
-  if (stats.riskScore < 45 && stats.ema >= 1.8 && stats.trend === 'rising') {
+  // 3. BALANCED Strategy (moderate risk, targets 1.20 - 1.99x) — Gated by volatility
+  const isHighVolatility = stats.volatility === 'high' || volatility_phase === 'VOLATILE';
+  if (stats.riskScore < 45 && stats.ema >= 1.8 && stats.trend === 'rising' && !isHighVolatility) {
     strategy = 'BALANCED';
     cashout_target = Math.max(1.20, Math.min(1.80, stats.p70SafeCashout)); // Use p70 instead of p60
     recommended_bet_units = 0.8;
@@ -594,14 +576,28 @@ export function computeBetSignal(stats: CrashStats): {
       // Dual-gate: Pattern must show 80%+ AND N-Gram must confirm 75%+ safe next
       const seqSafe = stats.sequenceMatch ? stats.sequenceMatch.pSafeNext >= 75 : true;
 
-      if (p2 && p2.hitRate >= 80 && seqSafe) {
+      // Reject weak overrides of streak length 1 (Exactly 1 consecutive...)
+      const isWeakStreak = pattern.patternName.includes("Exactly 1 consecutive");
+
+      if (p2 && p2.hitRate >= 80 && seqSafe && !isWeakStreak && !isHighVolatility) {
         strategy = 'AGGRESSIVE';
-        // Fix #3: Use global p80SafeCashout from full 50k dataset instead of tiny pattern sample
-        cashout_target = Math.max(1.5, Math.min(20.0, stats.p80SafeCashout));
+        
+        // Tiered Multiplier Selector based on global hit rates (2.0x, 1.80x, 1.50x)
+        const hit20 = stats.targets.find(t => t.target === 2.0)?.hitRate ?? 0;
+        const hit18 = stats.targets.find(t => t.target === 1.8)?.hitRate ?? 0;
+        
+        if (hit20 >= 55) {
+          cashout_target = 2.00;
+        } else if (hit18 >= 65) {
+          cashout_target = 1.80;
+        } else {
+          cashout_target = 1.50;
+        }
+        
         swing_target = pattern.p50 && pattern.p50 >= 5 ? Math.min(pattern.p50, 15.0) : stats.p60SafeCashout;
         recommended_stake_pct = 2;
-        strategy_reason = `Dual-confirmed: Pattern '${pattern.patternName}' + N-Gram ${stats.sequenceMatch?.pSafeNext ?? 'N/A'}% safe. Global 80% safe target: ${cashout_target}x`;
-      } else if (p15 && p15.hitRate >= 75) {
+        strategy_reason = `Dual-confirmed: Pattern '${pattern.patternName}' + N-Gram ${stats.sequenceMatch?.pSafeNext ?? 'N/A'}% safe. Tiered AGGRESSIVE target: ${cashout_target}x`;
+      } else if (p15 && p15.hitRate >= 75 && !isHighVolatility) {
         strategy = 'BALANCED';
         cashout_target = Math.max(1.20, Math.min(1.80, stats.p70SafeCashout)); // Use global p70
         swing_target = 1.8;
@@ -611,10 +607,10 @@ export function computeBetSignal(stats: CrashStats): {
     }
   }
 
-  // 5. Time-based Override (Strict 80% safe cashout ceiling)
+  // 5. Time-based Override (Strict 80% safe cashout ceiling) — Gated by volatility
   if (stats.timePattern && strategy !== 'SKIP') {
     const tp = stats.timePattern;
-    if (tp.p80 >= 2.0 && strategy !== 'AGGRESSIVE') {
+    if (tp.p80 >= 2.0 && strategy !== 'AGGRESSIVE' && !isHighVolatility) {
       strategy = 'AGGRESSIVE';
       cashout_target = Math.min(25.0, tp.p80);
       swing_target = tp.p80;
@@ -636,6 +632,12 @@ export function computeBetSignal(stats: CrashStats): {
       // Extra safe during volatile hours
       cashout_target = Math.max(1.04, Math.min(1.08, stats.p95SafeCashout));
     }
+  }
+
+  // Preemptive safety check: halve stake if an ultra-micro round occurred recently
+  if (ultraMicroDetected && strategy !== 'SKIP') {
+    recommended_stake_pct = Math.max(1, Math.floor(recommended_stake_pct / 2));
+    strategy_reason = (strategy_reason ? strategy_reason + ' | ' : '') + 'Ultra-micro crash <1.04x detected. Stake halved.';
   }
 
   return {  
