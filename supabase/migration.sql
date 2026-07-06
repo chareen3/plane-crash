@@ -25,3 +25,35 @@ CREATE POLICY "Allow public read" ON public.crash_rounds
 
 -- Also enable realtime for this table
 ALTER PUBLICATION supabase_realtime ADD TABLE public.crash_rounds;
+
+-- Predictions Table
+CREATE TABLE IF NOT EXISTS public.predictions (
+  id                    uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  round_number          bigint NOT NULL UNIQUE,
+  predicted_risk        text,
+  confidence            int,
+  summary               text,
+  predicted_multiplier  numeric,
+  long_targets          jsonb,
+  should_bet            boolean,
+  skip_reason           text,
+  cashout_target        numeric,
+  strategy              text,
+  strategy_reason       text,
+  ai_model_used         text,
+  swing_target          numeric,
+  volatility_phase      text,
+  recommended_stake_pct int,
+  created_at            timestamptz DEFAULT timezone('utc', now()) NOT NULL
+);
+
+ALTER TABLE public.predictions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow service insert" ON public.predictions
+  FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "Allow public read" ON public.predictions
+  FOR SELECT TO anon USING (true);
+
+-- Index for fast round_number lookup (used in cache check)
+CREATE INDEX idx_predictions_round_number ON public.predictions (round_number);
