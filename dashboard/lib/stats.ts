@@ -102,6 +102,8 @@ export interface CrashStats {
   riskLabel: 'LOW' | 'MEDIUM' | 'HIGH';
   confidence: number;
   volatility: 'low' | 'normal' | 'high';
+  volatilityPct: number;
+  q3: number;
   detectedPatterns: PatternMatch[];
   timePattern?: TimePatternMatch;
   sequenceMatch?: SequenceMatch;
@@ -235,8 +237,11 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
   if (recentMean > olderMean * 1.2) trend = 'rising';
   else if (recentMean < olderMean * 0.8) trend = 'falling';
 
-  // ── Volatility ──
+  // ── Volatility & Quartiles ──
   const cvRatio = stdDev / mean;
+  const volatilityPct = +(cvRatio * 100).toFixed(1);
+  const q3 = sorted[Math.floor(n * 0.75)] || sorted[sorted.length - 1] || 0;
+  
   let volatility: 'low' | 'normal' | 'high' = 'normal';
   if (cvRatio > 1.2) volatility = 'high';
   else if (cvRatio < 0.5) volatility = 'low';
@@ -451,7 +456,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
     recentMean: +recentMean.toFixed(2), olderMean: +olderMean.toFixed(2), trend,
     suggestedCashout, suggestedCashoutWinRate,
     conservativeCashout, aggressiveCashout,
-    riskScore, riskLabel, confidence, volatility, detectedPatterns, timePattern, sequenceMatch,
+    riskScore, riskLabel, confidence, volatility, volatilityPct, q3, detectedPatterns, timePattern, sequenceMatch,
     recentOutcomes: values.slice(0, 10)
   };
 }
@@ -473,7 +478,7 @@ function emptyStats(): CrashStats {
     recentMean: 0, olderMean: 0, trend: 'flat',
     suggestedCashout: 1.5, suggestedCashoutWinRate: 0,
     conservativeCashout: 1.2, aggressiveCashout: 2.0,
-    riskScore: 50, riskLabel: 'MEDIUM', confidence: 0, volatility: 'normal', detectedPatterns: [],
+    riskScore: 50, riskLabel: 'MEDIUM', confidence: 0, volatility: 'normal', volatilityPct: 0, q3: 0, detectedPatterns: [],
     recentOutcomes: []
   };
 }

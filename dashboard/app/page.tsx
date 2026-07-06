@@ -479,6 +479,39 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Advanced Analytics Panel (Inspired by Pro Monitoring Tools) */}
+              <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', background: 'linear-gradient(145deg, rgba(255,255,255,0.02), transparent)' }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BarChart3 size={16} /> Advanced Analytics
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Volatility Index</div>
+                    <div style={{ fontSize: '18px', fontFamily: 'monospace', color: stats?.volatility === 'high' ? '#ff3366' : '#fff' }}>
+                      {stats?.volatilityPct ?? 0}%
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Q3 (75% Quantile)</div>
+                    <div style={{ fontSize: '18px', fontFamily: 'monospace', color: '#00e5a0' }}>
+                      {stats?.q3 ? stats.q3.toFixed(2) : '0.00'}x
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Consecutive &lt; 2x</div>
+                    <div style={{ fontSize: '18px', fontFamily: 'monospace', color: (stats?.currentLowStreak ?? 0) >= 4 ? '#ff3366' : '#fff' }}>
+                      {stats?.currentLowStreak ?? 0}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Median Crash</div>
+                    <div style={{ fontSize: '18px', fontFamily: 'monospace', color: '#ffd000' }}>
+                      {stats?.median ? stats.median.toFixed(2) : '0.00'}x
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="glass-card" style={{ padding: '24px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} color="#00ffd5" /> Recent Crash Timeline</div>
                 
