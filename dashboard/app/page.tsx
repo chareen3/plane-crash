@@ -118,6 +118,16 @@ export default function Dashboard() {
   const [activeGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
   const [latency, setLatency] = useState<number>(0);
+  const [aiThoughts, setAiThoughts] = useState<{ id: string; time: string; text: string; type: 'info'|'warn'|'success' }[]>([
+    { id: 'init', time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}), text: 'AI Engine initialized. Awaiting live data stream...', type: 'info' }
+  ]);
+
+  const addThought = useCallback((text: string, type: 'info'|'warn'|'success' = 'info') => {
+    setAiThoughts(prev => {
+      if (prev.length > 0 && prev[0].text === text) return prev;
+      return [{ id: Math.random().toString(36).substring(2, 9), time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}), text, type }, ...prev].slice(0, 30);
+    });
+  }, []);
 
   const handleCurrencyChange = (curr: 'USD' | 'LKR' | 'INR' | 'BRL') => {
     setCurrency(curr);
@@ -136,16 +146,22 @@ export default function Dashboard() {
     isPredictingRef.current = true;
     setPredStatus('predicting');
     setIsPredicting(true);
+    addThought('Analyzing sequence anomalies and recalculating risk models...', 'info');
     try {
       const res = await fetch(`/api/predict?game=${activeGame}`);
       if (res.ok) {
         const d = await res.json();
-        if (d.risk) { setPrediction(d); setPredStatus('done'); }
+        if (d.risk) { 
+          setPrediction(d); setPredStatus('done'); 
+          addThought(`Risk evaluated as ${d.risk}. ${d.summary}`, d.risk === 'HIGH' ? 'warn' : d.risk === 'LOW' ? 'success' : 'info');
+          if (d.should_bet && d.cashout_target) addThought(`Signal Generated: Target ${d.cashout_target}x. Reason: ${d.strategy_reason || 'Statistical edge found'}`, 'success');
+          else if (d.skip_reason) addThought(`Skipping Action: ${d.skip_reason}`, 'warn');
+        }
         else setPredStatus('idle');
       }
     } catch { setPredStatus('idle'); }
     finally { setIsPredicting(false); isPredictingRef.current = false; }
-  }, [activeGame]);
+  }, [activeGame, addThought]);
 
   useEffect(() => {
     const savedCurr = localStorage.getItem('dashboard_currency');
@@ -172,8 +188,9 @@ export default function Dashboard() {
       }
       if (evt.data?.type === 'EXTENSION_CRASH_LIVE') {
         setIsExtensionConnected(true);
-        const { round, prediction, stats } = evt.data;
+        const { round, prediction: extPrediction, stats } = evt.data;
         if (round) {
+          addThought(`Intercepted real-time crash: ${round.crash_point}x (Round #${round.round_number})`, round.crash_point >= 5 ? 'success' : round.crash_point < 2 ? 'warn' : 'info');
           lastPredictedRoundRef.current = round.round_number;
           const roundObj: Round = { ...round, _optimistic: true };
           setLastCrash(roundObj);
@@ -185,7 +202,12 @@ export default function Dashboard() {
           });
         }
         if (stats) setLocalStats(stats);
-        if (prediction) { setPrediction(prediction); setPredStatus('done'); }
+        if (extPrediction) { 
+          setPrediction(extPrediction); setPredStatus('done'); 
+          addThought(`Risk evaluated as ${extPrediction.risk}. ${extPrediction.summary}`, extPrediction.risk === 'HIGH' ? 'warn' : extPrediction.risk === 'LOW' ? 'success' : 'info');
+          if (extPrediction.should_bet && extPrediction.cashout_target) addThought(`Signal Generated: Target ${extPrediction.cashout_target}x. Reason: ${extPrediction.strategy_reason || 'Statistical edge found'}`, 'success');
+          else if (extPrediction.skip_reason) addThought(`Skipping Action: ${extPrediction.skip_reason}`, 'warn');
+        }
         heroRef.current?.classList.remove('flash');
         void heroRef.current?.offsetWidth;
         heroRef.current?.classList.add('flash');
@@ -445,9 +467,18 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="glass-card" style={{ padding: '20px', background: 'linear-gradient(145deg, rgba(167,139,250,0.05), transparent)' }}>
-                     <div style={{ fontSize: '12px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}><Bot size={14} /> AI Processing Engine</div>
-                     <p style={{ fontSize: '12px', color: '#888', lineHeight: '1.6' }}>The data pipeline actively filters out noise and ingests valid multipliers directly into the prediction model. Data replication delay is roughly {(latency + 12)}ms.</p>
+                  <div className="glass-card" style={{ padding: '0', display: 'flex', flexDirection: 'column', height: '100%', background: 'linear-gradient(145deg, rgba(167,139,250,0.05), transparent)' }}>
+                    <div style={{ padding: '20px 20px 10px', fontSize: '12px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(167,139,250,0.1)' }}>
+                      <Bot size={14} /> Live AI Brain Log
+                    </div>
+                    <div style={{ flex: 1, padding: '12px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px' }}>
+                      {aiThoughts.map(t => (
+                        <div key={t.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: '10px', color: '#666', fontFamily: 'monospace', whiteSpace: 'nowrap', marginTop: '2px' }}>[{t.time}]</span>
+                          <span style={{ fontSize: '11px', color: t.type === 'warn' ? '#ff3366' : t.type === 'success' ? '#00e5a0' : '#888', lineHeight: '1.4' }}>{t.text}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
