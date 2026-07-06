@@ -156,6 +156,7 @@ export default function Dashboard() {
           setRounds(data);
           setLastCrash(data[0]);
           setLocalStats(computeStats(data));
+          setIsExtensionConnected(true);
         }
       });
     fetchWinRate();
@@ -207,7 +208,9 @@ export default function Dashboard() {
           runPrediction();
           lastPredictedRoundRef.current = round.round_number;
         }
-      }).subscribe();
+      }).subscribe((status) => {
+        if (status === 'SUBSCRIBED') setIsExtensionConnected(true);
+      });
 
     return () => {
       supabase.removeChannel(channel);
