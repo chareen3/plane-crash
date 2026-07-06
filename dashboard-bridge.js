@@ -7,7 +7,7 @@
 
 window.addEventListener('message', (evt) => {
   if (evt.data?.type === 'PING') {
-    window.postMessage({ type: 'PONG' }, '*');
+    window.postMessage({ type: 'PONG', timestamp: evt.data.timestamp }, '*');
   }
 });
 
