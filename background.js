@@ -226,8 +226,8 @@ async function saveToSupabase(events) {
 
     // 🚀 Broadcast to dashboard INSTANTLY via our injected bridge script
     try {
-      chrome.tabs.query({ url: "*://localhost:3000/*" }, (tabs) => {
-        tabs.forEach(tab => {
+      chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:*/*"] }, (tabs) => {
+        if (tabs) tabs.forEach(tab => {
           rows.forEach(row => {
             chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => {});
           });
@@ -311,7 +311,7 @@ async function postRoundResultToDashboard(roundEvent) {
       summary: summary
     };
 
-    const res = await fetch('http://localhost:3000/api/rounds', {
+    const res = await fetch('https://plane-crash.vercel.app/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -324,8 +324,8 @@ async function postRoundResultToDashboard(roundEvent) {
       
       // Broadcast the updated state and prediction directly to the dashboard tabs!
       if (data.success && data.round && data.prediction) {
-        chrome.tabs.query({ url: "*://localhost:3000/*" }, (tabs) => {
-          tabs.forEach(tab => {
+        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:*/*"] }, (tabs) => {
+          if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_CRASH_LIVE',
               round: data.round,
@@ -648,8 +648,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { received: true };
 
       case 'BET_AMOUNT_CHANGE':
-        chrome.tabs.query({ url: "*://localhost:3000/*" }, (tabs) => {
-          tabs.forEach(tab => {
+        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:*/*"] }, (tabs) => {
+          if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_BET_CHANGE',
               amount: msg.amount

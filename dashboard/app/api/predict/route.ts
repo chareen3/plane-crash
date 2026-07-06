@@ -121,7 +121,9 @@ export async function GET(request: Request) {
             aiPredMultiplier = ai.cashout_target;
             finalCashout = ai.cashout_target;
           }
-          if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) strategyLabel = ai.strategy;
+          if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) {
+            strategyLabel = ai.strategy === 'BALANCED' ? 'CONSERVATIVE' : ai.strategy;
+          }
           if (typeof ai.should_bet === 'boolean') finalBet = ai.should_bet;
         }
         

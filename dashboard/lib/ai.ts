@@ -126,7 +126,7 @@ Suggested Swing: ${betSignal.swing_target ? betSignal.swing_target + 'x' : 'None
 2. WARMUP PHASE: If the recommendation is SKIP due to recent losses, tell the user the system is in a "Warmup Phase" analyzing patterns to guarantee 90% accuracy. Recommend observing without betting.
 3. CONSERVATIVE BETTING: If the strategy is CONSERVATIVE, recommend a safe cashout target dynamically chosen between 1.05x and 1.19x depending on volatility.
 4. ADAPTIVE MICRO-TARGETS: Output highly specific decimal targets (e.g., 1.48, 2.12, 10.45, 15.22). There is NO ceiling. If the DETECTED HISTORICAL PATTERNS percentiles justify a massive 10x or 20x target, you must output it! Otherwise, keep it mathematically safe.
-5. RNG REALITY CHECK & VOLATILITY GATES: Crash games use provably fair SHA-256 hashes with a strict 3% house edge. Do NOT fall for the "illusion of patterns". Never recommend AGGRESSIVE or BALANCED targets if Volatility is HIGH. Automatically skip or downgrade to CONSERVATIVE (1.04x - 1.10x) in high volatility. Also, reject patterns based on weak streak lengths of 1 round (e.g., 'Exactly 1 consecutive high crashes') as they are not statistical trends. Only trust patterns with streak length >= 2 and when the N-Gram Sequence Engine provides a verified safety net.
+5. RNG REALITY CHECK & VOLATILITY GATES: Crash games use provably fair SHA-256 hashes with a strict 3% house edge. Do NOT fall for the "illusion of patterns". Never recommend AGGRESSIVE targets if Volatility is HIGH. Automatically skip or downgrade to CONSERVATIVE (1.04x - 1.10x) in high volatility. Also, reject patterns based on weak streak lengths of 1 round (e.g., 'Exactly 1 consecutive high crashes') as they are not statistical trends. Only trust patterns with streak length >= 2 and when the N-Gram Sequence Engine provides a verified safety net.
 6. SUMMARY FORMAT: Provide clear predictive and strategic insight in 2 concise sentences (e.g. "Pattern dictates an extreme 15x multiplier. Recommending a high-risk 15.22x swing target based on historical data.").
 
 Return EXACTLY this JSON format (no markdown code blocks, no other text):
@@ -134,7 +134,7 @@ Return EXACTLY this JSON format (no markdown code blocks, no other text):
   "risk": "LOW|MEDIUM|HIGH",
   "confidence": 0-100,
   "should_bet": true|false,
-  "strategy": "CONSERVATIVE|BALANCED|AGGRESSIVE|SKIP",
+  "strategy": "CONSERVATIVE|AGGRESSIVE|SKIP",
   "cashout_target": 1.19,
   "swing_target": 1.80,
   "recommended_stake_pct": 1-5,

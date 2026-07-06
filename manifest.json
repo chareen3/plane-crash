@@ -35,7 +35,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://localhost:3000/*", "http://127.0.0.1:3000/*"],
+      "matches": ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"],
       "js": ["dashboard-bridge.js"],
       "run_at": "document_start"
     }

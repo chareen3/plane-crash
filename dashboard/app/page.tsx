@@ -52,7 +52,7 @@ const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIG
 const RISK_EMOJI: Record<string, any> = { 
   LOW: <CheckCircle2 size={14} strokeWidth={2.5} />, 
   MEDIUM: <Info size={14} strokeWidth={2.5} />, 
-  HIGH: <AlertTriangle size={14} strokeWidth={2.5} /> 
+  HIGH: <AlertTriangle size={14} strokeWidth={2.5} />
 };
 
 const STRATEGY_META: Record<string, { color: string; glow: string; icon: any; label: string; tag: string }> = {
@@ -263,19 +263,29 @@ export default function Dashboard() {
         </nav>
 
         <div className="sidebar-bottom">
-          {/* Last Crash in Sidebar */}
-          <div className="sidebar-signal-card" style={{ padding: '16px 12px' }}>
-            <div className="ssc-label" style={{ color: '#888' }}>LAST CRASH</div>
-            <div className="ssc-target" style={{ color: classifyRisk(lastCrash?.crash_point ?? 0) === 'green' ? '#00e5a0' : classifyRisk(lastCrash?.crash_point ?? 0) === 'yellow' ? '#ffd000' : '#ff3366', fontSize: '24px' }}>
-              {lastCrash ? <AnimatedCrashMultiplier target={Number(lastCrash.crash_point)} /> : '—'}
+          {/* Last Crash Sidebar Box */}
+          <div className="sidebar-last-crash-card">
+            <div className="sidebar-plane-container">
+              <img 
+                src="https://lk.1xbet.com/genfiles/cms/1-285/desktop/media_asset/cfe62b7edd586ad537fdb14cd95172a6.svg" 
+                className="sidebar-plane-img"
+                alt="1xBet Crash Plane"
+              />
             </div>
-            {lastCrash && <div className="ssc-stake">{timeAgo(lastCrash.created_at)}</div>}
+            <div className="sidebar-plane-info">
+              <div className="ssc-label" style={{ color: '#888', fontSize: '9px' }}>LAST CRASH</div>
+              <div className="ssc-target" style={{
+                color: classifyRisk(lastCrash?.crash_point ?? 0) === 'green' ? '#00e5a0' : classifyRisk(lastCrash?.crash_point ?? 0) === 'yellow' ? '#ffd000' : '#ff3366',
+                fontSize: '32px',
+                fontWeight: '700',
+                fontFamily: 'Rajdhani, sans-serif'
+              }}>
+                {lastCrash ? <AnimatedCrashMultiplier target={Number(lastCrash.crash_point)} /> : '—'}
+              </div>
+              {lastCrash && <div className="ssc-stake" style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>{timeAgo(lastCrash.created_at)}</div>}
+            </div>
           </div>
 
-          <div className="sidebar-version">
-            <span className="sidebar-live-dot" />
-            <span>LIVE · Supabase</span>
-          </div>
         </div>
       </aside>
 
@@ -325,6 +335,92 @@ export default function Dashboard() {
         {/* ─── BODY ─── */}
         <div className="dash-body">
 
+          {activeNav === 'patterns' ? (
+            /* ─── PATTERNS PAGE ─── */
+            <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+              <div style={{ marginBottom: '32px' }}>
+                <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '28px', fontWeight: '700', color: '#fff', marginBottom: '8px', letterSpacing: '1px' }}>PATTERNS & PARTNERS</h2>
+                <p style={{ color: '#888', fontSize: '13px', lineHeight: '1.6' }}>Our AI analyzes crash patterns across multiple platforms using advanced sequence detection.</p>
+              </div>
+
+              {/* Partners Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '40px' }}>
+                {[
+                  { name: '1xBet', color: '#00d4ff', desc: 'Primary crash game with real-time data capture', status: 'ACTIVE' },
+                  { name: 'Aviator', color: '#a78bfa', desc: 'Spribe Aviator multipliers tracking', status: 'ACTIVE' },
+                  { name: 'Lucky Jet', color: '#00e5a0', desc: 'Lucky Jet crash pattern analysis', status: 'ACTIVE' },
+                  { name: 'JetX', color: '#ffc84a', desc: 'SmartSoft Gaming pattern recognition', status: 'BETA' },
+                  { name: 'Crash X', color: '#ff3366', color2: '#ff6b8a', desc: 'Turbo Games crash data collection', status: 'COMING' },
+                  { name: 'Spaceman', color: '#00ffd5', desc: 'Pragmatic Play crash analytics', status: 'COMING' },
+                ].map((partner, i) => (
+                  <div key={i} className="glass-card" style={{ padding: '20px', border: `1px solid ${partner.color}30`, transition: 'all 0.3s ease', cursor: 'pointer' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = partner.color + '60'; e.currentTarget.style.boxShadow = `0 8px 32px ${partner.color}15`; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = partner.color + '30'; e.currentTarget.style.boxShadow = 'none'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: `linear-gradient(135deg, ${partner.color}20, ${partner.color}08)`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${partner.color}30` }}>
+                        <span style={{ fontSize: '18px' }}>🎮</span>
+                      </div>
+                      <span style={{ fontSize: '9px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '1px', padding: '3px 10px', borderRadius: '20px', background: partner.status === 'ACTIVE' ? 'rgba(0,229,160,0.15)' : partner.status === 'BETA' ? 'rgba(255,200,74,0.15)' : 'rgba(136,136,136,0.15)', color: partner.status === 'ACTIVE' ? '#00e5a0' : partner.status === 'BETA' ? '#ffc84a' : '#888' }}>
+                        {partner.status}
+                      </span>
+                    </div>
+                    <h3 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '6px' }}>{partner.name}</h3>
+                    <p style={{ fontSize: '11px', color: '#888', lineHeight: '1.5' }}>{partner.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* How It Works */}
+              <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '16px', letterSpacing: '0.5px' }}>HOW IT WORKS</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                  {[
+                    { step: '01', icon: <Activity size={24} />, title: 'Data Capture', desc: 'Chrome extension captures real-time crash multipliers via WebSocket injection', color: '#00d4ff' },
+                    { step: '02', icon: <BarChart3 size={24} />, title: 'Pattern Analysis', desc: 'AI analyzes sequences, streaks, and volatility patterns across rounds', color: '#a78bfa' },
+                    { step: '03', icon: <Bot size={24} />, title: 'AI Prediction', desc: 'Machine learning model calculates risk levels and optimal cashout targets', color: '#00e5a0' },
+                    { step: '04', icon: <Target size={24} />, title: 'Bet Signals', desc: 'Receive real-time alerts with confidence scores and recommended actions', color: '#ffc84a' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', borderRadius: '16px', padding: '20px', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
+                      <div style={{ position: 'absolute', top: '-10px', right: '-10px', fontFamily: "'Rajdhani', sans-serif", fontSize: '64px', fontWeight: '900', color: `${item.color}08`, lineHeight: 1 }}>{item.step}</div>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: `${item.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: item.color, marginBottom: '14px' }}>
+                        {item.icon}
+                      </div>
+                      <h4 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '6px' }}>{item.title}</h4>
+                      <p style={{ fontSize: '11px', color: '#888', lineHeight: '1.5' }}>{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pattern Detection */}
+              <div>
+                <h3 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '16px', letterSpacing: '0.5px' }}>DETECTED PATTERNS</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                  {[
+                    { name: 'Instant Crash Streak', desc: 'Multiple rounds below 1.2x in sequence', risk: 'HIGH', color: '#ff3366' },
+                    { name: 'Recovery Surge', desc: 'High multipliers following crash clusters', risk: 'LOW', color: '#00e5a0' },
+                    { name: 'Volatile Oscillation', desc: 'Alternating high/low crash points', risk: 'MEDIUM', color: '#ffd000' },
+                    { name: 'Stable Plateau', desc: 'Consistent 2x-4x crash range', risk: 'LOW', color: '#00e5a0' },
+                    { name: 'Mega Hit Cluster', desc: 'Multiple 10x+ rounds in short window', risk: 'OPPORTUNITY', color: '#a78bfa' },
+                  ].map((pattern, i) => (
+                    <div key={i} className="glass-card" style={{ padding: '14px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '4px', height: '40px', borderRadius: '2px', background: pattern.color, flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '14px', fontWeight: '700', color: '#fff' }}>{pattern.name}</div>
+                        <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>{pattern.desc}</div>
+                      </div>
+                      <span style={{ fontSize: '9px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", padding: '3px 10px', borderRadius: '20px', background: `${pattern.color}15`, color: pattern.color, border: `1px solid ${pattern.color}30` }}>
+                        {pattern.risk}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+          /* ─── DEFAULT DASHBOARD ─── */
+          <>
           {/* ─── TOP ROW: Stat Cards ─── */}
           <div className="stat-strip">
             <div className="stat-card2">
@@ -379,11 +475,9 @@ export default function Dashboard() {
 
               {/* Bet Signal Hero Card */}
               {prediction && stratMeta ? (
-                <div className="glass-card" style={{ borderColor: stratMeta.color + '60', boxShadow: `0 0 30px ${stratMeta.glow}`, padding: '24px', position: 'relative', overflow: 'hidden' }} ref={heroRef}>
-                  {prediction.strategy !== 'SKIP' && (
-                    <img src="https://gamscdn.com/web-v3/sfiles/games-images/game-previews/game-371.webp" style={{ position: 'absolute', top: '50%', left: '50%', width: '300px', opacity: 0.1, mixBlendMode: 'screen', pointerEvents: 'none', transform: 'translate(-50%, -50%) rotate(-5deg)' }} alt="Pattern Overlay" />
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', position: 'relative', zIndex: 2 }}>
+                <div className="hero-banner-3d" style={{ borderColor: stratMeta.color + '60' }} ref={heroRef}>
+                  <div className="hero-grid-overlay" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', position: 'relative', zIndex: 2, transform: 'translateZ(30px)' }}>
                     <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px' }}>{stratMeta.icon}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ color: stratMeta.color, fontSize: '18px', fontWeight: '800', letterSpacing: '1px' }}>{stratMeta.label}</div>
@@ -413,10 +507,14 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="glass-card hero-card2" ref={heroRef}>
-                  <div className="hc2-left">
-                    <div className="hc2-label">AWAITING AI SIGNAL...</div>
-                    <div className="hc2-value" style={{ color: '#555', fontSize: '42px' }}>—</div>
+                <div className="hero-banner-3d" ref={heroRef} style={{ minHeight: '120px', display: 'flex', alignItems: 'center' }}>
+                  <div className="hero-grid-overlay" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', zIndex: 2, transform: 'translateZ(30px)' }}>
+                    <div className="spin" style={{ color: '#00ffd5' }}><Orbit size={28} /></div>
+                    <div>
+                      <div className="hc2-label" style={{ letterSpacing: '2px', fontWeight: 'bold', fontSize: '12px' }}>AWAITING AI SIGNAL...</div>
+                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Analyze live stream sequence triggers to formulate bets.</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -435,25 +533,34 @@ export default function Dashboard() {
 
                 {prediction?.ai_model_used && predStatus === 'done' && (
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                    <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', fontSize: '11px' }}>
-                      {RISK_EMOJI[prediction.risk]} {prediction.risk} RISK
+                    <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>
+                      {prediction.risk === 'HIGH' ? <AlertTriangle size={12} /> : prediction.risk === 'MEDIUM' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
+                      {prediction.risk} RISK
                     </span>
-                    <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)' }}>
-                      <Bot size={10} /> AI Coach
+                    <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
+                      <Bot size={12} /> AI Coach
                     </span>
                     {prediction.volatility_phase && (
                       <span className="badge-pill" style={{
                         color: prediction.volatility_phase === 'CALM' ? '#00e5a0' : prediction.volatility_phase === 'VOLATILE' ? '#ff3366' : '#ffd000',
                         background: prediction.volatility_phase === 'CALM' ? 'rgba(0,229,160,0.1)' : prediction.volatility_phase === 'VOLATILE' ? 'rgba(255,51,102,0.1)' : 'rgba(255,208,0,0.1)',
+                        fontWeight: '600', fontFamily: "'Rajdhani', sans-serif"
                       }}>
-                        📊 {prediction.volatility_phase}
+                        <BarChart3 size={12} /> {prediction.volatility_phase}
                       </span>
                     )}
                     {prediction.should_bet && prediction.recommended_stake_pct && (
-                      <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)' }}>
-                        💰 Stake: {prediction.recommended_stake_pct}%
+                      <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
+                        <Target size={12} /> Stake: {prediction.recommended_stake_pct}%
                       </span>
                     )}
+                  </div>
+                )}
+
+                {predStatus === 'predicting' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px', padding: '8px 12px', background: 'rgba(167,139,250,0.08)', borderRadius: '8px', border: '1px solid rgba(167,139,250,0.15)' }}>
+                    <RefreshCw size={14} className="spin" style={{ color: '#a78bfa' }} />
+                    <span style={{ color: '#a78bfa', fontSize: '11px', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>ANALYZING PATTERN...</span>
                   </div>
                 )}
 
@@ -576,7 +683,7 @@ export default function Dashboard() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={14} color="#00ffd5" /> Crash History</span>
                   <span style={{ fontSize: '10px', color: '#555' }}>Last {Math.min(rounds.length, 50)} rounds</span>
                 </div>
-                <div style={{ width: '100%', height: '180px' }}>
+                <div style={{ width: '100%', height: '300px' }}>
                   {rounds.length > 1 && (
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData} margin={{ top: 6, right: 0, left: -25, bottom: 0 }}>
@@ -715,6 +822,8 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

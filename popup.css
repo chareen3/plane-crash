@@ -2,7 +2,7 @@
    Crash Tracker — Premium Glassmorphism UI
    ===================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;600;700&display=swap');
 
 /* ─── Variables ───────────────────────────────────── */
 :root {
@@ -157,16 +157,48 @@ body {
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
+  transform-style: preserve-3d;
+  perspective: 800px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 2px 8px rgba(108, 99, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateZ(0);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hero-card:hover {
+  transform: translateY(-2px) translateZ(10px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    0 4px 12px rgba(108, 99, 255, 0.3),
+    0 0 20px rgba(108, 99, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .hero-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 12px 12px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.hero-card::after {
   content: '';
   position: absolute;
   top: -50%;
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle at 50% 50%, rgba(108,99,255,0.08), transparent 60%);
+  background: radial-gradient(circle at 30% 30%, rgba(108,99,255,0.1), transparent 50%);
   pointer-events: none;
 }
 
@@ -180,17 +212,26 @@ body {
 }
 
 .hero-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 52px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 56px;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: -2px;
+  letter-spacing: -1px;
   background: linear-gradient(135deg, #fff 40%, #c4b5fd);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow:
+    0 1px 0 #b8b0d4,
+    0 2px 0 #a89fc4,
+    0 3px 0 #988eb4,
+    0 4px 0 #887da4,
+    0 5px 0 #786c94,
+    0 6px 10px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(108, 99, 255, 0.3);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
   transition: all 0.4s ease;
-  min-height: 56px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,6 +241,14 @@ body {
   background: linear-gradient(135deg, var(--red), #ff9eb4);
   -webkit-background-clip: text;
   background-clip: text;
+  text-shadow:
+    0 1px 0 #cc2d4a,
+    0 2px 0 #b81d3a,
+    0 3px 0 #a40d2a,
+    0 4px 0 #90001a,
+    0 5px 0 #7c000a,
+    0 6px 10px rgba(0, 0, 0, 0.4),
+    0 0 25px rgba(255, 77, 109, 0.5);
   animation: crashFlash 0.5s ease;
 }
 

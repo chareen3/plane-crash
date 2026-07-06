@@ -571,7 +571,7 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
   const isHighVolatility = stats.volatility === 'high' || volatility_phase === 'VOLATILE';
   const p70 = stats.p70SafeCashout;
   if (stats.riskScore < 65 && stats.ema >= 1.3 && (stats.trend === 'rising' || stats.trend === 'flat' || !isHighVolatility)) {
-    strategy = 'BALANCED';
+    strategy = 'CONSERVATIVE';
     cashout_target = Math.max(1.30, Math.min(1.80, p70));
     recommended_bet_units = 0.8;
     recommended_stake_pct = volatility_phase === 'CALM' ? 3 : 2;
@@ -616,7 +616,7 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
         strategy_reason = `Pattern '${pattern.patternName}' very high confidence. Target: ${cashout_target}x`;
       } else if (p15 && p15.hitRate >= 65) {
         // Balanced 1.50x target
-        strategy = 'BALANCED';
+        strategy = 'CONSERVATIVE';
         cashout_target = 1.50;
         swing_target = 1.50;
         recommended_stake_pct = 2;
