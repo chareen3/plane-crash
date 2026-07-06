@@ -246,17 +246,7 @@ export default function Dashboard() {
   const bigHits = [...rounds].slice(0, 30).filter(r => r.crash_point >= 5).sort((a, b) => b.crash_point - a.crash_point).slice(0, 5);
 
   return (
-    <>
-      {!isExtensionConnected && (
-        <div className="extension-overlay">
-          <div className="overlay-content">
-            <Orbit size={48} color="#00ffd5" className="spin" />
-            <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '24px', fontWeight: '700', color: '#fff', marginTop: '16px' }}>Connect Extension</h2>
-            <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>Please make sure the CrashAI Chrome Extension is installed and active on the game page.</p>
-          </div>
-        </div>
-      )}
-      <div className="dash-shell" style={!isExtensionConnected ? { filter: 'blur(8px)', pointerEvents: 'none', opacity: 0.8, userSelect: 'none' } : {}}>
+    <div className="dash-shell">
       {/* ─── SIDEBAR ─── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
@@ -327,8 +317,9 @@ export default function Dashboard() {
               ))}
             </select>
 
-            <div className="live-badge">
-              <span className="live-dot" />LIVE
+            <div className="live-badge" style={{ borderColor: isExtensionConnected ? 'rgba(0,229,160,0.25)' : 'rgba(255,51,102,0.25)', color: isExtensionConnected ? '#00e5a0' : '#ff3366', background: isExtensionConnected ? 'rgba(0,229,160,0.1)' : 'rgba(255,51,102,0.1)' }}>
+              <span className="live-dot" style={{ background: isExtensionConnected ? '#00e5a0' : '#ff3366', boxShadow: isExtensionConnected ? '0 0 6px #00e5a0' : 'none', animation: isExtensionConnected ? 'pulse 1.5s infinite' : 'none' }} />
+              {isExtensionConnected ? 'SYNCED' : 'NO SYNC'}
             </div>
 
             <button className="top-btn" onClick={async () => {
@@ -350,7 +341,13 @@ export default function Dashboard() {
         {/* ─── BODY ─── */}
         <div className="dash-body">
 
-          {activeNav === 'patterns' ? (
+          {!isExtensionConnected ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+              <Orbit size={64} color="#ff3366" />
+              <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '28px', fontWeight: '700', color: '#fff', letterSpacing: '1px' }}>DASHBOARD SYNC REQUIRED</h2>
+              <p style={{ color: '#888', fontSize: '14px', maxWidth: '400px', textAlign: 'center', lineHeight: '1.6' }}>The dashboard requires the CrashAI Chrome Extension to be active on a supported game page to capture data and generate predictions.</p>
+            </div>
+          ) : activeNav === 'patterns' ? (
             /* ─── PATTERNS PAGE ─── */
             <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
               <div style={{ marginBottom: '32px' }}>
@@ -841,7 +838,6 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-      </div>
-    </>
+    </div>
   );
 }
