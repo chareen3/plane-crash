@@ -452,6 +452,53 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+          ) : activeNav === 'history' ? (
+            /* ─── CRASH HISTORY PAGE ─── */
+            <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+              <div style={{ marginBottom: '32px' }}>
+                <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '28px', fontWeight: '700', color: '#fff', marginBottom: '8px', letterSpacing: '1px' }}>CRASH HISTORY DIARY</h2>
+                <p style={{ color: '#888', fontSize: '13px', lineHeight: '1.6' }}>Review past crashes to understand market rhythm, spot volatility streaks, and build your intuitive experience.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+                <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Session Average</span>
+                  <span style={{ fontSize: '24px', fontFamily: 'monospace', fontWeight: '800', color: '#fff' }}>{avg}x</span>
+                </div>
+                <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Highest Multiplier</span>
+                  <span style={{ fontSize: '24px', fontFamily: 'monospace', fontWeight: '800', color: '#a78bfa' }}>{highest}x</span>
+                </div>
+                <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Under 2x (High Risk)</span>
+                  <span style={{ fontSize: '24px', fontFamily: 'monospace', fontWeight: '800', color: '#ff3366' }}>{stats?.pUnder2 ?? 0}%</span>
+                </div>
+                <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Over 5x (Opportunity)</span>
+                  <span style={{ fontSize: '24px', fontFamily: 'monospace', fontWeight: '800', color: '#00e5a0' }}>{stats?.pOver5 ?? 0}%</span>
+                </div>
+              </div>
+
+              <div className="glass-card" style={{ padding: '24px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} color="#00ffd5" /> Recent Crash Timeline</div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
+                  {rounds.slice(0, 48).map((r) => {
+                    const color = r.crash_point < 2 ? '#ff3366' : r.crash_point < 5 ? '#ffd000' : '#00e5a0';
+                    const bg = r.crash_point < 2 ? 'rgba(255,51,102,0.1)' : r.crash_point < 5 ? 'rgba(255,208,0,0.1)' : 'rgba(0,229,160,0.1)';
+                    return (
+                      <div key={r.id || r.round_number} style={{ background: bg, border: `1px solid ${color}40`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s', cursor: 'default' }}
+                           onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${color}20`; }}
+                           onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                        <span style={{ fontSize: '18px', fontWeight: '800', fontFamily: 'monospace', color: color }}>{Number(r.crash_point).toFixed(2)}x</span>
+                        <span style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>#{r.round_number}</span>
+                        <span style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>{timeAgo(r.created_at)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ) : activeNav === 'patterns' ? (
             /* ─── PATTERNS PAGE ─── */
             <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
