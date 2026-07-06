@@ -5,6 +5,15 @@
  * to the React app via window.postMessage for zero-latency updates.
  */
 
+window.addEventListener('message', (evt) => {
+  if (evt.data?.type === 'PING') {
+    window.postMessage({ type: 'PONG' }, '*');
+  }
+});
+
+// Broadcast connection right away when injected
+window.postMessage({ type: 'EXTENSION_CONNECTED' }, '*');
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
 

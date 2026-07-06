@@ -116,6 +116,7 @@ export default function Dashboard() {
   const lastPredictedRoundRef = useRef<number>(-1);
   const [currency, setCurrency] = useState<'USD' | 'LKR' | 'INR' | 'BRL'>('USD');
   const [activeGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
+  const [isExtensionConnected, setIsExtensionConnected] = useState(false);
 
   const handleCurrencyChange = (curr: 'USD' | 'LKR' | 'INR' | 'BRL') => {
     setCurrency(curr);
@@ -161,6 +162,9 @@ export default function Dashboard() {
     runPrediction();
 
     const handleMessage = (evt: MessageEvent) => {
+      if (evt.data?.type === 'EXTENSION_CONNECTED' || evt.data?.type === 'PONG') {
+        setIsExtensionConnected(true);
+      }
       if (evt.data?.type === 'EXTENSION_CRASH_LIVE') {
         const { round, prediction, stats } = evt.data;
         if (round) {
@@ -185,6 +189,7 @@ export default function Dashboard() {
       }
     };
     window.addEventListener('message', handleMessage);
+    window.postMessage({ type: 'PING' }, '*');
 
     const channel = supabase.channel('crash-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crash_rounds' }, (payload) => {
@@ -241,7 +246,17 @@ export default function Dashboard() {
   const bigHits = [...rounds].slice(0, 30).filter(r => r.crash_point >= 5).sort((a, b) => b.crash_point - a.crash_point).slice(0, 5);
 
   return (
-    <div className="dash-shell">
+    <>
+      {!isExtensionConnected && (
+        <div className="extension-overlay">
+          <div className="overlay-content">
+            <Orbit size={48} color="#00ffd5" className="spin" />
+            <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '24px', fontWeight: '700', color: '#fff', marginTop: '16px' }}>Connect Extension</h2>
+            <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>Please make sure the CrashAI Chrome Extension is installed and active on the game page.</p>
+          </div>
+        </div>
+      )}
+      <div className="dash-shell" style={!isExtensionConnected ? { filter: 'blur(8px)', pointerEvents: 'none', opacity: 0.8, userSelect: 'none' } : {}}>
       {/* ─── SIDEBAR ─── */}
       <aside className="sidebar">
         <div className="sidebar-logo">
@@ -826,6 +841,7 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
