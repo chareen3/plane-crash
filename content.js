@@ -790,25 +790,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// Auto-reconnect — notify background that content script is alive
-// ---------------------------------------------------------------------------
-
-(async () => {
-  try {
-    const resp = await chrome.runtime.sendMessage({ type: 'CONTENT_RECONNECT' });
-    if (resp && resp.capturing) {
-      log('Background says capture is active — starting collection automatically');
-      startCollection({ debug: false, wsEnabled: false });
-    } else {
-      log('Content script loaded but capture not active');
+// ── AUTO-START on 1xBet crash page (no popup needed) ──────────────────────
+(function autoStart() {
+  // Notify background SW that content script is live
+  chrome.runtime.sendMessage({ type: 'CONTENT_READY' }).then(response => {
+    // If a session is already capturing, the background will reply with capturing: true
+    if (response && response.capturing) {
+      // Already running — don't double-start
+      return;
     }
-  } catch (e) {
-    // Background may not be ready yet
-    setTimeout(() => {
-      chrome.runtime.sendMessage({ type: 'CONTENT_READY' }).catch(() => {});
-    }, 500);
-  }
+    // Auto-begin collection immediately
+    startCollection({
+      wsEnabled: false, // set true if you want WebSocket injection
+      debug: false,
+    });
+    console.log('[CrashCollector] ✅ Auto-started on', location.href);
+  }).catch(() => {
+    // Background not ready yet — start anyway
+    startCollection({ wsEnabled: false, debug: false });
+  });
 })();
 
 log('Content script loaded on', location.href);

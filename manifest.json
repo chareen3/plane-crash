@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Crash Auto Collector",
-  "version": "1.0.0",
-  "description": "Automatically collect and export crash game data for analytics and model training research.",
+  "version": "1.1.0",
+  "description": "Silently collect crash game data from 1xBet and sync to Supabase.",
   "permissions": [
     "activeTab",
     "storage",
@@ -11,8 +11,11 @@
     "tabs"
   ],
   "host_permissions": [
-    "https://*/*",
-    "http://*/*"
+    "https://lk.1xbet.com/*",
+    "https://*.supabase.co/*",
+    "https://plane-crash.vercel.app/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -35,7 +38,17 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"],
+      "matches": ["https://lk.1xbet.com/en/games/crash*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://plane-crash.vercel.app/*",
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
       "js": ["dashboard-bridge.js"],
       "run_at": "document_start"
     }

@@ -10,8 +10,8 @@ window.postMessage({ type: 'EXTENSION_CONNECTED' }, '*');
 
 // Wake up the background service worker so it starts the heartbeat
 try {
-  chrome.runtime.sendMessage({ type: 'DASHBOARD_OPENED' }).catch(() => {});
-} catch (e) {}
+  chrome.runtime.sendMessage({ type: 'DASHBOARD_OPENED' }).catch(() => { });
+} catch (e) { }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
@@ -23,8 +23,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       round: msg.round
     }, '*');
   } else if (
-    msg.type === 'EXTENSION_CRASH_LIVE' || 
-    msg.type === 'EXTENSION_BET_CHANGE' || 
+    msg.type === 'EXTENSION_CRASH_LIVE' ||
+    msg.type === 'EXTENSION_BET_CHANGE' ||
     msg.type === 'EXTENSION_HEARTBEAT'
   ) {
     // Forward the rich prediction and bet events directly to the React application
@@ -38,15 +38,15 @@ window.addEventListener('message', (evt) => {
 
   if (evt.data && evt.data.type === 'DASHBOARD_PING') {
     // Reply immediately to the dashboard page to confirm extension presence
-    window.postMessage({ 
-      type: 'EXTENSION_CONNECTED', 
-      timestamp: evt.data.timestamp || Date.now() 
+    window.postMessage({
+      type: 'EXTENSION_CONNECTED',
+      timestamp: evt.data.timestamp || Date.now()
     }, '*');
 
     // Wake up/notify the background service worker
     try {
-      chrome.runtime.sendMessage({ type: 'DASHBOARD_PING' }).catch(() => {});
-    } catch (e) {}
+      chrome.runtime.sendMessage({ type: 'DASHBOARD_PING' }).catch(() => { });
+    } catch (e) { }
   }
 });
 
