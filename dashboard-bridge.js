@@ -7,7 +7,16 @@
 
 window.addEventListener('message', (evt) => {
   if (evt.data?.type === 'PING') {
-    window.postMessage({ type: 'PONG', timestamp: evt.data.timestamp }, '*');
+    try {
+      chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (response) => {
+        if (chrome.runtime.lastError) return;
+        if (response?.capturing) {
+          window.postMessage({ type: 'PONG', timestamp: evt.data.timestamp }, '*');
+        }
+      });
+    } catch (e) {
+      // Ignore errors if context is invalidated
+    }
   }
 });
 

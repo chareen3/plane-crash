@@ -118,6 +118,7 @@ export default function Dashboard() {
   const [activeGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
   const [latency, setLatency] = useState<number>(0);
+  const lastMessageTimeRef = useRef<number>(Date.now());
 
   const handleCurrencyChange = (curr: 'USD' | 'LKR' | 'INR' | 'BRL') => {
     setCurrency(curr);
@@ -157,13 +158,16 @@ export default function Dashboard() {
           setRounds(data);
           setLastCrash(data[0]);
           setLocalStats(computeStats(data));
-          setIsExtensionConnected(true);
         }
       });
     fetchWinRate();
     runPrediction();
 
     const handleMessage = (evt: MessageEvent) => {
+      if (evt.data?.type?.startsWith('EXTENSION_') || evt.data?.type === 'PONG') {
+        setIsExtensionConnected(true);
+        lastMessageTimeRef.current = Date.now();
+      }
       if (evt.data?.type === 'EXTENSION_CONNECTED' || evt.data?.type === 'PONG') {
         setIsExtensionConnected(true);
         if (evt.data?.timestamp) {
@@ -203,6 +207,12 @@ export default function Dashboard() {
       window.postMessage({ type: 'PING', timestamp: Date.now() }, '*');
     }, 5000);
 
+    const checkConnectionInterval = setInterval(() => {
+      if (Date.now() - lastMessageTimeRef.current > 15000) {
+        setIsExtensionConnected(false);
+      }
+    }, 5000);
+
     const channel = supabase.channel('crash-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crash_rounds' }, (payload) => {
         const round = payload.new as Round;
@@ -220,11 +230,12 @@ export default function Dashboard() {
           lastPredictedRoundRef.current = round.round_number;
         }
       }).subscribe((status) => {
-        if (status === 'SUBSCRIBED') setIsExtensionConnected(true);
+        // Connected to realtime channel
       });
 
     return () => {
       clearInterval(pingInterval);
+      clearInterval(checkConnectionInterval);
       supabase.removeChannel(channel);
       window.removeEventListener('message', handleMessage);
     };
@@ -365,7 +376,7 @@ export default function Dashboard() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
               <Orbit size={64} color="#ff3366" />
               <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '28px', fontWeight: '700', color: '#fff', letterSpacing: '1px' }}>DASHBOARD SYNC REQUIRED</h2>
-              <p style={{ color: '#888', fontSize: '14px', maxWidth: '400px', textAlign: 'center', lineHeight: '1.6' }}>The dashboard requires the CrashAI Chrome Extension to be active on a supported game page to capture data and generate predictions.</p>
+              <p style={{ color: '#888', fontSize: '14px', maxWidth: '400px', textAlign: 'center', lineHeight: '1.6' }}>The dashboard requires the Data Capture Module to be active on a supported game page to capture data and generate predictions.</p>
             </div>
           ) : activeNav === 'live' ? (
             /* ─── LIVE FEED PAGE ─── */
@@ -573,7 +584,7 @@ export default function Dashboard() {
                 <h3 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '16px', letterSpacing: '0.5px' }}>HOW IT WORKS</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                   {[
-                    { step: '01', icon: <Activity size={24} />, title: 'Data Capture', desc: 'Chrome extension captures real-time crash multipliers via WebSocket injection', color: '#00d4ff' },
+                    { step: '01', icon: <Activity size={24} />, title: 'Data Capture', desc: 'Capture module receives real-time crash multipliers via WebSocket injection', color: '#00d4ff' },
                     { step: '02', icon: <BarChart3 size={24} />, title: 'Pattern Analysis', desc: 'AI analyzes sequences, streaks, and volatility patterns across rounds', color: '#a78bfa' },
                     { step: '03', icon: <Bot size={24} />, title: 'AI Prediction', desc: 'Machine learning model calculates risk levels and optimal cashout targets', color: '#00e5a0' },
                     { step: '04', icon: <Target size={24} />, title: 'Bet Signals', desc: 'Receive real-time alerts with confidence scores and recommended actions', color: '#ffc84a' },
