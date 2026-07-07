@@ -62,6 +62,21 @@ const state = {
 };
 
 let flushTimer = null;
+let heartbeatTimer = null;
+
+function startHeartbeat() {
+  if (heartbeatTimer) clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(() => {
+    if (state.capturing) {
+      chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+        if (tabs) tabs.forEach(tab => {
+          chrome.tabs.sendMessage(tab.id, { type: 'EXTENSION_HEARTBEAT' }).catch(() => {});
+        });
+      });
+    }
+  }, 5000);
+}
+startHeartbeat();
 
 // ---------------------------------------------------------------------------
 // Logging
@@ -226,7 +241,7 @@ async function saveToSupabase(events) {
 
     // 🚀 Broadcast to dashboard INSTANTLY via our injected bridge script
     try {
-      chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:*/*"] }, (tabs) => {
+      chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
         if (tabs) tabs.forEach(tab => {
           rows.forEach(row => {
             chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => {});
@@ -324,7 +339,7 @@ async function postRoundResultToDashboard(roundEvent) {
       
       // Broadcast the updated state and prediction directly to the dashboard tabs!
       if (data.success && data.round && data.prediction) {
-        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:*/*"] }, (tabs) => {
+        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_CRASH_LIVE',
@@ -648,7 +663,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { received: true };
 
       case 'BET_AMOUNT_CHANGE':
-        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:*/*"] }, (tabs) => {
+        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_BET_CHANGE',
@@ -673,9 +688,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { capturing: state.capturing };
 
       default:
-        return null;
     }
-  })().then(sendResponse).catch(e => {
+  })().then(res => {
+    if (res !== undefined) sendResponse(res);
+  }).catch(e => {
     warn('Message handler error:', e);
     sendResponse({ error: e.message });
   });

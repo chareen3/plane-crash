@@ -201,14 +201,8 @@ export default function Dashboard() {
     };
     window.addEventListener('message', handleMessage);
     
-    // Initial ping and interval ping
-    window.postMessage({ type: 'PING', timestamp: Date.now() }, '*');
-    const pingInterval = setInterval(() => {
-      window.postMessage({ type: 'PING', timestamp: Date.now() }, '*');
-    }, 5000);
-
     const checkConnectionInterval = setInterval(() => {
-      if (Date.now() - lastMessageTimeRef.current > 15000) {
+      if (Date.now() - lastMessageTimeRef.current > 25000) {
         setIsExtensionConnected(false);
       }
     }, 5000);
@@ -234,7 +228,6 @@ export default function Dashboard() {
       });
 
     return () => {
-      clearInterval(pingInterval);
       clearInterval(checkConnectionInterval);
       supabase.removeChannel(channel);
       window.removeEventListener('message', handleMessage);
