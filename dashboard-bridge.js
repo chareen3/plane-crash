@@ -8,6 +8,11 @@
 // Broadcast connection right away when injected
 window.postMessage({ type: 'EXTENSION_CONNECTED' }, '*');
 
+// Wake up the background service worker so it starts the heartbeat
+try {
+  chrome.runtime.sendMessage({ type: 'DASHBOARD_OPENED' }).catch(() => {});
+} catch (e) {}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (!msg) return;
 
@@ -26,3 +31,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     window.postMessage(msg, '*');
   }
 });
+
+// Listen for connection pings from the React dashboard
+window.addEventListener('message', (evt) => {
+  if (evt.source !== window) return;
+
+  if (evt.data && evt.data.type === 'DASHBOARD_PING') {
+    // Reply immediately to the dashboard page to confirm extension presence
+    window.postMessage({ 
+      type: 'EXTENSION_CONNECTED', 
+      timestamp: evt.data.timestamp || Date.now() 
+    }, '*');
+
+    // Wake up/notify the background service worker
+    try {
+      chrome.runtime.sendMessage({ type: 'DASHBOARD_PING' }).catch(() => {});
+    } catch (e) {}
+  }
+});
+

@@ -61,19 +61,43 @@ const state = {
   },
 };
 
+// Restore state from storage on service worker load/wake-up
+chrome.storage.local.get([
+  STORAGE_KEYS.CAPTURE_STATE,
+  STORAGE_KEYS.SESSION_START,
+  STORAGE_KEYS.DEBUG_MODE,
+  STORAGE_KEYS.STATS,
+]).then((data) => {
+  state.debugMode    = !!data[STORAGE_KEYS.DEBUG_MODE];
+  state.capturing    = !!data[STORAGE_KEYS.CAPTURE_STATE];
+  state.sessionStart = data[STORAGE_KEYS.SESSION_START] || null;
+  if (data[STORAGE_KEYS.STATS]) {
+    Object.assign(state.stats, data[STORAGE_KEYS.STATS]);
+  }
+  
+  if (state.capturing) {
+    log('Resuming flush timer on SW wake-up');
+    startFlushTimer();
+  }
+  updateBadge(state.stats.totalEvents || 0);
+  log('State restored on SW load, capturing:', state.capturing);
+});
+
 let flushTimer = null;
 let heartbeatTimer = null;
 
 function startHeartbeat() {
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   heartbeatTimer = setInterval(() => {
-    if (state.capturing) {
-      chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
-        if (tabs) tabs.forEach(tab => {
-          chrome.tabs.sendMessage(tab.id, { type: 'EXTENSION_HEARTBEAT' }).catch(() => {});
-        });
+    chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+      if (tabs) tabs.forEach(tab => {
+        chrome.tabs.sendMessage(tab.id, { 
+          type: 'EXTENSION_HEARTBEAT',
+          capturing: state.capturing,
+          stats: state.stats
+        }).catch(() => {});
       });
-    }
+    });
   }, 5000);
 }
 startHeartbeat();
@@ -639,6 +663,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           stats:        { ...state.stats },
         };
 
+      case 'DASHBOARD_OPENED':
+        return { success: true };
+
+      case 'DASHBOARD_PING':
+        // Service worker has been woken up. Send immediate heartbeat/status back to all dashboard tabs
+        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+          if (tabs) tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, { 
+              type: 'EXTENSION_HEARTBEAT', 
+              capturing: state.capturing, 
+              stats: state.stats 
+            }).catch(() => {});
+          });
+        });
+        return { success: true, capturing: state.capturing };
+
       case 'SET_DEBUG':
         state.debugMode = !!msg.debug;
         await chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: state.debugMode });
@@ -726,39 +766,7 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 // Service Worker activation — restore state
 // ---------------------------------------------------------------------------
 
-self.addEventListener('activate', async () => {
-  const data = await chrome.storage.local.get([
-    STORAGE_KEYS.CAPTURE_STATE,
-    STORAGE_KEYS.SESSION_START,
-    STORAGE_KEYS.DEBUG_MODE,
-    STORAGE_KEYS.STATS,
-  ]);
-
-  state.debugMode    = !!data[STORAGE_KEYS.DEBUG_MODE];
-  state.capturing    = !!data[STORAGE_KEYS.CAPTURE_STATE];
-  state.sessionStart = data[STORAGE_KEYS.SESSION_START] || null;
-
-  if (data[STORAGE_KEYS.STATS]) {
-    Object.assign(state.stats, data[STORAGE_KEYS.STATS]);
-  }
-
-  if (state.capturing) {
-    log('Service worker reactivated — resuming flush timer');
-    startFlushTimer();
-  }
-
-  // Restore badge
-  updateBadge(state.stats.totalEvents || 0);
-});
-
-// Initial badge update on install/load
-chrome.storage.local.get(STORAGE_KEYS.STATS).then(data => {
-  const stats = data[STORAGE_KEYS.STATS];
-  if (stats) {
-    Object.assign(state.stats, stats);
-    updateBadge(stats.totalEvents || 0);
-  }
-});
+// Initial load check done via top-level restoration above
 
 // ---------------------------------------------------------------------------
 // Inject Draggable Widget on Extension Icon Click

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
@@ -58,9 +58,16 @@ const RISK_EMOJI: Record<string, any> = {
 const STRATEGY_META: Record<string, { color: string; glow: string; icon: any; label: string; tag: string }> = {
   SKIP:        { color: '#ff3366', glow: 'rgba(255,51,102,0.3)',   icon: <ShieldAlert size={28} strokeWidth={2} />,  label: 'SKIP THIS ROUND',   tag: 'DANGER' },
   CONSERVATIVE:{ color: '#00e5a0', glow: 'rgba(0,229,160,0.3)',    icon: <ShieldCheck size={28} strokeWidth={2} />,  label: 'CONSERVATIVE BET',  tag: 'SAFE'   },
-  BALANCED:    { color: '#ffd000', glow: 'rgba(255,208,0,0.3)',    icon: <Scale size={28} strokeWidth={2} />,         label: 'BALANCED BET',      tag: 'NORMAL' },
-  AGGRESSIVE:  { color: '#a78bfa', glow: 'rgba(167,139,250,0.35)', icon: <Zap size={28} strokeWidth={2} />,           label: 'AGGRESSIVE BET',    tag: 'HIGH'   },
+  AGGRESSIVE:  { color: '#ffd000', glow: 'rgba(255,208,0,0.3)',    icon: <Scale size={28} strokeWidth={2} />,        label: 'AGGRESSIVE BET',    tag: 'RISK'   },
+  SWING:       { color: '#a78bfa', glow: 'rgba(167,139,250,0.3)',  icon: <Rocket size={28} strokeWidth={2} />,       label: 'SWING TRADING',     tag: 'SWING'  },
 };
+
+interface ToastMessage {
+  id: string;
+  type: 'info' | 'success' | 'error' | 'warning';
+  message: string;
+  duration?: number;
+}
 
 function classifyRisk(v: number) { return v < 2 ? 'red' : v < 5 ? 'yellow' : 'green'; }
 function timeAgo(iso: string) {
@@ -80,7 +87,7 @@ function AnimatedCrashMultiplier({ target }: { target: number }) {
     }
     
     let current = 1.00;
-    const duration = 1200; // 1.2s animation to simulate plane
+    const duration = 1200;
     const fps = 60;
     const steps = (duration / 1000) * fps;
     const increment = (target - 1.00) / steps;
@@ -120,6 +127,25 @@ export default function Dashboard() {
   const [latency, setLatency] = useState<number>(0);
   const lastMessageTimeRef = useRef<number>(Date.now());
 
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [lastSyncedRound, setLastSyncedRound] = useState<number | null>(null);
+  const prevStatusRef = useRef<'connecting' | 'connected' | 'disconnected'>('connecting');
+
+  const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info', duration = 4000) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, type, message, duration }]);
+    if (duration > 0) {
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, duration);
+    }
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   const handleCurrencyChange = (curr: 'USD' | 'LKR' | 'INR' | 'BRL') => {
     setCurrency(curr);
     localStorage.setItem('dashboard_currency', curr);
@@ -148,6 +174,24 @@ export default function Dashboard() {
     finally { setIsPredicting(false); isPredictingRef.current = false; }
   }, [activeGame]);
 
+  const triggerReconnect = useCallback(() => {
+    setConnectionStatus('connecting');
+    lastMessageTimeRef.current = Date.now();
+    window.postMessage({ type: 'DASHBOARD_PING', timestamp: Date.now() }, '*');
+    addToast("Attempting to connect to extension...", "info", 3000);
+
+    setTimeout(() => {
+      setIsExtensionConnected(curr => {
+        if (!curr) {
+          setConnectionStatus('disconnected');
+          const roundMsg = lastSyncedRound ? `Last synced round: #${lastSyncedRound}` : 'No rounds synced yet';
+          addToast(`Connection failed. ${roundMsg}`, "error", 5000);
+        }
+        return curr;
+      });
+    }, 4000);
+  }, [lastSyncedRound, addToast]);
+
   useEffect(() => {
     const savedCurr = localStorage.getItem('dashboard_currency');
     if (savedCurr && savedCurr in CURRENCIES) setCurrency(savedCurr as any);
@@ -164,17 +208,24 @@ export default function Dashboard() {
     runPrediction();
 
     const handleMessage = (evt: MessageEvent) => {
-      if (evt.data?.type?.startsWith('EXTENSION_') || evt.data?.type === 'PONG') {
+      const type = evt.data?.type;
+      if (typeof type === 'string' && (type.startsWith('EXTENSION_') || type === 'PONG')) {
         setIsExtensionConnected(true);
         lastMessageTimeRef.current = Date.now();
       }
-      if (evt.data?.type === 'EXTENSION_CONNECTED' || evt.data?.type === 'PONG') {
+      if (type === 'EXTENSION_CONNECTED' || type === 'PONG') {
         setIsExtensionConnected(true);
         if (evt.data?.timestamp) {
           setLatency(Date.now() - evt.data.timestamp);
         }
       }
-      if (evt.data?.type === 'EXTENSION_CRASH_LIVE') {
+      if (type === 'EXTENSION_CRASH_LIVE' || type === 'NEW_CRASH') {
+        const round = evt.data.round;
+        if (round?.round_number) {
+          setLastSyncedRound(round.round_number);
+        }
+      }
+      if (type === 'EXTENSION_CRASH_LIVE') {
         setIsExtensionConnected(true);
         const { round, prediction, stats } = evt.data;
         if (round) {
@@ -194,13 +245,17 @@ export default function Dashboard() {
         void heroRef.current?.offsetWidth;
         heroRef.current?.classList.add('flash');
         fetchWinRate();
-      } else if (evt.data?.type === 'EXTENSION_BET_CHANGE') {
+      } else if (type === 'EXTENSION_BET_CHANGE') {
         setIsExtensionConnected(true);
         setBetAmount(evt.data.amount);
       }
     };
     window.addEventListener('message', handleMessage);
     
+    const pingInterval = setInterval(() => {
+      window.postMessage({ type: 'DASHBOARD_PING', timestamp: Date.now() }, '*');
+    }, 15000);
+
     const checkConnectionInterval = setInterval(() => {
       if (Date.now() - lastMessageTimeRef.current > 25000) {
         setIsExtensionConnected(false);
@@ -209,6 +264,8 @@ export default function Dashboard() {
 
     const channel = supabase.channel('crash-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crash_rounds' }, (payload) => {
+        setIsExtensionConnected(true);
+        lastMessageTimeRef.current = Date.now();
         const round = payload.new as Round;
         setRounds(prev => {
           const exists = prev.findIndex(r => r.round_number === round.round_number);
@@ -223,16 +280,47 @@ export default function Dashboard() {
           runPrediction();
           lastPredictedRoundRef.current = round.round_number;
         }
-      }).subscribe((status) => {
-        // Connected to realtime channel
+      }).subscribe();
+
+    setTimeout(() => {
+      window.postMessage({ type: 'DASHBOARD_PING', timestamp: Date.now() }, '*');
+    }, 500);
+
+    const connTimeout = setTimeout(() => {
+      setIsExtensionConnected(curr => {
+        if (!curr) {
+          setConnectionStatus('disconnected');
+          prevStatusRef.current = 'disconnected';
+        }
+        return curr;
       });
+    }, 4000);
 
     return () => {
+      clearInterval(pingInterval);
       clearInterval(checkConnectionInterval);
+      clearTimeout(connTimeout);
       supabase.removeChannel(channel);
       window.removeEventListener('message', handleMessage);
     };
-  }, []);
+  }, [fetchWinRate, runPrediction]);
+
+  useEffect(() => {
+    if (isExtensionConnected) {
+      if (prevStatusRef.current !== 'connected') {
+        setConnectionStatus('connected');
+        addToast("Extension Synced! Real-time syncing active.", "success");
+        prevStatusRef.current = 'connected';
+      }
+    } else {
+      if (prevStatusRef.current === 'connected') {
+        setConnectionStatus('disconnected');
+        const roundMsg = lastSyncedRound ? `Last synced round: #${lastSyncedRound}` : 'No rounds synced yet';
+        addToast(`Extension connection lost. ${roundMsg}`, "error", 6000);
+        prevStatusRef.current = 'disconnected';
+      }
+    }
+  }, [isExtensionConnected, lastSyncedRound, addToast]);
 
   const stats = localStats;
   const avg = stats ? stats.mean.toFixed(2) : '—';
@@ -299,7 +387,7 @@ export default function Dashboard() {
             <div className="sidebar-plane-info">
               <div className="ssc-label" style={{ color: '#888', fontSize: '9px' }}>LAST CRASH</div>
               <div className="ssc-target" style={{
-                color: classifyRisk(lastCrash?.crash_point ?? 0) === 'green' ? '#00e5a0' : classifyRisk(lastCrash?.crash_point ?? 0) === 'yellow' ? '#ffd000' : '#ff3366',
+                color: classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366',
                 fontSize: '32px',
                 fontWeight: '700',
                 fontFamily: 'Rajdhani, sans-serif'
@@ -336,15 +424,49 @@ export default function Dashboard() {
               ))}
             </select>
 
-            <div className="live-badge" style={{ borderColor: isExtensionConnected ? 'rgba(0,229,160,0.25)' : 'rgba(255,51,102,0.25)', color: isExtensionConnected ? '#00e5a0' : '#ff3366', background: isExtensionConnected ? 'rgba(0,229,160,0.1)' : 'rgba(255,51,102,0.1)' }}>
-              <span className="live-dot" style={{ background: isExtensionConnected ? '#00e5a0' : '#ff3366', boxShadow: isExtensionConnected ? '0 0 6px #00e5a0' : 'none', animation: isExtensionConnected ? 'pulse 1.5s infinite' : 'none' }} />
-              {isExtensionConnected ? (
+            {connectionStatus === 'connected' ? (
+              <div className="live-badge connected" style={{ borderColor: 'rgba(0,229,160,0.25)', color: '#00e5a0', background: 'rgba(0,229,160,0.1)' }}>
+                <span className="live-dot synced" style={{ background: '#00e5a0', boxShadow: '0 0 6px #00e5a0', animation: 'pulse 1.5s infinite' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span>SYNCED</span>
                   {latency > 0 && <span style={{ fontSize: '9px', opacity: 0.7, background: 'rgba(0,229,160,0.15)', padding: '2px 6px', borderRadius: '10px' }}>{latency}ms</span>}
                 </div>
-              ) : 'NO SYNC'}
-            </div>
+              </div>
+            ) : connectionStatus === 'connecting' ? (
+              <div className="live-badge connecting" style={{ borderColor: 'rgba(255,208,0,0.25)', color: '#ffd000', background: 'rgba(255,208,0,0.1)' }}>
+                <span className="live-dot trying" style={{ background: '#ffd000', boxShadow: '0 0 6px #ffd000', animation: 'pulse 1.5s infinite' }} />
+                <span>CONNECTING...</span>
+              </div>
+            ) : (
+              <div className="live-badge disconnected" style={{ borderColor: 'rgba(255,51,102,0.25)', color: '#ff3366', background: 'rgba(255,51,102,0.1)' }}>
+                <span className="live-dot off" style={{ background: '#ff3366' }} />
+                <span>DISCONNECTED {lastSyncedRound ? `(Last round: #${lastSyncedRound})` : ''}</span>
+              </div>
+            )}
+
+            {connectionStatus !== 'connected' && (
+              <button 
+                className="top-btn reconnect-btn" 
+                onClick={triggerReconnect} 
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  background: 'rgba(0, 212, 255, 0.1)', 
+                  border: '1px solid rgba(0, 212, 255, 0.25)', 
+                  color: '#00ffd5',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <RefreshCw size={14} className={connectionStatus === 'connecting' ? 'spin' : ''} />
+                Reconnect
+              </button>
+            )}
 
             <button className="top-btn" onClick={async () => {
               if (confirm('Clear all data?')) {
@@ -365,13 +487,7 @@ export default function Dashboard() {
         {/* ─── BODY ─── */}
         <div className="dash-body">
 
-          {!isExtensionConnected ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-              <Orbit size={64} color="#ff3366" />
-              <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '28px', fontWeight: '700', color: '#fff', letterSpacing: '1px' }}>DASHBOARD SYNC REQUIRED</h2>
-              <p style={{ color: '#888', fontSize: '14px', maxWidth: '400px', textAlign: 'center', lineHeight: '1.6' }}>The dashboard requires the Data Capture Module to be active on a supported game page to capture data and generate predictions.</p>
-            </div>
-          ) : activeNav === 'live' ? (
+          {activeNav === 'live' ? (
             /* ─── LIVE FEED PAGE ─── */
             <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
               <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -401,7 +517,7 @@ export default function Dashboard() {
                     </thead>
                     <tbody>
                       {rounds.slice(0, 15).map((r, i) => {
-                        const isProcessing = i === 0 && (Date.now() - new Date(r.created_at).getTime()) < 10000;
+                        const isProcessing = i === 0 && !r.crash_point;
                         return (
                           <tr key={r.id || r.round_number} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', background: isProcessing ? 'rgba(0,212,255,0.03)' : 'transparent', transition: 'background 0.2s' }}>
                             <td style={{ padding: '16px' }}>
@@ -1026,6 +1142,40 @@ export default function Dashboard() {
           </>
           )}
         </div>
+      </div>
+      
+      {/* ─── TOASTER ─── */}
+      <div className="toaster-container">
+        {toasts.map(toast => {
+          let IconComponent = Info;
+          if (toast.type === 'success') IconComponent = CheckCircle2;
+          if (toast.type === 'error') IconComponent = AlertTriangle;
+          if (toast.type === 'warning') IconComponent = AlertTriangle;
+
+          return (
+            <div key={toast.id} className={`toast-card toast-${toast.type}`}>
+              <div className={`toast-icon ${toast.type}`}>
+                <IconComponent size={18} />
+              </div>
+              <div className="toast-content">
+                <span className="toast-message">{toast.message}</span>
+                {toast.type === 'error' && (
+                  <div className="toast-actions">
+                    <button className="toast-btn accent" onClick={() => {
+                      triggerReconnect();
+                      removeToast(toast.id);
+                    }}>
+                      Reconnect
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button className="toast-close" onClick={() => removeToast(toast.id)}>
+                &times;
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
