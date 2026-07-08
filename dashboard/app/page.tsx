@@ -7,11 +7,11 @@ import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
 const JetPlaneIcon = ({ className, size = 24 }: { className?: string; size?: number }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    width={size} 
-    height={size} 
-    fill="currentColor" 
+  <svg
+    viewBox="0 0 24 24"
+    width={size}
+    height={size}
+    fill="currentColor"
     className={className}
     style={{ transform: 'rotate(-45deg)' }}
   >
@@ -64,17 +64,17 @@ const CURRENCIES = {
 };
 
 const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
-const RISK_EMOJI: Record<string, any> = { 
-  LOW: <CheckCircle2 size={14} strokeWidth={2.5} />, 
-  MEDIUM: <Info size={14} strokeWidth={2.5} />, 
+const RISK_EMOJI: Record<string, any> = {
+  LOW: <CheckCircle2 size={14} strokeWidth={2.5} />,
+  MEDIUM: <Info size={14} strokeWidth={2.5} />,
   HIGH: <AlertTriangle size={14} strokeWidth={2.5} />
 };
 
 const STRATEGY_META: Record<string, { color: string; glow: string; icon: any; label: string; tag: string }> = {
-  SKIP:        { color: '#ff3366', glow: 'rgba(255,51,102,0.3)',   icon: <ShieldAlert size={28} strokeWidth={2} />,  label: 'HOLD — DO NOT ENTER',  tag: 'DANGER' },
-  CONSERVATIVE:{ color: '#00e5a0', glow: 'rgba(0,229,160,0.3)',    icon: <ShieldCheck size={28} strokeWidth={2} />,  label: 'SAFE ENTRY SIGNAL',    tag: 'SAFE'   },
-  AGGRESSIVE:  { color: '#ffd000', glow: 'rgba(255,208,0,0.3)',    icon: <Scale size={28} strokeWidth={2} />,        label: 'HIGH-RISK PLAY',       tag: 'RISK'   },
-  SWING:       { color: '#a78bfa', glow: 'rgba(167,139,250,0.3)',  icon: <Rocket size={28} strokeWidth={2} />,       label: 'SWING TRADE',          tag: 'SWING'  },
+  SKIP: { color: '#ff3366', glow: 'rgba(255,51,102,0.3)', icon: <ShieldAlert size={28} strokeWidth={2} />, label: 'HOLD — DO NOT ENTER', tag: 'DANGER' },
+  CONSERVATIVE: { color: '#00e5a0', glow: 'rgba(0,229,160,0.3)', icon: <ShieldCheck size={28} strokeWidth={2} />, label: 'SAFE ENTRY SIGNAL', tag: 'SAFE' },
+  AGGRESSIVE: { color: '#ffd000', glow: 'rgba(255,208,0,0.3)', icon: <Scale size={28} strokeWidth={2} />, label: 'HIGH-RISK PLAY', tag: 'RISK' },
+  SWING: { color: '#a78bfa', glow: 'rgba(167,139,250,0.3)', icon: <Rocket size={28} strokeWidth={2} />, label: 'SWING TRADE', tag: 'SWING' },
 };
 
 interface ToastMessage {
@@ -179,7 +179,7 @@ export default function Dashboard() {
     setConnectionStatus('connecting');
     lastMessageTimeRef.current = Date.now();
     window.postMessage({ type: 'DASHBOARD_PING', timestamp: Date.now() }, '*');
-    addToast("Attempting to connect to extension...", "info", 3000);
+    addToast("Attempting to connect to backend api...", "info", 3000);
 
     setTimeout(() => {
       setIsExtensionConnected(curr => {
@@ -329,14 +329,14 @@ export default function Dashboard() {
     if (isExtensionConnected) {
       if (prevStatusRef.current !== 'connected') {
         setConnectionStatus('connected');
-        addToast("Extension Synced! Real-time syncing active.", "success");
+        addToast("Live connection is active.", "success");
         prevStatusRef.current = 'connected';
       }
     } else {
       if (prevStatusRef.current === 'connected') {
         setConnectionStatus('disconnected');
         const roundMsg = lastSyncedRound ? `Last synced round: #${lastSyncedRound}` : 'No rounds synced yet';
-        addToast(`Extension connection lost. ${roundMsg}`, "error", 6000);
+        addToast(`Live server connection lost. ${roundMsg}`, "error", 6000);
         prevStatusRef.current = 'disconnected';
       }
     }
@@ -358,15 +358,15 @@ export default function Dashboard() {
   const stratMeta = prediction?.strategy
     ? (STRATEGY_META[prediction.strategy] ?? STRATEGY_META['CONSERVATIVE'])
     : prediction
-    ? STRATEGY_META['CONSERVATIVE']
-    : null;
+      ? STRATEGY_META['CONSERVATIVE']
+      : null;
 
   const navItems = [
     { id: 'dashboard', icon: <Home size={18} />, label: 'Dashboard' },
-    { id: 'live',      icon: <Activity size={18} />, label: 'Live Feed' },
-    { id: 'targets',   icon: <Target size={18} />, label: 'Targets' },
-    { id: 'patterns',  icon: <Layers size={18} />, label: 'Patterns' },
-    { id: 'history',   icon: <Clock size={18} />, label: 'History' },
+    { id: 'live', icon: <Activity size={18} />, label: 'Live Feed' },
+    { id: 'targets', icon: <Target size={18} />, label: 'Targets' },
+    { id: 'patterns', icon: <Layers size={18} />, label: 'Patterns' },
+    { id: 'history', icon: <Clock size={18} />, label: 'History' },
   ];
 
   const chartData = [...rounds].reverse().slice(0, 50).map(r => ({
@@ -413,11 +413,11 @@ export default function Dashboard() {
             <div className={`widget-game-label ${liveData?.state === 'active' ? 'active' : 'crashed'}`}>
               1xBet Crash Game
             </div>
-            
+
             <div className={`widget-radar-ring ${liveData?.state === 'active' ? 'active' : ''}`}>
-              <JetPlaneIcon 
-                size={36} 
-                className={`widget-plane-icon ${liveData?.state === 'active' ? 'active' : 'crashed'}`} 
+              <JetPlaneIcon
+                size={36}
+                className={`widget-plane-icon ${liveData?.state === 'active' ? 'active' : 'crashed'}`}
               />
             </div>
 
@@ -426,15 +426,15 @@ export default function Dashboard() {
                 {liveData?.state === 'active' ? 'LIVE MULTIPLIER' : 'ROUND CRASHED'}
               </div>
               <div className={`widget-mult-val ${liveData?.state === 'active' ? 'active' : 'crashed'}`}>
-                {liveData?.state === 'active' ? 
-                  (liveData.multiplierText || '1.00x') : 
+                {liveData?.state === 'active' ?
+                  (liveData.multiplierText || '1.00x') :
                   (lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '—')
                 }
               </div>
               <div className="widget-time-ago">
-                {liveData?.state === 'active' ? 'Flying supersonic...' : 
-                 liveData?.timerText ? `Next flight in ${liveData.timerText}s` : 
-                 (lastCrash ? timeAgo(lastCrash.created_at) : 'Telemetry standby')}
+                {liveData?.state === 'active' ? 'Flying supersonic...' :
+                  liveData?.timerText ? `Next flight in ${liveData.timerText}s` :
+                    (lastCrash ? timeAgo(lastCrash.created_at) : 'Telemetry standby')}
               </div>
             </div>
           </div>
@@ -453,7 +453,7 @@ export default function Dashboard() {
             <X size={20} />
           </button>
         </div>
-        
+
         <div className="drawer-content">
           <div className="drawer-section">
             <h4 className="drawer-section-title">Connection Status</h4>
@@ -476,14 +476,14 @@ export default function Dashboard() {
                 <span>DISCONNECTED</span>
               </div>
             )}
-            
+
             {connectionStatus !== 'connected' && (
-              <button 
-                className="top-btn reconnect-btn" 
+              <button
+                className="top-btn reconnect-btn"
                 onClick={() => {
                   triggerReconnect();
                   setMobileDrawerOpen(false);
-                }} 
+                }}
                 style={{ width: '100%', marginTop: '8px', justifyContent: 'center' }}
               >
                 <RefreshCw size={14} className={connectionStatus === 'connecting' ? 'spin' : ''} />
@@ -491,7 +491,7 @@ export default function Dashboard() {
               </button>
             )}
           </div>
-          
+
           <div className="drawer-section">
             <h4 className="drawer-section-title">Preferences</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -519,7 +519,7 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          
+
           <div className="drawer-section">
             <h4 className="drawer-section-title">System Actions</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -541,11 +541,11 @@ export default function Dashboard() {
             <div className={`widget-game-label ${liveData?.state === 'active' ? 'active' : 'crashed'}`}>
               1xBet Crash Game
             </div>
-            
+
             <div className={`widget-radar-ring ${liveData?.state === 'active' ? 'active' : ''}`}>
-              <JetPlaneIcon 
-                size={32} 
-                className={`widget-plane-icon ${liveData?.state === 'active' ? 'active' : 'crashed'}`} 
+              <JetPlaneIcon
+                size={32}
+                className={`widget-plane-icon ${liveData?.state === 'active' ? 'active' : 'crashed'}`}
               />
             </div>
 
@@ -554,15 +554,15 @@ export default function Dashboard() {
                 {liveData?.state === 'active' ? 'LIVE MULTIPLIER' : 'ROUND CRASHED'}
               </div>
               <div className={`widget-mult-val ${liveData?.state === 'active' ? 'active' : 'crashed'}`} style={{ fontSize: '30px' }}>
-                {liveData?.state === 'active' ? 
-                  (liveData.multiplierText || '1.00x') : 
+                {liveData?.state === 'active' ?
+                  (liveData.multiplierText || '1.00x') :
                   (lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '—')
                 }
               </div>
               <div className="widget-time-ago">
-                {liveData?.state === 'active' ? 'Flying...' : 
-                 liveData?.timerText ? `Next in ${liveData.timerText}s` : 
-                 (lastCrash ? timeAgo(lastCrash.created_at) : 'Standby')}
+                {liveData?.state === 'active' ? 'Flying...' :
+                  liveData?.timerText ? `Next in ${liveData.timerText}s` :
+                    (lastCrash ? timeAgo(lastCrash.created_at) : 'Standby')}
               </div>
             </div>
           </div>
@@ -618,15 +618,15 @@ export default function Dashboard() {
             )}
 
             {connectionStatus !== 'connected' && (
-              <button 
-                className="top-btn reconnect-btn" 
-                onClick={triggerReconnect} 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+              <button
+                className="top-btn reconnect-btn"
+                onClick={triggerReconnect}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '6px',
-                  background: 'rgba(0, 212, 255, 0.1)', 
-                  border: '1px solid rgba(0, 212, 255, 0.25)', 
+                  background: 'rgba(0, 212, 255, 0.1)',
+                  border: '1px solid rgba(0, 212, 255, 0.25)',
                   color: '#00ffd5',
                   padding: '6px 12px',
                   borderRadius: '8px',
@@ -686,9 +686,9 @@ export default function Dashboard() {
         <div className="mobile-live-status-bar">
           <div className="mlsb-container">
             <div className="mlsb-plane-wrapper">
-              <JetPlaneIcon 
-                size={20} 
-                className={liveData?.state === 'active' ? 'widget-plane-icon active' : 'widget-plane-icon crashed'} 
+              <JetPlaneIcon
+                size={20}
+                className={liveData?.state === 'active' ? 'widget-plane-icon active' : 'widget-plane-icon crashed'}
               />
             </div>
             <div className="mlsb-info">
@@ -696,9 +696,9 @@ export default function Dashboard() {
                 1XBET CRASH: {liveData?.state === 'active' ? 'LIVE' : 'LAST'}
               </span>
               <span className="mlsb-val" style={{
-                color: liveData?.state === 'active' ? '#38bdf8' : 
-                       (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : 
-                       classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366')
+                color: liveData?.state === 'active' ? '#38bdf8' :
+                  (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' :
+                    classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366')
               }}>
                 {liveData?.state === 'active' ? (liveData?.multiplierText || '1.00x') : (lastCrash ? Number(lastCrash.crash_point).toFixed(2) + 'x' : '—')}
               </span>
@@ -727,7 +727,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="live-feed-grid">
                 <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -767,7 +767,7 @@ export default function Dashboard() {
                     </tbody>
                   </table>
                 </div>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div className="glass-card" style={{ padding: '20px' }}>
                     <div style={{ fontSize: '12px', fontWeight: '700', color: '#888', textTransform: 'uppercase', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={14} color="#00ffd5" /> System Status</div>
@@ -778,7 +778,7 @@ export default function Dashboard() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '12px', color: '#888' }}>Events/sec</span>
-                        <strong style={{ fontSize: '14px', color: '#fff', fontFamily: 'monospace' }}>{(rounds.length > 0 ? 0.8 + Math.random()*0.4 : 0).toFixed(1)}</strong>
+                        <strong style={{ fontSize: '14px', color: '#fff', fontFamily: 'monospace' }}>{(rounds.length > 0 ? 0.8 + Math.random() * 0.4 : 0).toFixed(1)}</strong>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '12px', color: '#888' }}>Uptime</span>
@@ -786,13 +786,13 @@ export default function Dashboard() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '12px', color: '#888' }}>Total Handled</span>
-                        <strong style={{ fontSize: '14px', color: '#a78bfa', fontFamily: 'monospace' }}>{rounds.length > 0 ? (rounds.length * 142 + Math.floor(Math.random()*100)).toLocaleString() : 0}</strong>
+                        <strong style={{ fontSize: '14px', color: '#a78bfa', fontFamily: 'monospace' }}>{rounds.length > 0 ? (rounds.length * 142 + Math.floor(Math.random() * 100)).toLocaleString() : 0}</strong>
                       </div>
                     </div>
                   </div>
                   <div className="glass-card" style={{ padding: '20px', background: 'linear-gradient(145deg, rgba(167,139,250,0.05), transparent)' }}>
-                     <div style={{ fontSize: '12px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}><Bot size={14} /> AI Processing Engine</div>
-                     <p style={{ fontSize: '12px', color: '#888', lineHeight: '1.6' }}>The data pipeline actively filters out noise and ingests valid multipliers directly into the prediction model. Data replication delay is roughly {(latency + 12)}ms.</p>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}><Bot size={14} /> AI Processing Engine</div>
+                    <p style={{ fontSize: '12px', color: '#888', lineHeight: '1.6' }}>The data pipeline actively filters out noise and ingests valid multipliers directly into the prediction model. Data replication delay is roughly {(latency + 12)}ms.</p>
                   </div>
                 </div>
               </div>
@@ -859,15 +859,15 @@ export default function Dashboard() {
 
               <div className="glass-card" style={{ padding: '24px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} color="#00ffd5" /> Recent Crash Timeline</div>
-                
+
                 <div className="recent-timeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
                   {rounds.slice(0, 48).map((r) => {
                     const color = r.crash_point < 2 ? '#ff3366' : r.crash_point < 5 ? '#ffd000' : '#00e5a0';
                     const bg = r.crash_point < 2 ? 'rgba(255,51,102,0.1)' : r.crash_point < 5 ? 'rgba(255,208,0,0.1)' : 'rgba(0,229,160,0.1)';
                     return (
                       <div key={r.id || r.round_number} style={{ background: bg, border: `1px solid ${color}40`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s', cursor: 'default' }}
-                           onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${color}20`; }}
-                           onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${color}20`; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
                         <span style={{ fontSize: '18px', fontWeight: '800', fontFamily: 'monospace', color: color }}>{Number(r.crash_point).toFixed(2)}x</span>
                         <span style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>#{r.round_number}</span>
                         <span style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>{timeAgo(r.created_at)}</span>
@@ -961,495 +961,495 @@ export default function Dashboard() {
               </div>
             </div>
           ) : (
-          /* ─── DEFAULT DASHBOARD ─── */
-          <>
-          {/* ─── TOP ROW: Stat Cards ─── */}
-          <div className="stat-strip">
-            <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(0,229,160,0.12)', color: '#00e5a0' }}><BarChart3 size={18} /></div>
-              <div>
-                <div className="sc2-label">Session Avg</div>
-                <div className="sc2-val">{avg}x</div>
-              </div>
-            </div>
-            <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(0,255,213,0.12)', color: '#00ffd5' }}><Target size={18} /></div>
-              <div>
-                <div className="sc2-label">Avg Target</div>
-                <div className="sc2-val" style={{ color: '#00ffd5' }}>{winRate.avgTarget ? winRate.avgTarget.toFixed(2) + 'x' : 'N/A'}</div>
-              </div>
-            </div>
-            <div className="stat-card2">
-              {(() => {
-                const evVal = winRate.realizedEv ?? 0;
-                const evColor = evVal > 0 ? '#00e5a0' : evVal < 0 ? '#ff3366' : '#ffd000';
-                const evBg = evVal > 0 ? 'rgba(0,229,160,0.12)' : evVal < 0 ? 'rgba(255,51,102,0.12)' : 'rgba(255,208,0,0.12)';
-                const evStr = winRate.realizedEv !== undefined ? (evVal >= 0 ? '+' : '') + evVal.toFixed(3) : 'N/A';
-                return (
-                  <>
-                    <div className="sc2-icon" style={{ background: evBg, color: evColor }}><Coins size={18} /></div>
-                    <div>
-                      <div className="sc2-label">Realized EV / Bet</div>
-                      <div className="sc2-val" style={{ color: evColor }}>{evStr}</div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-            <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(255,51,102,0.12)', color: '#ff3366' }}><AlertOctagon size={18} /></div>
-              <div>
-                <div className="sc2-label">Instant Floor (≤1.01)</div>
-                <div className="sc2-val" style={{ color: '#ff3366' }}>{stats?.pInstantCrash !== undefined ? stats.pInstantCrash.toFixed(1) + '%' : '0.0%'}</div>
-              </div>
-            </div>
-            <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(255,208,0,0.12)', color: '#ffd000' }}><CheckCircle2 size={18} /></div>
-              <div>
-                <div className="sc2-label">AI Win Rate</div>
-                <div className="sc2-val" style={{ color: '#ffd000' }}>{winRate.winRate ?? 0}%</div>
-              </div>
-            </div>
-            <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}><Activity size={18} /></div>
-              <div>
-                <div className="sc2-label">Total Bets</div>
-                <div className="sc2-val" style={{ color: '#a78bfa' }}>{winRate.total ?? 0}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Segmented Controller (Mobile only) */}
-          <div className="mobile-dash-tabs hide-on-desktop">
-            <button 
-              className={`mobile-dash-tab-btn ${dashTab === 'signals' ? 'active' : ''}`}
-              onClick={() => setDashTab('signals')}
-            >
-              AI Signals
-            </button>
-            <button 
-              className={`mobile-dash-tab-btn ${dashTab === 'stats' ? 'active' : ''}`}
-              onClick={() => setDashTab('stats')}
-            >
-              Market Analytics
-            </button>
-          </div>
-
-          {/* ─── MAIN GRID ─── */}
-          <div className="main-grid2">
-
-            {/* ─── LEFT COLUMN ─── */}
-            <div className={`left-col2 ${dashTab === 'signals' ? 'mobile-visible' : 'mobile-hidden'}`}>
-
-              {/* Bet Signal Hero Card */}
-              {prediction && stratMeta ? (
-                <div className="hero-banner-3d" style={{ borderColor: stratMeta.color + '60' }} ref={heroRef}>
-                  <div className="hero-grid-overlay" />
-                  <div className="hero-banner-content">
-                    <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px' }}>{stratMeta.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div className="hero-banner-title" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
-                      <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
-                         {prediction.strategy_reason || prediction.skip_reason || 'AI strategy active.'}
-                      </div>
-                      <div className="hc2-vol-row" style={{ marginTop: '12px' }}>
-                        <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`}>
-                          {stats?.volatility?.toUpperCase() ?? 'NORMAL'} VOL
-                        </span>
-                        <span className="hc2-trend">
-                          {stats?.trend === 'rising' ? <TrendingUp size={14} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={14} color="#ff3366" /> : <Minus size={14} color="#888" />}
-                          {stats?.trend?.toUpperCase() ?? 'FLAT'}
-                        </span>
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right', minWidth: '120px' }}>
-                      <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Target</div>
-                      {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
-                        <div className="hero-banner-target" style={{ color: stratMeta.color }}>
-                          {Number(prediction.cashout_target).toFixed(2)}x
+            /* ─── DEFAULT DASHBOARD ─── */
+            <>
+              {/* ─── TOP ROW: Stat Cards ─── */}
+              <div className="stat-strip">
+                <div className="stat-card2">
+                  <div className="sc2-icon" style={{ background: 'rgba(0,229,160,0.12)', color: '#00e5a0' }}><BarChart3 size={18} /></div>
+                  <div>
+                    <div className="sc2-label">Session Avg</div>
+                    <div className="sc2-val">{avg}x</div>
+                  </div>
+                </div>
+                <div className="stat-card2">
+                  <div className="sc2-icon" style={{ background: 'rgba(0,255,213,0.12)', color: '#00ffd5' }}><Target size={18} /></div>
+                  <div>
+                    <div className="sc2-label">Avg Target</div>
+                    <div className="sc2-val" style={{ color: '#00ffd5' }}>{winRate.avgTarget ? winRate.avgTarget.toFixed(2) + 'x' : 'N/A'}</div>
+                  </div>
+                </div>
+                <div className="stat-card2">
+                  {(() => {
+                    const evVal = winRate.realizedEv ?? 0;
+                    const evColor = evVal > 0 ? '#00e5a0' : evVal < 0 ? '#ff3366' : '#ffd000';
+                    const evBg = evVal > 0 ? 'rgba(0,229,160,0.12)' : evVal < 0 ? 'rgba(255,51,102,0.12)' : 'rgba(255,208,0,0.12)';
+                    const evStr = winRate.realizedEv !== undefined ? (evVal >= 0 ? '+' : '') + evVal.toFixed(3) : 'N/A';
+                    return (
+                      <>
+                        <div className="sc2-icon" style={{ background: evBg, color: evColor }}><Coins size={18} /></div>
+                        <div>
+                          <div className="sc2-label">Realized EV / Bet</div>
+                          <div className="sc2-val" style={{ color: evColor }}>{evStr}</div>
                         </div>
-                      ) : (
-                        <div style={{ color: '#ff3366', fontSize: '32px', fontWeight: '900', marginTop: '8px' }}>WAIT</div>
-                      )}
-                    </div>
+                      </>
+                    );
+                  })()}
+                </div>
+                <div className="stat-card2">
+                  <div className="sc2-icon" style={{ background: 'rgba(255,51,102,0.12)', color: '#ff3366' }}><AlertOctagon size={18} /></div>
+                  <div>
+                    <div className="sc2-label">Instant Floor (≤1.01)</div>
+                    <div className="sc2-val" style={{ color: '#ff3366' }}>{stats?.pInstantCrash !== undefined ? stats.pInstantCrash.toFixed(1) + '%' : '0.0%'}</div>
                   </div>
                 </div>
-              ) : (
-                <div className="hero-banner-3d" ref={heroRef} style={{ minHeight: '120px', display: 'flex', alignItems: 'center' }}>
-                  <div className="hero-grid-overlay" />
-                  <div className="hero-banner-content" style={{ width: '100%' }}>
-                    <div className="spin" style={{ color: '#00ffd5', flexShrink: 0 }}><Orbit size={28} /></div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ color: '#00ffd5', letterSpacing: '3px', fontWeight: '800', fontSize: '13px', textTransform: 'uppercase', marginBottom: '6px' }}>⚡ NEURAL ENGINE LOADING</div>
-                      <div style={{ fontSize: '12px', color: '#6b7fa3', lineHeight: '1.6' }}>
-                        Processing {rounds.length > 0 ? `${rounds.length}+ historical rounds` : 'live stream data'} — pattern recognition active.
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                        {['Pattern Analysis', 'Sequence Scan', 'Risk Scoring'].map((label, i) => (
-                          <span key={i} style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '20px', background: 'rgba(0,255,213,0.07)', color: '#00ffd5', border: '1px solid rgba(0,255,213,0.2)', letterSpacing: '0.5px' }}>{label}</span>
-                        ))}
-                      </div>
-                    </div>
+                <div className="stat-card2">
+                  <div className="sc2-icon" style={{ background: 'rgba(255,208,0,0.12)', color: '#ffd000' }}><CheckCircle2 size={18} /></div>
+                  <div>
+                    <div className="sc2-label">AI Win Rate</div>
+                    <div className="sc2-val" style={{ color: '#ffd000' }}>{winRate.winRate ?? 0}%</div>
                   </div>
                 </div>
-              )}
-
-              {/* AI Prediction Panel */}
-              <div className={`glass-card pred-card2 ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
-                <div className="pc2-header responsive-header">
-                  <div className="pc2-title">
-                    <Bot size={16} color="#a78bfa" style={{ flexShrink: 0 }} />
-                    <span className="pc2-title-text">AI Risk Coach & Probability Estimator</span>
+                <div className="stat-card2">
+                  <div className="sc2-icon" style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}><Activity size={18} /></div>
+                  <div>
+                    <div className="sc2-label">Total Bets</div>
+                    <div className="sc2-val" style={{ color: '#a78bfa' }}>{winRate.total ?? 0}</div>
                   </div>
-                  <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
-                    {predStatus === 'predicting' ? <><RefreshCw size={11} className="spin" /> Analyzing…</> : predStatus === 'done' ? <><CheckCircle2 size={11} /> Ready</> : 'Waiting'}
-                  </span>
                 </div>
+              </div>
 
-                {prediction?.ai_model_used && predStatus === 'done' && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                    <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>
-                      {prediction.risk === 'HIGH' ? <AlertTriangle size={12} /> : prediction.risk === 'MEDIUM' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
-                      {prediction.risk} RISK
-                    </span>
-                    <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
-                      <Bot size={12} /> AI Coach
-                    </span>
-                    {prediction.volatility_phase && (
-                      <span className="badge-pill" style={{
-                        color: prediction.volatility_phase === 'CALM' ? '#00e5a0' : prediction.volatility_phase === 'VOLATILE' ? '#ff3366' : '#ffd000',
-                        background: prediction.volatility_phase === 'CALM' ? 'rgba(0,229,160,0.1)' : prediction.volatility_phase === 'VOLATILE' ? 'rgba(255,51,102,0.1)' : 'rgba(255,208,0,0.1)',
-                        fontWeight: '600', fontFamily: "'Rajdhani', sans-serif"
-                      }}>
-                        <BarChart3 size={12} /> {prediction.volatility_phase}
-                      </span>
-                    )}
-                    {prediction.should_bet && prediction.recommended_stake_pct && (
-                      <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
-                        <Target size={12} /> Stake: {prediction.recommended_stake_pct}%
-                      </span>
-                    )}
-                  </div>
-                )}
+              {/* Segmented Controller (Mobile only) */}
+              <div className="mobile-dash-tabs hide-on-desktop">
+                <button
+                  className={`mobile-dash-tab-btn ${dashTab === 'signals' ? 'active' : ''}`}
+                  onClick={() => setDashTab('signals')}
+                >
+                  AI Signals
+                </button>
+                <button
+                  className={`mobile-dash-tab-btn ${dashTab === 'stats' ? 'active' : ''}`}
+                  onClick={() => setDashTab('stats')}
+                >
+                  Market Analytics
+                </button>
+              </div>
 
-                {predStatus === 'predicting' && (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px', padding: '8px 12px', background: 'rgba(167,139,250,0.08)', borderRadius: '8px', border: '1px solid rgba(167,139,250,0.15)' }}>
-                    <RefreshCw size={14} className="spin" style={{ color: '#a78bfa' }} />
-                    <span style={{ color: '#a78bfa', fontSize: '11px', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>ANALYZING PATTERN...</span>
-                  </div>
-                )}
+              {/* ─── MAIN GRID ─── */}
+              <div className="main-grid2">
 
-                {prediction && stats ? (
-                  <>
-                    <div className="risk-conf-row">
-                      <div className="conf-bar-wrap">
-                        <div className="conf-bar-track">
-                          <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
-                        </div>
-                        <span className="conf-label">{prediction.confidence}% confidence</span>
-                      </div>
-                    </div>
+                {/* ─── LEFT COLUMN ─── */}
+                <div className={`left-col2 ${dashTab === 'signals' ? 'mobile-visible' : 'mobile-hidden'}`}>
 
-                    {timeData && (
-                      <div className="time-sync-card">
-                        <Clock size={16} color="#6c63ff" style={{ flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '11px', fontWeight: '800', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            Colombo Time Sync
-                            <span style={{ fontSize: '9px', background: timeData.isLKPrime ? 'rgba(0,229,160,0.12)' : 'rgba(108,99,255,0.12)', color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                              {timeData.lkPhase} PHASE
+                  {/* Bet Signal Hero Card */}
+                  {prediction && stratMeta ? (
+                    <div className="hero-banner-3d" style={{ borderColor: stratMeta.color + '60' }} ref={heroRef}>
+                      <div className="hero-grid-overlay" />
+                      <div className="hero-banner-content">
+                        <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px' }}>{stratMeta.icon}</div>
+                        <div style={{ flex: 1 }}>
+                          <div className="hero-banner-title" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
+                          <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
+                            {prediction.strategy_reason || prediction.skip_reason || 'AI strategy active.'}
+                          </div>
+                          <div className="hc2-vol-row" style={{ marginTop: '12px' }}>
+                            <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`}>
+                              {stats?.volatility?.toUpperCase() ?? 'NORMAL'} VOL
+                            </span>
+                            <span className="hc2-trend">
+                              {stats?.trend === 'rising' ? <TrendingUp size={14} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={14} color="#ff3366" /> : <Minus size={14} color="#888" />}
+                              {stats?.trend?.toUpperCase() ?? 'FLAT'}
                             </span>
                           </div>
-                          <div style={{ fontSize: '10px', color: '#6b7fa3', marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            Local: {timeData.currentLKTimeStr} ({timeData.lkPlayerCount} active wagers) · {timeData.lkNote}
-                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
-                      {prediction.summary}
-                    </div>
-
-                    {prediction.strategy === 'SKIP' || !prediction.should_bet ? (
-                      <div style={{ background: 'rgba(255,51,102,0.08)', border: '1px solid rgba(255,51,102,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <ShieldAlert size={18} color="#ff3366" style={{ flexShrink: 0 }} />
-                        <div>
-                          <div style={{ color: '#ff3366', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>SKIP SIGNAL ACTIVE</div>
-                          <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
-                            {prediction.skip_reason || prediction.strategy_reason || 'Session is exhibiting high-risk patterns.'}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className={`cashout-targets ${prediction.swing_target ? '' : 'single'}`}>
-                          {(() => {
-                            const targetVal = prediction.cashout_target || (stats ? stats.conservativeCashout : 1.10);
-                            const tStats = getTargetStats(targetVal);
-                            const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
-                            const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
-                            return (
-                              <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0,229,160,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
-                                <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><ShieldCheck size={12} color="#00e5a0" /> Safe Auto-Cashout</div>
-                                <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
-                                  {targetVal.toFixed(2)}x
-                                </div>
-                                <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <span>Chance: {tStats.hitRate}% (historical)</span>
-                                  <span style={{ color: evColor, fontWeight: '600' }}>Expected Profit: {evStr} units</span>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          {prediction.swing_target && (() => {
-                            const tStats = getTargetStats(prediction.swing_target);
-                            const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
-                            const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
-                            return (
-                              <div className="cashout-target risk" style={{ borderLeftColor: '#ffd000', background: 'rgba(255,208,0,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
-                                <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><Scale size={12} color="#ffd000" /> Optional Swing</div>
-                                <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#ffd000', margin: '4px 0' }}>
-                                  {prediction.swing_target.toFixed(2)}x
-                                </div>
-                                <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <span>Chance: {tStats.hitRate}% (historical)</span>
-                                  <span style={{ color: evColor, fontWeight: '600' }}>Expected Profit: {evStr} units</span>
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-
-                        {stats?.pInstantCrash !== undefined && (
-                          <div style={{ background: 'rgba(255,51,102,0.06)', border: '1px solid rgba(255,51,102,0.15)', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', marginBottom: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                            <AlertTriangle size={14} color="#ff3366" style={{ flexShrink: 0, marginTop: '2px' }} />
-                            <div style={{ fontSize: '10px', color: '#c7d2fe', lineHeight: '1.4' }}>
-                              <span style={{ color: '#ff3366', fontWeight: '800', textTransform: 'uppercase', marginRight: '4px' }}>Instant Crash Floor:</span>
-                              Approx <strong style={{ color: '#ff3366' }}>{stats.pInstantCrash.toFixed(1)}%</strong> of rounds crash at ≤1.01x due to house-edge geometric distribution. No algorithm can avoid these instant losses; size stakes accordingly.
+                        <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                          <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Target</div>
+                          {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
+                            <div className="hero-banner-target" style={{ color: stratMeta.color }}>
+                              {Number(prediction.cashout_target).toFixed(2)}x
                             </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (
-                      <div className="ai-ceiling-forecast" style={{ background: 'rgba(0,229,160,0.1)', borderColor: '#00e5a0', marginTop: '12px' }}>
-                        <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Target size={12} color="#00e5a0" /> STATISTICAL CEILING (90% HIT RATE)
-                        </span>
-                        <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
-                      </div>
-                    )}
-
-                    {prediction.long_targets && (
-                      <div className="ai-long-forecast" style={{ marginBottom: '12px' }}>
-                        <div className="long-targets-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                          {[
-                            { label: '5x (Math: 19.4%)', val: prediction.long_targets.x5 },
-                            { label: '10x (Math: 9.7%)', val: prediction.long_targets.x10 },
-                            { label: '20x (Math: 4.8%)', val: prediction.long_targets.x20 },
-                          ].map(lt => (
-                            <div key={lt.label} style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '6px' }}>
-                              <span style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{lt.val}%</span>
-                              <span style={{ display: 'block', fontSize: '9px', color: '#666' }}>{lt.label}</span>
-                            </div>
-                          ))}
+                          ) : (
+                            <div style={{ color: '#ff3366', fontSize: '32px', fontWeight: '900', marginTop: '8px' }}>WAIT</div>
+                          )}
                         </div>
-                      </div>
-                    )}
-
-                    <div className="pred-bars">
-                      {[
-                        { label: 'Under 2x', pct: stats.pUnder2, cls: 'red' },
-                        { label: '2x – 5x',  pct: stats.p2to5,   cls: 'yellow' },
-                        { label: 'Over 5x',  pct: stats.pOver5,  cls: 'green' },
-                      ].map(b => (
-                        <div className="pred-bar-row" key={b.label}>
-                          <span className="pred-bar-label">{b.label}</span>
-                          <div className="pred-bar-track">
-                            <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${b.pct}%` }} />
-                          </div>
-                          <span className={`pred-bar-pct ${b.cls}`}>{b.pct}%</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="pred-meta">
-                      <span>EMA: {stats.ema}x</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Streak: {stats.currentLowStreak > 0 ? <><AlertTriangle size={12} color="var(--red)" /> {stats.currentLowStreak} low</> : <><CheckCircle2 size={12} color="var(--green)" /> {stats.currentHighStreak} high</>}
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        Trend: {stats.trend === 'rising' ? <TrendingUp size={12} /> : stats.trend === 'falling' ? <TrendingDown size={12} /> : <Minus size={12} />} {stats.trend}
-                      </span>
-                      <span>Risk: {stats.riskScore}/100</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="pred-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '28px 0' }}>
-                    {isPredicting ? <RefreshCw className="spin" size={22} /> : <Orbit size={22} />}
-                    {isPredicting ? 'Running AI analysis…' : 'Start capture to enable predictions'}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ─── RIGHT COLUMN ─── */}
-            <div className={`right-col2 ${dashTab === 'stats' ? 'mobile-visible' : 'mobile-hidden'}`}>
-
-              {/* Chart */}
-              <div className="glass-card">
-                <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={14} color="#00ffd5" /> Crash History</span>
-                  <span style={{ fontSize: '10px', color: '#555' }}>Last {Math.min(rounds.length, 50)} rounds</span>
-                </div>
-                <div style={{ width: '100%', height: '300px' }}>
-                  {rounds.length > 1 && (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 6, right: 0, left: -25, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorCrash" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#00ffd5" stopOpacity={0.25} />
-                            <stop offset="95%" stopColor="#00ffd5" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} minTickGap={20} />
-                        <YAxis tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: 'rgba(15,17,26,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '11px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
-                          formatter={(value: any, name: any, props: any) => [`${value}x`, `Round ${props.payload.name}`]}
-                          labelFormatter={(label) => `Time: ${label}`}
-                        />
-                        <Area type="monotone" dataKey="crash" stroke="#00ffd5" strokeWidth={2} fillOpacity={1} fill="url(#colorCrash)" dot={<CustomDot />} activeDot={{ r: 6, fill: '#00ffd5', stroke: '#fff', strokeWidth: 2 }} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-                <div className="chart-legend">
-                  <span className="dot green" /> ≥5x
-                  <span className="dot yellow" /> 2–5x
-                  <span className="dot red" /> &lt;2x
-                </div>
-              </div>
-
-              {/* AI Data Stream */}
-              <div className="glass-card">
-                <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                  <Zap size={14} color="#a78bfa" /> AI Data Stream
-                </div>
-                <div className="ai-stream-grid">
-                  <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', top: 0, right: 0, width: '40px', height: '40px', background: 'radial-gradient(circle, rgba(0,229,160,0.2) 0%, transparent 70%)' }}></div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', letterSpacing: '1px' }}><Activity size={12} color="#00e5a0" /> Live Engine State</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center' }}>
-                        <span style={{ color: '#aaa' }}>Trend</span>
-                        <strong style={{ color: stats?.trend === 'rising' ? '#00e5a0' : stats?.trend === 'falling' ? '#ff3366' : '#fff', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>{stats?.trend?.toUpperCase() || 'FLAT'}</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center' }}>
-                        <span style={{ color: '#aaa' }}>Volatility</span>
-                        <strong style={{ color: '#ffd000' }}>{stats?.volatility?.toUpperCase() || 'NORMAL'}</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
-                        <span style={{ color: '#aaa' }}>Risk Score</span>
-                        <strong style={{ color: (stats?.riskScore ?? 0) > 60 ? '#ff3366' : (stats?.riskScore ?? 0) < 40 ? '#00e5a0' : '#ffd000', fontSize: '14px' }}>{stats?.riskScore ?? 0}/100</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {stats?.sequenceMatch ? (
-                    <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', letterSpacing: '1px' }}><Layers size={12} color="#00d4ff" /> Sequence Engine</div>
-                      <div style={{ fontSize: '12px', marginBottom: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {stats.sequenceMatch.sequence.map((sq, i) => (
-                          <span key={i} style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', background: sq === 'INSTANT' ? 'rgba(255,51,102,0.15)' : sq === 'LOW' ? 'rgba(255,208,0,0.15)' : sq === 'MED' ? 'rgba(0,229,160,0.15)' : 'rgba(167,139,250,0.15)', color: sq === 'INSTANT' ? '#ff3366' : sq === 'LOW' ? '#ffd000' : sq === 'MED' ? '#00e5a0' : '#a78bfa', fontWeight: 'bold' }}>{sq}</span>
-                        ))}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#888', display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>Instant Risk <strong style={{ color: stats.sequenceMatch.pInstantNext > 20 ? '#ff3366' : '#fff' }}>{stats.sequenceMatch.pInstantNext}%</strong></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>Safe Hit <strong style={{ color: '#00e5a0' }}>{stats.sequenceMatch.pSafeNext}%</strong></div>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: '11px' }}>
-                      Sequence generating...
+                    <div className="hero-banner-3d" ref={heroRef} style={{ minHeight: '120px', display: 'flex', alignItems: 'center' }}>
+                      <div className="hero-grid-overlay" />
+                      <div className="hero-banner-content" style={{ width: '100%' }}>
+                        <div className="spin" style={{ color: '#00ffd5', flexShrink: 0 }}><Orbit size={28} /></div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ color: '#00ffd5', letterSpacing: '3px', fontWeight: '800', fontSize: '13px', textTransform: 'uppercase', marginBottom: '6px' }}>⚡ NEURAL ENGINE LOADING</div>
+                          <div style={{ fontSize: '12px', color: '#6b7fa3', lineHeight: '1.6' }}>
+                            Processing {rounds.length > 0 ? `${rounds.length}+ historical rounds` : 'live stream data'} — pattern recognition active.
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                            {['Pattern Analysis', 'Sequence Scan', 'Risk Scoring'].map((label, i) => (
+                              <span key={i} style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '20px', background: 'rgba(0,255,213,0.07)', color: '#00ffd5', border: '1px solid rgba(0,255,213,0.2)', letterSpacing: '0.5px' }}>{label}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  {stats?.detectedPatterns && stats.detectedPatterns.length > 0 && (
-                    <div style={{ gridColumn: '1 / -1', background: 'linear-gradient(145deg, rgba(167,139,250,0.08), rgba(167,139,250,0.02))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(167,139,250,0.3)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ background: 'rgba(167,139,250,0.15)', padding: '10px', borderRadius: '10px' }}><Zap size={18} color="#a78bfa" /></div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '9px', textTransform: 'uppercase', color: '#a78bfa', marginBottom: '2px', letterSpacing: '1px', fontWeight: 'bold' }}>Streak Pattern Detected</div>
-                        <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>{stats.detectedPatterns[0].patternName}</div>
+                  {/* AI Prediction Panel */}
+                  <div className={`glass-card pred-card2 ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
+                    <div className="pc2-header responsive-header">
+                      <div className="pc2-title">
+                        <Bot size={16} color="#a78bfa" style={{ flexShrink: 0 }} />
+                        <span className="pc2-title-text">AI Risk Coach & Probability Estimator</span>
                       </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div key={stats.detectedPatterns[0].occurrences} className="zoom-3d-pulse" style={{ fontSize: '20px', fontWeight: '900', color: '#a78bfa', lineHeight: 1, display: 'inline-block' }}>{stats.detectedPatterns[0].occurrences}x</div>
-                          <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>HISTORY</div>
-                        </div>
+                      <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                        {predStatus === 'predicting' ? <><RefreshCw size={11} className="spin" /> Analyzing…</> : predStatus === 'done' ? <><CheckCircle2 size={11} /> Ready</> : 'Waiting'}
+                      </span>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* Target Hit Rates */}
-              <div className="glass-card">
-                <div className="panel-title" style={{ marginBottom: '10px' }}>Target Hit Rates ({rounds.length} rounds)</div>
-                {stats && stats.count > 0 ? (
-                  <div className="target-table">
-                    <div className="target-table-head">
-                      <span>Target</span><span>Math</span><span>Hit Rate</span><span>Recent</span><span>Last</span><span>Signal</span>
-                    </div>
-                    {stats.targets.map(t => (
-                      <div key={t.target} className={`target-row signal-${t.signal.toLowerCase()}`}>
-                        <span className="target-mult">{t.target.toFixed(1)}x</span>
-                        <span className="target-math">{(t.mathProb ?? 0).toFixed(1)}%</span>
-                        <div className="target-bar-wrap">
-                          <div className="target-bar-bg"><div className="target-bar-fill" style={{ width: `${t.hitRate}%` }} /></div>
-                          <span className="target-pct">{t.hitRate}%</span>
-                        </div>
-                        <span className={`target-recent ${t.recentHitRate >= t.hitRate ? 'up' : 'down'}`}>{t.recentHitRate}%{t.recentHitRate >= t.hitRate ? ' ↑' : ' ↓'}</span>
-                        <span className="target-last">{t.lastHitAgo === 0 ? 'Now' : t.lastHitAgo === -1 ? 'Never' : `${t.lastHitAgo}r ago`}</span>
-                        <span className={`target-signal ${t.signal.toLowerCase()}`}>{t.signal}</span>
-                      </div>
-                    ))}
-                    <div className="target-footer">* Based on captured historical data.</div>
-                  </div>
-                ) : (
-                  <div className="feed-empty">Capture rounds to see target analysis</div>
-                )}
-              </div>
-
-              {/* Live Feed */}
-              <div className="glass-card feed-panel">
-                <div className="panel-title" style={{ marginBottom: '10px' }}>Live Feed</div>
-                <div className="feed-list">
-                  {rounds.length === 0
-                    ? <div className="feed-empty">Waiting for crash data…</div>
-                    : rounds.slice(0, 40).map((round, i) => (
-                      <div key={round.id ?? `${round.round_number}-${i}`} className={`feed-row ${round._optimistic ? 'optimistic' : ''}`}>
-                        <div className="feed-meta">
-                          <span className="feed-num">#{round.round_number}</span>
-                          <span className="feed-time">{timeAgo(round.created_at)}</span>
-                        </div>
-                        <span className={`feed-mult color-${classifyRisk(round.crash_point)}`}>
-                          {Number(round.crash_point).toFixed(2)}x
+                    {prediction?.ai_model_used && predStatus === 'done' && (
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                        <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>
+                          {prediction.risk === 'HIGH' ? <AlertTriangle size={12} /> : prediction.risk === 'MEDIUM' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
+                          {prediction.risk} RISK
                         </span>
-                        {round.crash_point >= 10 && (
-                          <Flame size={12} style={{ color: '#ff3366', marginLeft: '4px', filter: 'drop-shadow(0 0 4px rgba(255,51,102,0.5))' }} />
+                        <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
+                          <Bot size={12} /> AI Coach
+                        </span>
+                        {prediction.volatility_phase && (
+                          <span className="badge-pill" style={{
+                            color: prediction.volatility_phase === 'CALM' ? '#00e5a0' : prediction.volatility_phase === 'VOLATILE' ? '#ff3366' : '#ffd000',
+                            background: prediction.volatility_phase === 'CALM' ? 'rgba(0,229,160,0.1)' : prediction.volatility_phase === 'VOLATILE' ? 'rgba(255,51,102,0.1)' : 'rgba(255,208,0,0.1)',
+                            fontWeight: '600', fontFamily: "'Rajdhani', sans-serif"
+                          }}>
+                            <BarChart3 size={12} /> {prediction.volatility_phase}
+                          </span>
+                        )}
+                        {prediction.should_bet && prediction.recommended_stake_pct && (
+                          <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
+                            <Target size={12} /> Stake: {prediction.recommended_stake_pct}%
+                          </span>
                         )}
                       </div>
-                    ))}
+                    )}
+
+                    {predStatus === 'predicting' && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px', padding: '8px 12px', background: 'rgba(167,139,250,0.08)', borderRadius: '8px', border: '1px solid rgba(167,139,250,0.15)' }}>
+                        <RefreshCw size={14} className="spin" style={{ color: '#a78bfa' }} />
+                        <span style={{ color: '#a78bfa', fontSize: '11px', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>ANALYZING PATTERN...</span>
+                      </div>
+                    )}
+
+                    {prediction && stats ? (
+                      <>
+                        <div className="risk-conf-row">
+                          <div className="conf-bar-wrap">
+                            <div className="conf-bar-track">
+                              <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
+                            </div>
+                            <span className="conf-label">{prediction.confidence}% confidence</span>
+                          </div>
+                        </div>
+
+                        {timeData && (
+                          <div className="time-sync-card">
+                            <Clock size={16} color="#6c63ff" style={{ flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '11px', fontWeight: '800', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                Colombo Time Sync
+                                <span style={{ fontSize: '9px', background: timeData.isLKPrime ? 'rgba(0,229,160,0.12)' : 'rgba(108,99,255,0.12)', color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                                  {timeData.lkPhase} PHASE
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#6b7fa3', marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                Local: {timeData.currentLKTimeStr} ({timeData.lkPlayerCount} active wagers) · {timeData.lkNote}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
+                          {prediction.summary}
+                        </div>
+
+                        {prediction.strategy === 'SKIP' || !prediction.should_bet ? (
+                          <div style={{ background: 'rgba(255,51,102,0.08)', border: '1px solid rgba(255,51,102,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <ShieldAlert size={18} color="#ff3366" style={{ flexShrink: 0 }} />
+                            <div>
+                              <div style={{ color: '#ff3366', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>SKIP SIGNAL ACTIVE</div>
+                              <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
+                                {prediction.skip_reason || prediction.strategy_reason || 'Session is exhibiting high-risk patterns.'}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className={`cashout-targets ${prediction.swing_target ? '' : 'single'}`}>
+                              {(() => {
+                                const targetVal = prediction.cashout_target || (stats ? stats.conservativeCashout : 1.10);
+                                const tStats = getTargetStats(targetVal);
+                                const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
+                                const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
+                                return (
+                                  <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0,229,160,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
+                                    <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><ShieldCheck size={12} color="#00e5a0" /> Safe Auto-Cashout</div>
+                                    <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
+                                      {targetVal.toFixed(2)}x
+                                    </div>
+                                    <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      <span>Chance: {tStats.hitRate}% (historical)</span>
+                                      <span style={{ color: evColor, fontWeight: '600' }}>Expected Profit: {evStr} units</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                              {prediction.swing_target && (() => {
+                                const tStats = getTargetStats(prediction.swing_target);
+                                const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
+                                const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
+                                return (
+                                  <div className="cashout-target risk" style={{ borderLeftColor: '#ffd000', background: 'rgba(255,208,0,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
+                                    <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><Scale size={12} color="#ffd000" /> Optional Swing</div>
+                                    <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#ffd000', margin: '4px 0' }}>
+                                      {prediction.swing_target.toFixed(2)}x
+                                    </div>
+                                    <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                      <span>Chance: {tStats.hitRate}% (historical)</span>
+                                      <span style={{ color: evColor, fontWeight: '600' }}>Expected Profit: {evStr} units</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            {stats?.pInstantCrash !== undefined && (
+                              <div style={{ background: 'rgba(255,51,102,0.06)', border: '1px solid rgba(255,51,102,0.15)', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', marginBottom: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                <AlertTriangle size={14} color="#ff3366" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                <div style={{ fontSize: '10px', color: '#c7d2fe', lineHeight: '1.4' }}>
+                                  <span style={{ color: '#ff3366', fontWeight: '800', textTransform: 'uppercase', marginRight: '4px' }}>Instant Crash Floor:</span>
+                                  Approx <strong style={{ color: '#ff3366' }}>{stats.pInstantCrash.toFixed(1)}%</strong> of rounds crash at ≤1.01x due to house-edge geometric distribution. No algorithm can avoid these instant losses; size stakes accordingly.
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (
+                          <div className="ai-ceiling-forecast" style={{ background: 'rgba(0,229,160,0.1)', borderColor: '#00e5a0', marginTop: '12px' }}>
+                            <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Target size={12} color="#00e5a0" /> STATISTICAL CEILING (90% HIT RATE)
+                            </span>
+                            <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
+                          </div>
+                        )}
+
+                        {prediction.long_targets && (
+                          <div className="ai-long-forecast" style={{ marginBottom: '12px' }}>
+                            <div className="long-targets-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                              {[
+                                { label: '5x (Math: 19.4%)', val: prediction.long_targets.x5 },
+                                { label: '10x (Math: 9.7%)', val: prediction.long_targets.x10 },
+                                { label: '20x (Math: 4.8%)', val: prediction.long_targets.x20 },
+                              ].map(lt => (
+                                <div key={lt.label} style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '6px' }}>
+                                  <span style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{lt.val}%</span>
+                                  <span style={{ display: 'block', fontSize: '9px', color: '#666' }}>{lt.label}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="pred-bars">
+                          {[
+                            { label: 'Under 2x', pct: stats.pUnder2, cls: 'red' },
+                            { label: '2x – 5x', pct: stats.p2to5, cls: 'yellow' },
+                            { label: 'Over 5x', pct: stats.pOver5, cls: 'green' },
+                          ].map(b => (
+                            <div className="pred-bar-row" key={b.label}>
+                              <span className="pred-bar-label">{b.label}</span>
+                              <div className="pred-bar-track">
+                                <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${b.pct}%` }} />
+                              </div>
+                              <span className={`pred-bar-pct ${b.cls}`}>{b.pct}%</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="pred-meta">
+                          <span>EMA: {stats.ema}x</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            Streak: {stats.currentLowStreak > 0 ? <><AlertTriangle size={12} color="var(--red)" /> {stats.currentLowStreak} low</> : <><CheckCircle2 size={12} color="var(--green)" /> {stats.currentHighStreak} high</>}
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            Trend: {stats.trend === 'rising' ? <TrendingUp size={12} /> : stats.trend === 'falling' ? <TrendingDown size={12} /> : <Minus size={12} />} {stats.trend}
+                          </span>
+                          <span>Risk: {stats.riskScore}/100</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="pred-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '28px 0' }}>
+                        {isPredicting ? <RefreshCw className="spin" size={22} /> : <Orbit size={22} />}
+                        {isPredicting ? 'Running AI analysis…' : 'Start capture to enable predictions'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ─── RIGHT COLUMN ─── */}
+                <div className={`right-col2 ${dashTab === 'stats' ? 'mobile-visible' : 'mobile-hidden'}`}>
+
+                  {/* Chart */}
+                  <div className="glass-card">
+                    <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={14} color="#00ffd5" /> Crash History</span>
+                      <span style={{ fontSize: '10px', color: '#555' }}>Last {Math.min(rounds.length, 50)} rounds</span>
+                    </div>
+                    <div style={{ width: '100%', height: '300px' }}>
+                      {rounds.length > 1 && (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData} margin={{ top: 6, right: 0, left: -25, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorCrash" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#00ffd5" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#00ffd5" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} minTickGap={20} />
+                            <YAxis tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
+                            <Tooltip
+                              contentStyle={{ backgroundColor: 'rgba(15,17,26,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '11px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                              formatter={(value: any, name: any, props: any) => [`${value}x`, `Round ${props.payload.name}`]}
+                              labelFormatter={(label) => `Time: ${label}`}
+                            />
+                            <Area type="monotone" dataKey="crash" stroke="#00ffd5" strokeWidth={2} fillOpacity={1} fill="url(#colorCrash)" dot={<CustomDot />} activeDot={{ r: 6, fill: '#00ffd5', stroke: '#fff', strokeWidth: 2 }} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
+                    </div>
+                    <div className="chart-legend">
+                      <span className="dot green" /> ≥5x
+                      <span className="dot yellow" /> 2–5x
+                      <span className="dot red" /> &lt;2x
+                    </div>
+                  </div>
+
+                  {/* AI Data Stream */}
+                  <div className="glass-card">
+                    <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                      <Zap size={14} color="#a78bfa" /> AI Data Stream
+                    </div>
+                    <div className="ai-stream-grid">
+                      <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
+                        <div style={{ position: 'absolute', top: 0, right: 0, width: '40px', height: '40px', background: 'radial-gradient(circle, rgba(0,229,160,0.2) 0%, transparent 70%)' }}></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', letterSpacing: '1px' }}><Activity size={12} color="#00e5a0" /> Live Engine State</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center' }}>
+                            <span style={{ color: '#aaa' }}>Trend</span>
+                            <strong style={{ color: stats?.trend === 'rising' ? '#00e5a0' : stats?.trend === 'falling' ? '#ff3366' : '#fff', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>{stats?.trend?.toUpperCase() || 'FLAT'}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center' }}>
+                            <span style={{ color: '#aaa' }}>Volatility</span>
+                            <strong style={{ color: '#ffd000' }}>{stats?.volatility?.toUpperCase() || 'NORMAL'}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', alignItems: 'center', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
+                            <span style={{ color: '#aaa' }}>Risk Score</span>
+                            <strong style={{ color: (stats?.riskScore ?? 0) > 60 ? '#ff3366' : (stats?.riskScore ?? 0) < 40 ? '#00e5a0' : '#ffd000', fontSize: '14px' }}>{stats?.riskScore ?? 0}/100</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {stats?.sequenceMatch ? (
+                        <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', letterSpacing: '1px' }}><Layers size={12} color="#00d4ff" /> Sequence Engine</div>
+                          <div style={{ fontSize: '12px', marginBottom: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {stats.sequenceMatch.sequence.map((sq, i) => (
+                              <span key={i} style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', background: sq === 'INSTANT' ? 'rgba(255,51,102,0.15)' : sq === 'LOW' ? 'rgba(255,208,0,0.15)' : sq === 'MED' ? 'rgba(0,229,160,0.15)' : 'rgba(167,139,250,0.15)', color: sq === 'INSTANT' ? '#ff3366' : sq === 'LOW' ? '#ffd000' : sq === 'MED' ? '#00e5a0' : '#a78bfa', fontWeight: 'bold' }}>{sq}</span>
+                            ))}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#888', display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>Instant Risk <strong style={{ color: stats.sequenceMatch.pInstantNext > 20 ? '#ff3366' : '#fff' }}>{stats.sequenceMatch.pInstantNext}%</strong></div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>Safe Hit <strong style={{ color: '#00e5a0' }}>{stats.sequenceMatch.pSafeNext}%</strong></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666', fontSize: '11px' }}>
+                          Sequence generating...
+                        </div>
+                      )}
+
+                      {stats?.detectedPatterns && stats.detectedPatterns.length > 0 && (
+                        <div style={{ gridColumn: '1 / -1', background: 'linear-gradient(145deg, rgba(167,139,250,0.08), rgba(167,139,250,0.02))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(167,139,250,0.3)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ background: 'rgba(167,139,250,0.15)', padding: '10px', borderRadius: '10px' }}><Zap size={18} color="#a78bfa" /></div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '9px', textTransform: 'uppercase', color: '#a78bfa', marginBottom: '2px', letterSpacing: '1px', fontWeight: 'bold' }}>Streak Pattern Detected</div>
+                            <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>{stats.detectedPatterns[0].patternName}</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div key={stats.detectedPatterns[0].occurrences} className="zoom-3d-pulse" style={{ fontSize: '20px', fontWeight: '900', color: '#a78bfa', lineHeight: 1, display: 'inline-block' }}>{stats.detectedPatterns[0].occurrences}x</div>
+                            <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>HISTORY</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Target Hit Rates */}
+                  <div className="glass-card">
+                    <div className="panel-title" style={{ marginBottom: '10px' }}>Target Hit Rates ({rounds.length} rounds)</div>
+                    {stats && stats.count > 0 ? (
+                      <div className="target-table">
+                        <div className="target-table-head">
+                          <span>Target</span><span>Math</span><span>Hit Rate</span><span>Recent</span><span>Last</span><span>Signal</span>
+                        </div>
+                        {stats.targets.map(t => (
+                          <div key={t.target} className={`target-row signal-${t.signal.toLowerCase()}`}>
+                            <span className="target-mult">{t.target.toFixed(1)}x</span>
+                            <span className="target-math">{(t.mathProb ?? 0).toFixed(1)}%</span>
+                            <div className="target-bar-wrap">
+                              <div className="target-bar-bg"><div className="target-bar-fill" style={{ width: `${t.hitRate}%` }} /></div>
+                              <span className="target-pct">{t.hitRate}%</span>
+                            </div>
+                            <span className={`target-recent ${t.recentHitRate >= t.hitRate ? 'up' : 'down'}`}>{t.recentHitRate}%{t.recentHitRate >= t.hitRate ? ' ↑' : ' ↓'}</span>
+                            <span className="target-last">{t.lastHitAgo === 0 ? 'Now' : t.lastHitAgo === -1 ? 'Never' : `${t.lastHitAgo}r ago`}</span>
+                            <span className={`target-signal ${t.signal.toLowerCase()}`}>{t.signal}</span>
+                          </div>
+                        ))}
+                        <div className="target-footer">* Based on captured historical data.</div>
+                      </div>
+                    ) : (
+                      <div className="feed-empty">Capture rounds to see target analysis</div>
+                    )}
+                  </div>
+
+                  {/* Live Feed */}
+                  <div className="glass-card feed-panel">
+                    <div className="panel-title" style={{ marginBottom: '10px' }}>Live Feed</div>
+                    <div className="feed-list">
+                      {rounds.length === 0
+                        ? <div className="feed-empty">Waiting for crash data…</div>
+                        : rounds.slice(0, 40).map((round, i) => (
+                          <div key={round.id ?? `${round.round_number}-${i}`} className={`feed-row ${round._optimistic ? 'optimistic' : ''}`}>
+                            <div className="feed-meta">
+                              <span className="feed-num">#{round.round_number}</span>
+                              <span className="feed-time">{timeAgo(round.created_at)}</span>
+                            </div>
+                            <span className={`feed-mult color-${classifyRisk(round.crash_point)}`}>
+                              {Number(round.crash_point).toFixed(2)}x
+                            </span>
+                            {round.crash_point >= 10 && (
+                              <Flame size={12} style={{ color: '#ff3366', marginLeft: '4px', filter: 'drop-shadow(0 0 4px rgba(255,51,102,0.5))' }} />
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-          </>
+            </>
           )}
         </div>
       </div>
-      
+
       {/* ─── TOASTER ─── */}
       <div className="toaster-container">
         {toasts.map(toast => {
