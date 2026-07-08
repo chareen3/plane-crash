@@ -54,6 +54,29 @@ export async function GET(request: Request) {
     const timeData = getLKTimeData();
     const betSignal = computeBetSignal(stats, gameType, timeData);
 
+    // If Sleep phase and strategy is SKIP, do not call AI or cache to DB
+    if (timeData.isLKSleep && betSignal.strategy === 'SKIP') {
+      const summary = buildHumanSummary(stats, betSignal);
+      const prediction = {
+        risk: 'HIGH',
+        predicted_risk: 'HIGH', // for fallback compat
+        confidence: stats.confidence ?? 0,
+        summary,
+        should_bet: false,
+        strategy: 'SKIP',
+        cashout_target: 0,
+        recommended_bet_units: 0,
+        swing_target: null,
+        volatility_phase: betSignal.volatility_phase,
+        recommended_stake_pct: 0,
+        timeData,
+        stats,
+        skip_reason: betSignal.skip_reason,
+        ai_failed: false,
+      };
+      return NextResponse.json(prediction);
+    }
+
     // Return cached pred but with fresh stats — fill in any null fields with fresh betSignal
     if (existingPred) {
       return NextResponse.json({

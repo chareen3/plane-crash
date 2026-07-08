@@ -194,6 +194,13 @@ export default function Dashboard() {
   }, [lastSyncedRound, addToast]);
 
   useEffect(() => {
+    // Lightweight cache cleanup on initialization
+    try {
+      localStorage.removeItem('oldCrashCache');
+      localStorage.removeItem('debugLogs');
+      localStorage.removeItem('crashHistory');
+    } catch(e) {}
+
     const savedCurr = localStorage.getItem('dashboard_currency');
     if (savedCurr && savedCurr in CURRENCIES) setCurrency(savedCurr as any);
 
@@ -1161,7 +1168,7 @@ export default function Dashboard() {
                                 </span>
                               </div>
                               <div className="time-sync-subtext">
-                                Local: {timeData.currentLKTimeStr} ({timeData.lkPlayerCount} active wagers) · {timeData.lkNote}
+                                Local: {timeData.currentLKTimeStr} · {timeData.lkNote}
                               </div>
                             </div>
                           </div>
@@ -1172,15 +1179,27 @@ export default function Dashboard() {
                         </div>
 
                         {prediction.strategy === 'SKIP' || !prediction.should_bet ? (
-                          <div style={{ background: 'rgba(255,51,102,0.08)', border: '1px solid rgba(255,51,102,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <ShieldAlert size={18} color="#ff3366" style={{ flexShrink: 0 }} />
-                            <div>
-                              <div style={{ color: '#ff3366', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>SKIP SIGNAL ACTIVE</div>
-                              <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
-                                {prediction.skip_reason || prediction.strategy_reason || 'Session is exhibiting high-risk patterns.'}
+                          timeData?.isLKSleep ? (
+                            <div style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <ShieldAlert size={18} color="#00ffd5" style={{ flexShrink: 0 }} />
+                              <div>
+                                <div style={{ color: '#00ffd5', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Sleep Phase (Safety Mode)</div>
+                                <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
+                                  No new entry signals; engine is only observing. Check back after 06:00 LK.
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div style={{ background: 'rgba(255,51,102,0.08)', border: '1px solid rgba(255,51,102,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <ShieldAlert size={18} color="#ff3366" style={{ flexShrink: 0 }} />
+                              <div>
+                                <div style={{ color: '#ff3366', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>SKIP SIGNAL ACTIVE</div>
+                                <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
+                                  {prediction.skip_reason || prediction.strategy_reason || 'Session is exhibiting high-risk patterns.'}
+                                </div>
+                              </div>
+                            </div>
+                          )
                         ) : (
                           <>
                             <div className={`cashout-targets ${prediction.swing_target ? '' : 'single'}`}>
