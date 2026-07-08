@@ -519,6 +519,13 @@ export function computeBetSignal(
   recommended_stake_pct: number;
   strategy_reason?: string;
 } {
+  const getTargetStats = (mult: number) => {
+    const t = stats.targets?.find(x => Math.abs(x.target - mult) < 0.05);
+    return {
+      hitRate: t?.hitRate ?? 0,
+      ev: t?.ev ?? -1,
+    };
+  };
   const reasons: string[] = [];
 
   // Determine volatility phase using stdDev
@@ -606,6 +613,8 @@ export function computeBetSignal(
 
   // 3. BALANCED Strategy — Fire when conditions are moderately good
   const isHighVolatility = stats.volatility === 'high' || volatility_phase === 'VOLATILE';
+  const isPrimePhase = !!(timeData && timeData.lkPhase === 'PRIME');
+  const isCalmOrNormal = volatility_phase === 'CALM' || volatility_phase === 'NORMAL';
   const p70 = stats.p70SafeCashout;
   if (stats.riskScore < 65 && stats.ema >= 1.3 && (stats.trend === 'rising' || stats.trend === 'flat' || !isHighVolatility)) {
     strategy = 'CONSERVATIVE';
@@ -626,16 +635,15 @@ export function computeBetSignal(
       const seqSafe = stats.sequenceMatch ? stats.sequenceMatch.pSafeNext >= 60 : true;
 
       // Allow 1 consecutive streaks now, they are accurate enough if hit rate is high
-      if (p2 && p2.hitRate >= 65 && seqSafe) {
+      if (p2 && p2.hitRate >= 65 && seqSafe && isPrimePhase && isCalmOrNormal) {
         strategy = 'AGGRESSIVE';
         
-        // Tiered Multiplier Selector based on global hit rates (2.0x, 1.80x, 1.50x)
-        const hit20 = stats.targets.find(t => t.target === 2.0)?.hitRate ?? 0;
-        const hit18 = stats.targets.find(t => t.target === 1.8)?.hitRate ?? 0;
+        const t20 = getTargetStats(2.0);
+        const t18 = getTargetStats(1.8);
         
-        if (hit20 >= 55) {
+        if (t20.ev >= 0 && t20.hitRate >= 55) {
           cashout_target = 2.00;
-        } else if (hit18 >= 60) {
+        } else if (t18.ev >= 0 && t18.hitRate >= 60) {
           cashout_target = 1.80;
         } else {
           cashout_target = 1.50;
@@ -644,20 +652,30 @@ export function computeBetSignal(
         swing_target = pattern.p50 && pattern.p50 >= 5 ? Math.min(pattern.p50, 15.0) : stats.p60SafeCashout;
         recommended_stake_pct = 2;
         strategy_reason = `Dual-confirmed: Pattern '${pattern.patternName}' + N-Gram ${stats.sequenceMatch?.pSafeNext ?? 'N/A'}% safe. Target: ${cashout_target}x`;
-      } else if (p15 && p15.hitRate >= 75) {
+      } else if (p15 && p15.hitRate >= 75 && isPrimePhase && isCalmOrNormal && getTargetStats(1.8).ev >= 0) {
         // High confidence 1.80x target
         strategy = 'AGGRESSIVE';
         cashout_target = 1.80;
         swing_target = 1.80;
         recommended_stake_pct = 2;
-        strategy_reason = `Pattern '${pattern.patternName}' very high confidence. Target: ${cashout_target}x`;
-      } else if (p15 && p15.hitRate >= 65) {
-        // Balanced 1.50x target
-        strategy = 'CONSERVATIVE';
-        cashout_target = 1.50;
-        swing_target = 1.50;
-        recommended_stake_pct = 2;
-        strategy_reason = `Pattern '${pattern.patternName}' strong hit rate. Target: ${cashout_target}x`;
+        strategy_reason = `Pattern '${pattern.patternName}' very high confidence. Target: 1.80x (EV >= 0).`;
+      } else if (p15 && p15.hitRate >= 70) {
+        const t15 = getTargetStats(1.5);
+        if (t15.ev >= 0 && isPrimePhase && isCalmOrNormal) {
+          // Safer 1.50x usage: PRIME only, EV >= 0, hitRate >= 70
+          strategy = 'CONSERVATIVE';
+          cashout_target = 1.50;
+          swing_target = 1.50;
+          recommended_stake_pct = 2;
+          strategy_reason = `Pattern '${pattern.patternName}' strong hit rate and EV >= 0. Target: 1.50x`;
+        } else {
+          // Fallback: lower target and smaller stake
+          strategy = 'CONSERVATIVE';
+          cashout_target = Math.max(1.30, Math.min(1.35, stats.p70SafeCashout));
+          swing_target = cashout_target;
+          recommended_stake_pct = 1;
+          strategy_reason = `Pattern '${pattern.patternName}' detected but 1.50x is high risk here. Using safer ${cashout_target.toFixed(2)}x with 1% stake.`;
+        }
       }
     }
   }
@@ -675,6 +693,17 @@ export function computeBetSignal(
 
   // NOTE: UTC time-zone clamping removed — it was forcing conservative targets to 1.04x
   // during IST prime hours (22:15 UTC). Strategy is now purely data-driven.
+
+  // Global cap outside PRIME: avoid high multipliers in MORNING/LATE/DAY
+  if (!isPrimePhase && strategy !== 'SKIP') {
+    if (cashout_target > 1.40) {
+      strategy_reason = (strategy_reason ? strategy_reason + ' | ' : '') +
+        'Non-prime phase: capping target at 1.40x for safety.';
+      cashout_target = 1.40;
+      swing_target = swing_target && swing_target > 1.40 ? 1.40 : swing_target;
+      recommended_stake_pct = Math.min(recommended_stake_pct, 2);
+    }
+  }
 
   // Preemptive safety check: halve stake if an ultra-micro round occurred recently
   if (ultraMicroDetected && strategy !== 'SKIP') {
