@@ -1169,13 +1169,35 @@ html, body {
   
   /* Card layouts mobile tweaks */
   .stat-strip {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 10px !important;
+    padding: 4px 12px 14px !important;
+    margin: 0 -12px !important; /* Full bleed to screen edges */
+    scrollbar-width: none !important; /* Firefox hide scrollbar */
+  }
+  
+  .stat-strip::-webkit-scrollbar {
+    display: none !important; /* Webkit hide scrollbar */
   }
   
   .stat-card2 {
-    padding: 10px 12px !important;
+    flex: 0 0 160px !important;
+    scroll-snap-align: start !important;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 14px !important;
+    padding: 12px !important;
     gap: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.2s;
+  }
+  
+  .stat-card2:active {
+    transform: scale(0.97);
+    background: rgba(255, 255, 255, 0.06) !important;
   }
   
   .sc2-val {
@@ -1185,6 +1207,47 @@ html, body {
   .sc2-icon {
     width: 30px !important;
     height: 30px !important;
+  }
+
+  /* Mobile Dashboard column toggle states */
+  .left-col2.mobile-hidden, .right-col2.mobile-hidden {
+    display: none !important;
+  }
+  .left-col2.mobile-visible, .right-col2.mobile-visible {
+    display: flex !important;
+  }
+
+  /* Segmented controller layout */
+  .mobile-dash-tabs {
+    display: flex !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 3px !important;
+    border-radius: 24px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .mobile-dash-tab-btn {
+    flex: 1 !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-dim) !important;
+    font-family: 'Rajdhani', sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 1px !important;
+    padding: 8px 12px !important;
+    border-radius: 20px !important;
+    cursor: pointer !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    text-align: center !important;
+  }
+
+  .mobile-dash-tab-btn.active {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #00ffd5 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    text-shadow: 0 0 8px rgba(0, 255, 213, 0.4) !important;
   }
   
   .hero-banner-3d {

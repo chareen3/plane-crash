@@ -109,6 +109,7 @@ export default function Dashboard() {
   const [currency, setCurrency] = useState<'USD' | 'LKR' | 'INR' | 'BRL'>('USD');
   const [activeGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [dashTab, setDashTab] = useState<'signals' | 'stats'>('signals');
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
   const [latency, setLatency] = useState<number>(0);
   const lastMessageTimeRef = useRef<number>(Date.now());
@@ -1018,11 +1019,27 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Segmented Controller (Mobile only) */}
+          <div className="mobile-dash-tabs hide-on-desktop">
+            <button 
+              className={`mobile-dash-tab-btn ${dashTab === 'signals' ? 'active' : ''}`}
+              onClick={() => setDashTab('signals')}
+            >
+              AI Signals
+            </button>
+            <button 
+              className={`mobile-dash-tab-btn ${dashTab === 'stats' ? 'active' : ''}`}
+              onClick={() => setDashTab('stats')}
+            >
+              Market Analytics
+            </button>
+          </div>
+
           {/* ─── MAIN GRID ─── */}
           <div className="main-grid2">
 
             {/* ─── LEFT COLUMN ─── */}
-            <div className="left-col2">
+            <div className={`left-col2 ${dashTab === 'signals' ? 'mobile-visible' : 'mobile-hidden'}`}>
 
               {/* Bet Signal Hero Card */}
               {prediction && stratMeta ? (
@@ -1279,7 +1296,7 @@ export default function Dashboard() {
             </div>
 
             {/* ─── RIGHT COLUMN ─── */}
-            <div className="right-col2">
+            <div className={`right-col2 ${dashTab === 'stats' ? 'mobile-visible' : 'mobile-hidden'}`}>
 
               {/* Chart */}
               <div className="glass-card">
