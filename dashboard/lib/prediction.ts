@@ -63,12 +63,17 @@ export function analyzePattern(data: any[]) {
 }
 
 export async function getPrediction(supabaseClient: any, timeSlot: TimeSlot) {
-  const currentHour = new Date().getHours();
+  const slHour = parseInt(new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Colombo',
+    hour: 'numeric',
+    hour12: false
+  }));
+
   // Get last 200 rounds for this time slot (Sri Lanka hour matching current hour)
   const { data, error } = await supabaseClient
     .from('crash_rounds')
     .select('crash_point, hour_sl')
-    .eq('hour_sl', currentHour) // match current SL hour
+    .eq('hour_sl', slHour) // match current SL hour
     .order('created_at', { ascending: false })
     .limit(200);
 

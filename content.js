@@ -500,12 +500,22 @@ function flushToBackground() {
   if (!cState.buffer.length) return;
   const batch = cState.buffer.splice(0, cState.buffer.length);
 
-  chrome.runtime.sendMessage({ type: 'BATCH_EVENTS', events: batch })
-    .catch(e => {
-      warn('Failed to send batch:', e.message);
-      // Re-enqueue if background is not reachable yet
+  try {
+    chrome.runtime.sendMessage({ type: 'BATCH_EVENTS', events: batch })
+      .catch(e => {
+        warn('Failed to send batch:', e.message);
+        // Re-enqueue if background is not reachable yet
+        cState.buffer.unshift(...batch);
+      });
+  } catch (err) {
+    if (err.message && err.message.includes('Extension context invalidated')) {
+      warn('Extension updated or reloaded. Stopping observer. Please refresh the page.');
+      cState.active = false;
+    } else {
+      warn('Failed to send batch (sync error):', err.message);
       cState.buffer.unshift(...batch);
-    });
+    }
+  }
 }
 
 // Throttled version of capturing multiplier changes

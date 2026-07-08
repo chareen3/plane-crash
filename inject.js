@@ -45,26 +45,18 @@
     );
   }
 
-  /**
-   * Wrapped WebSocket constructor — intercepts all socket connections
-   * opened by the page.
-   */
-  class WrappedWebSocket extends OriginalWebSocket {
-    constructor(url, protocols) {
-      super(url, protocols);
+  window.WebSocket = new Proxy(OriginalWebSocket, {
+    construct(target, args) {
+      const ws = new target(...args);
 
-      // Only capture WS connections that look game-related.
-      // Adjust this URL filter to match your target site's WebSocket endpoint.
-      // Examples:
-      //   /game/, /crash/, /aviator/, /ws/, /socket/
-      const urlStr = String(url);
+      const urlStr = String(args[0]);
       const isRelevant = /game|crash|aviator|ws|socket|bet/i.test(urlStr);
 
-      if (!isRelevant) return;
+      if (!isRelevant) return ws;
 
       postCapture({ type: 'ws_connected', url: urlStr });
 
-      this.addEventListener('message', (evt) => {
+      ws.addEventListener('message', (evt) => {
         let data = evt.data;
 
         // Attempt JSON parse for readable payloads
@@ -100,19 +92,17 @@
         });
       });
 
-      this.addEventListener('close', (evt) => {
+      ws.addEventListener('close', (evt) => {
         postCapture({ type: 'ws_closed', url: urlStr, code: evt.code });
       });
 
-      this.addEventListener('error', () => {
+      ws.addEventListener('error', () => {
         postCapture({ type: 'ws_error', url: urlStr });
       });
-    }
-  }
 
-  // Replace global WebSocket with our wrapper
-  window.WebSocket = WrappedWebSocket;
-  window.WebSocket.prototype = OriginalWebSocket.prototype;
+      return ws;
+    }
+  });
 
   console.log('[CAC Inject] WebSocket observer active');
 })();
