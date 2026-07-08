@@ -626,7 +626,7 @@ function flushToBackground() {
 const throttledMultiplierCapture = throttle(() => {
   const ev = captureMultiplierTick();
   if (ev) enqueueEvent(ev);
-}, 500); // at most once per 500ms
+}, 50); // at most once per 50ms for smooth live updates
 
 function throttle(fn, limit) {
   let last = 0;

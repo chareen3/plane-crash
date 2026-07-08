@@ -120,18 +120,6 @@ function updateStats(stats) {
   els.statEvents.textContent  = stats.totalEvents ?? 0;
   els.badgeCount.textContent  = stats.totalEvents ?? 0;
 
-  // Update hero multiplier if we have a last crash value
-  if (stats.lastCrash && stats.lastCrash !== '—') {
-    const val = parseFloat(stats.lastCrash);
-    els.heroMultiplier.textContent = isNaN(val) ? stats.lastCrash : val.toFixed(2) + 'x';
-    els.heroMultiplier.className = 'hero-value crashed';
-    els.heroMultiplier.style.color = '';
-    // Remove animation class after it plays
-    setTimeout(() => { els.heroMultiplier.classList.remove('crashed'); }, 600);
-    els.heroTime.textContent = 'Crashed at ' + new Date().toLocaleTimeString();
-    if (els.heroLabel) els.heroLabel.textContent = 'Last Crash';
-    if (els.heroLabel) els.heroLabel.style.color = '';
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +310,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 
     case 'TIMER_TICK':
       els.heroTime.textContent = 'Next round: ' + (msg.timerText || 'waiting');
-      if (els.heroLabel && els.heroLabel.textContent !== 'Last Crash') {
+      if (els.heroLabel && els.heroLabel.textContent !== 'Round Crashed') {
         els.heroLabel.textContent = 'Waiting';
         els.heroLabel.style.color = '#94a3b8';
         els.heroMultiplier.style.color = '#94a3b8';

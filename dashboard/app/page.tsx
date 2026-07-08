@@ -179,7 +179,13 @@ export default function Dashboard() {
 
     const handleMessage = (evt: MessageEvent) => {
       const type = evt.data?.type;
-      if (typeof type === 'string' && (type.startsWith('EXTENSION_') || type === 'PONG')) {
+      if (typeof type === 'string' && (
+        type.startsWith('EXTENSION_') || 
+        type === 'PONG' || 
+        type === 'LIVE_TICK' || 
+        type === 'TIMER_TICK' || 
+        type === 'NEW_CRASH'
+      )) {
         setIsExtensionConnected(true);
         lastMessageTimeRef.current = Date.now();
       }
@@ -202,6 +208,10 @@ export default function Dashboard() {
           lastPredictedRoundRef.current = round.round_number;
           const roundObj: Round = { ...round, _optimistic: true };
           setLastCrash(roundObj);
+          
+          // Force the liveData UI into a crashed state instantly
+          setLiveData(prev => ({ ...prev, state: 'crashed' }));
+
           setRounds(prev => {
             if (prev.some(r => r.round_number === roundObj.round_number)) return prev;
             const updated = [roundObj, ...prev].slice(0, 50);
@@ -366,10 +376,10 @@ export default function Dashboard() {
             </div>
             <div className="sidebar-plane-info">
               <div className="ssc-label" style={{ 
-                color: liveData?.state === 'active' ? '#38bdf8' : '#888', 
+                color: liveData?.state === 'active' ? '#38bdf8' : '#ff3366', 
                 fontSize: '9px' 
               }}>
-                {liveData?.state === 'active' ? 'LIVE ROUND' : 'LAST CRASH'}
+                {liveData?.state === 'active' ? 'LIVE ROUND' : 'ROUND CRASHED'}
               </div>
               <div className="ssc-target" style={{
                 color: liveData?.state === 'active' ? '#38bdf8' : 
