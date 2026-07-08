@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats, gradePrediction, computeBetSignal } from '../../../lib/stats';
+import { computeStats, gradePrediction, computeBetSignal, buildHumanSummary } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
@@ -140,11 +140,10 @@ export async function POST(request: Request) {
     // Time context
     const timeData = getLKTimeData();
 
-    // Stats-only fallbacks
     let aiRisk = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
     let aiConfidence = Math.min(stats.confidence, 85);
-    let aiSummary = `${stats.count} rounds analyzed. Risk: ${stats.riskScore}/100. EMA: ${stats.ema}x. ${betSignal.should_bet ? 'BET signal.' : 'SKIP signal.'}`;
-    let aiPredMultiplier = stats.p99SafeCashout;
+    let aiSummary = buildHumanSummary(stats, betSignal);
+    let aiPredMultiplier = betSignal.cashout_target ?? stats.p90SafeCashout;
     const aiLongTargets = {
       x5:  stats.targets.find(t => t.target === 5.0)?.hitRate ?? 20,
       x10: stats.targets.find(t => t.target === 10.0)?.hitRate ?? 10,
@@ -247,11 +246,12 @@ export async function POST(request: Request) {
         swing_target: swingTarget,
         volatility_phase: volatilityPhase,
         recommended_stake_pct: recommendedStakePct,
-      }
+      },
+      timeData,
     });
 
   } catch (err: any) {
     console.error('API /rounds error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message, timeData: getLKTimeData() }, { status: 500 });
   }
 }

@@ -27,8 +27,9 @@ export const PEAK_HOURS_UTC = [
 ];
 
 const AI_MODELS = [
-  'google/gemini-flash-1.5',
+  'google/gemma-4-31b-it:free',
   'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
 ];
 
 // ─── LK Timezone Phase Table ─────────────────────────────────────────────
@@ -64,9 +65,32 @@ export const LK_PHASE_TABLE: Record<number, { phase: string; rule: string; playe
 // ─── getLKTimeData ────────────────────────────────────────────────────────
 // One function to call in both route.ts files instead of manual timeData building.
 export function getLKTimeData() {
-  const now       = new Date();
-  const lkHour    = now.getHours();        // ✅ Sri Lanka machine = correct LK time
-  const lkMinute  = now.getMinutes();
+  const now = new Date();
+  
+  // Use Intl.DateTimeFormat to reliably extract Asia/Colombo (UTC+5:30) date parts
+  let lkHour = now.getHours();
+  let lkMinute = now.getMinutes();
+  
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Colombo',
+      hour: 'numeric',
+      minute: 'numeric',
+      hourCycle: 'h23'
+    });
+    const parts = formatter.formatToParts(now);
+    const hourPart = parts.find(p => p.type === 'hour')?.value;
+    const minutePart = parts.find(p => p.type === 'minute')?.value;
+    if (hourPart !== undefined) lkHour = parseInt(hourPart, 10);
+    if (minutePart !== undefined) lkMinute = parseInt(minutePart, 10);
+  } catch (e) {
+    // Fallback: Colombo offset is UTC + 5:30
+    const utcTimestamp = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const colomboTime = new Date(utcTimestamp + (5.5 * 3600000));
+    lkHour = colomboTime.getHours();
+    lkMinute = colomboTime.getMinutes();
+  }
+
   const lkTimeStr = `${String(lkHour).padStart(2,'0')}:${String(lkMinute).padStart(2,'0')}`;
   const info      = LK_PHASE_TABLE[lkHour] ?? { phase: 'DAY', rule: 'BET_NORMAL', playerCount: '100+', note: 'Standard.' };
   return {
@@ -193,7 +217,7 @@ Risk Score: ${stats.riskScore}/100 (${stats.riskLabel}) | Volatility: ${stats.vo
 4. ADAPTIVE MICRO-TARGETS: Output highly specific decimal targets (e.g., 1.48, 2.12, 10.45, 15.22). There is NO ceiling. If DETECTED HISTORICAL PATTERNS percentiles justify a massive 10x or 20x target, output it. Otherwise keep it mathematically safe.
 5. RNG REALITY CHECK & VOLATILITY GATES: 1xBet Crash uses provably fair SHA-256 RNG with 3% house edge. Never recommend AGGRESSIVE targets if Volatility=HIGH. Downgrade to CONSERVATIVE (1.04x–1.10x) in high volatility. Reject streak patterns of length 1. Only trust patterns with streak >= 2 AND N-Gram Sequence Engine confirmation.
 6. EV AWARENESS: Prefer targets where EV > 0 from the hit rates table above. Negative EV targets should only be used in CONSERVATIVE micro-cashout strategy.
-7. SUMMARY FORMAT: 2 concise sentences. State the pattern found and the exact target recommended with the reason.
+7. SUMMARY FORMAT: Write exactly 2 punchy, plain-English sentences. Sentence 1: describe what the data shows right now (use vivid words like 'The algorithm is picking up a recovery signal' / 'Cluster of low crashes is compressing — expect a release' / 'Volatility is elevated — the pattern engine is holding back'). Sentence 2: state the exact action (target, strategy) with a reason rooted in the stats (e.g. 'Entering at 1.18x gives 81% historical coverage based on 4,072 confirmed rounds in this dataset.').
 
 Return EXACTLY this JSON format (no markdown, no extra text):
 {

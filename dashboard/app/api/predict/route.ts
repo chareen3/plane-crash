@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats, computeBetSignal } from '../../../lib/stats';
+import { computeStats, computeBetSignal, buildHumanSummary } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
@@ -55,42 +55,44 @@ export async function GET(request: Request) {
 
     const timeData = getLKTimeData();
 
-    // Return cached pred but with fresh stats
+    // Return cached pred but with fresh stats — fill in any null fields with fresh betSignal
     if (existingPred) {
       return NextResponse.json({
         risk: existingPred.predicted_risk,
-        confidence: existingPred.confidence,
-        summary: existingPred.summary,
-        predicted_multiplier: existingPred.predicted_multiplier,
+        confidence: existingPred.confidence ?? Math.min(stats.confidence, 85),
+        // Always regenerate summary so it reflects current live stats and looks human
+        summary: buildHumanSummary(stats, betSignal),
+        predicted_multiplier: existingPred.predicted_multiplier ?? betSignal.cashout_target,
         long_targets: existingPred.long_targets,
-        should_bet: existingPred.should_bet,
+        should_bet: existingPred.should_bet ?? betSignal.should_bet,
         recommended_bet_units: betSignal.recommended_bet_units,
-        skip_reason: existingPred.skip_reason,
-        strategy: existingPred.strategy,
-        cashout_target: existingPred.cashout_target,
-        strategy_reason: existingPred.strategy_reason,
+        skip_reason: existingPred.skip_reason ?? betSignal.skip_reason,
+        strategy: existingPred.strategy ?? betSignal.strategy,
+        cashout_target: existingPred.cashout_target ?? betSignal.cashout_target,
+        strategy_reason: existingPred.strategy_reason ?? betSignal.strategy_reason ?? 'Based on historical pattern analysis.',
         ai_model_used: existingPred.ai_model_used ?? 'stats-only',
         stats,
-        swing_target: existingPred.swing_target,
+        swing_target: existingPred.swing_target ?? betSignal.swing_target,
         volatility_phase: existingPred.volatility_phase ?? betSignal.volatility_phase,
         recommended_stake_pct: existingPred.recommended_stake_pct ?? betSignal.recommended_stake_pct,
+        timeData,
       });
     }
 
     // ── Stats-only defaults ──
     let aiRisk        = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
-    let aiConfidence  = Math.min(stats.confidence, 85); // cap at 85 without AI
-    let aiSummary     = `${stats.count} rounds analyzed. Risk: ${stats.riskScore}/100. EMA: ${stats.ema}x. ${betSignal.should_bet ? 'BET signal.' : 'SKIP signal.'}`;
-    let aiPredMultiplier = stats.p99SafeCashout; // anchor to 99% as default
+    let aiConfidence  = Math.min(stats.confidence, 85);
+    let aiSummary     = buildHumanSummary(stats, betSignal);
+    let aiPredMultiplier = betSignal.cashout_target ?? stats.p90SafeCashout;
     const aiLongTargets  = {
       x5:  stats.targets.find((t: any) => t.target === 5.0)?.hitRate  ?? 20,
       x10: stats.targets.find((t: any) => t.target === 10.0)?.hitRate ?? 10,
       x20: stats.targets.find((t: any) => t.target === 20.0)?.hitRate ?? 5,
     };
-    let strategyLabel  = betSignal.strategy;
-    let strategyReason = betSignal.skip_reason ?? 'Stats-only baseline.';
-    let finalBet       = strategyLabel === 'SKIP' ? false : betSignal.should_bet;
-    let finalCashout   = strategyLabel === 'SKIP' ? 0     : betSignal.cashout_target;
+    let strategyLabel  = betSignal.strategy ?? 'CONSERVATIVE';
+    let strategyReason = betSignal.skip_reason ?? betSignal.strategy_reason ?? 'Stats-based signal.';
+    let finalBet       = strategyLabel === 'SKIP' ? false : (betSignal.should_bet ?? true);
+    let finalCashout   = strategyLabel === 'SKIP' ? 0 : (betSignal.cashout_target ?? stats.p90SafeCashout);
     let aiModelUsed    = 'stats-only';
 
     // ── Wait for AI prediction ──
@@ -160,9 +162,10 @@ export async function GET(request: Request) {
       risk: aiPrediction.predicted_risk, // map for frontend expectation
       recommended_bet_units: betSignal.recommended_bet_units,
       stats,
+      timeData,
     });
 
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message, timeData: getLKTimeData() }, { status: 500 });
   }
 }

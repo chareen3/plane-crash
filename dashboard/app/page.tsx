@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
@@ -42,10 +42,10 @@ type WinRate = {
 };
 
 const CURRENCIES = {
-  USD: { symbol: '$', rate: 1, minBet: 1, name: '🇺🇸 USD' },
-  LKR: { symbol: 'Rs. ', rate: 300, minBet: 300, name: '🇱🇰 LKR' },
-  INR: { symbol: '₹', rate: 85, minBet: 100, name: '🇮🇳 INR' },
-  BRL: { symbol: 'R$', rate: 5, minBet: 5, name: '🇧🇷 BRL' },
+  USD: { symbol: '$', rate: 1, minBet: 1, name: 'USD' },
+  LKR: { symbol: 'Rs. ', rate: 300, minBet: 300, name: 'LKR (Colombo)' },
+  INR: { symbol: '₹', rate: 85, minBet: 100, name: 'INR (Mumbai)' },
+  BRL: { symbol: 'R$', rate: 5, minBet: 5, name: 'BRL (São Paulo)' },
 };
 
 const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
@@ -56,10 +56,10 @@ const RISK_EMOJI: Record<string, any> = {
 };
 
 const STRATEGY_META: Record<string, { color: string; glow: string; icon: any; label: string; tag: string }> = {
-  SKIP:        { color: '#ff3366', glow: 'rgba(255,51,102,0.3)',   icon: <ShieldAlert size={28} strokeWidth={2} />,  label: 'SKIP THIS ROUND',   tag: 'DANGER' },
-  CONSERVATIVE:{ color: '#00e5a0', glow: 'rgba(0,229,160,0.3)',    icon: <ShieldCheck size={28} strokeWidth={2} />,  label: 'CONSERVATIVE BET',  tag: 'SAFE'   },
-  AGGRESSIVE:  { color: '#ffd000', glow: 'rgba(255,208,0,0.3)',    icon: <Scale size={28} strokeWidth={2} />,        label: 'AGGRESSIVE BET',    tag: 'RISK'   },
-  SWING:       { color: '#a78bfa', glow: 'rgba(167,139,250,0.3)',  icon: <Rocket size={28} strokeWidth={2} />,       label: 'SWING TRADING',     tag: 'SWING'  },
+  SKIP:        { color: '#ff3366', glow: 'rgba(255,51,102,0.3)',   icon: <ShieldAlert size={28} strokeWidth={2} />,  label: 'HOLD — DO NOT ENTER',  tag: 'DANGER' },
+  CONSERVATIVE:{ color: '#00e5a0', glow: 'rgba(0,229,160,0.3)',    icon: <ShieldCheck size={28} strokeWidth={2} />,  label: 'SAFE ENTRY SIGNAL',    tag: 'SAFE'   },
+  AGGRESSIVE:  { color: '#ffd000', glow: 'rgba(255,208,0,0.3)',    icon: <Scale size={28} strokeWidth={2} />,        label: 'HIGH-RISK PLAY',       tag: 'RISK'   },
+  SWING:       { color: '#a78bfa', glow: 'rgba(167,139,250,0.3)',  icon: <Rocket size={28} strokeWidth={2} />,       label: 'SWING TRADE',          tag: 'SWING'  },
 };
 
 interface ToastMessage {
@@ -84,6 +84,7 @@ export default function Dashboard() {
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [winRate, setWinRate] = useState<WinRate>({ total: 0, correct: 0, winRate: 0, byRisk: {} });
   const [localStats, setLocalStats] = useState<CrashStats | null>(null);
+  const [timeData, setTimeData] = useState<any>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predStatus, setPredStatus] = useState<'idle' | 'predicting' | 'done'>('idle');
   const [betAmount, setBetAmount] = useState<string>('');
@@ -137,8 +138,21 @@ export default function Dashboard() {
       const res = await fetch(`/api/predict?game=${activeGame}`);
       if (res.ok) {
         const d = await res.json();
-        if (d.risk) { setPrediction(d); setPredStatus('done'); }
-        else setPredStatus('idle');
+        // Map the predict API response to the Prediction type expected by the dashboard
+        if (d.risk || d.strategy) {
+          const mapped = {
+            ...d,
+            predicted_risk: d.risk ?? d.predicted_risk,
+            strategy: d.strategy ?? 'CONSERVATIVE',
+            should_bet: d.should_bet ?? true,
+            cashout_target: d.cashout_target ?? d.predicted_multiplier ?? 1.2,
+          };
+          setPrediction(mapped);
+          if (d.timeData) setTimeData(d.timeData);
+          setPredStatus('done');
+        } else {
+          setPredStatus('idle');
+        }
       }
     } catch { setPredStatus('idle'); }
     finally { setIsPredicting(false); isPredictingRef.current = false; }
@@ -208,7 +222,7 @@ export default function Dashboard() {
       }
 
       if (type === 'EXTENSION_CRASH_LIVE') {
-        const { round, prediction, stats } = evt.data;
+        const { round, prediction, stats, timeData: td } = evt.data;
         if (round) {
           lastPredictedRoundRef.current = round.round_number;
           const roundObj: Round = { ...round, _optimistic: true };
@@ -223,6 +237,7 @@ export default function Dashboard() {
         }
         if (stats) setLocalStats(stats);
         if (prediction) { setPrediction(prediction); setPredStatus('done'); }
+        if (td) setTimeData(td);
         heroRef.current?.classList.remove('flash');
         void heroRef.current?.offsetWidth;
         heroRef.current?.classList.add('flash');
@@ -314,7 +329,11 @@ export default function Dashboard() {
   const avg = stats ? stats.mean.toFixed(2) : '—';
   const median = stats ? stats.median.toFixed(2) : '—';
   const highest = rounds.length > 0 ? Math.max(...rounds.map(r => Number(r.crash_point))).toFixed(2) : '—';
-  const stratMeta = prediction?.strategy ? STRATEGY_META[prediction.strategy] ?? STRATEGY_META['SKIP'] : null;
+  const stratMeta = prediction?.strategy
+    ? (STRATEGY_META[prediction.strategy] ?? STRATEGY_META['CONSERVATIVE'])
+    : prediction
+    ? STRATEGY_META['CONSERVATIVE']
+    : null;
 
   const navItems = [
     { id: 'dashboard', icon: <Home size={18} />, label: 'Dashboard' },
@@ -421,7 +440,12 @@ export default function Dashboard() {
           </div>
 
           <div className="dash-topbar-actions">
-            {betAmount && <span className="bet-badge">💰 {betAmount} USD</span>}
+            {betAmount && (
+              <span className="bet-badge" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Coins size={13} color="#ffd000" />
+                <span>{betAmount} USD</span>
+              </span>
+            )}
 
             <select
               value={currency}
@@ -835,11 +859,18 @@ export default function Dashboard() {
               ) : (
                 <div className="hero-banner-3d" ref={heroRef} style={{ minHeight: '120px', display: 'flex', alignItems: 'center' }}>
                   <div className="hero-grid-overlay" />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', zIndex: 2, transform: 'translateZ(30px)' }}>
-                    <div className="spin" style={{ color: '#00ffd5' }}><Orbit size={28} /></div>
-                    <div>
-                      <div className="hc2-label" style={{ letterSpacing: '2px', fontWeight: 'bold', fontSize: '12px' }}>AWAITING AI SIGNAL...</div>
-                      <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Analyze live stream sequence triggers to formulate bets.</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', zIndex: 2, transform: 'translateZ(30px)', width: '100%' }}>
+                    <div className="spin" style={{ color: '#00ffd5', flexShrink: 0 }}><Orbit size={28} /></div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#00ffd5', letterSpacing: '3px', fontWeight: '800', fontSize: '13px', textTransform: 'uppercase', marginBottom: '6px' }}>⚡ NEURAL ENGINE LOADING</div>
+                      <div style={{ fontSize: '12px', color: '#6b7fa3', lineHeight: '1.6' }}>
+                        Processing {rounds.length > 0 ? `${rounds.length}+ historical rounds` : 'live stream data'} — pattern recognition active.
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                        {['Pattern Analysis', 'Sequence Scan', 'Risk Scoring'].map((label, i) => (
+                          <span key={i} style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '20px', background: 'rgba(0,255,213,0.07)', color: '#00ffd5', border: '1px solid rgba(0,255,213,0.2)', letterSpacing: '0.5px' }}>{label}</span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -901,6 +932,23 @@ export default function Dashboard() {
                       </div>
                     </div>
 
+                    {timeData && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'rgba(108,99,255,0.06)', borderRadius: '10px', border: '1px solid rgba(108,99,255,0.15)', margin: '4px 0 14px' }}>
+                        <Clock size={16} color="#6c63ff" style={{ flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '11px', fontWeight: '800', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            Colombo Time Sync
+                            <span style={{ fontSize: '9px', background: timeData.isLKPrime ? 'rgba(0,229,160,0.12)' : 'rgba(108,99,255,0.12)', color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                              {timeData.lkPhase} PHASE
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#6b7fa3', marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            Local: {timeData.currentLKTimeStr} ({timeData.lkPlayerCount} active wagers) · {timeData.lkNote}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
                       {prediction.summary}
                     </div>
@@ -942,7 +990,9 @@ export default function Dashboard() {
 
                     {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (
                       <div className="ai-ceiling-forecast" style={{ background: 'rgba(0,229,160,0.1)', borderColor: '#00e5a0', marginTop: '12px' }}>
-                        <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold' }}>⭐ STATISTICAL CEILING (90% HIT RATE)</span>
+                        <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Target size={12} color="#00e5a0" /> STATISTICAL CEILING (90% HIT RATE)
+                        </span>
                         <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
                       </div>
                     )}
@@ -1141,7 +1191,9 @@ export default function Dashboard() {
                         <span className={`feed-mult color-${classifyRisk(round.crash_point)}`}>
                           {Number(round.crash_point).toFixed(2)}x
                         </span>
-                        {round.crash_point >= 10 && <span className="feed-mega">🔥</span>}
+                        {round.crash_point >= 10 && (
+                          <Flame size={12} style={{ color: '#ff3366', marginLeft: '4px', filter: 'drop-shadow(0 0 4px rgba(255,51,102,0.5))' }} />
+                        )}
                       </div>
                     ))}
                 </div>

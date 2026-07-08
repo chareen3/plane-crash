@@ -393,7 +393,7 @@ async function postRoundResultToDashboard(roundEvent) {
       summary: summary
     };
 
-    const res = await fetch('https://plane-crash.vercel.app/api/rounds', {
+    const res = await fetch('http://localhost:3000/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -412,7 +412,8 @@ async function postRoundResultToDashboard(roundEvent) {
               type: 'EXTENSION_CRASH_LIVE',
               round: data.round,
               prediction: data.prediction,
-              stats: data.stats
+              stats: data.stats,
+              timeData: data.timeData
             }).catch(() => { });
           });
         });

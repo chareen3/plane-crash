@@ -672,3 +672,62 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
   };
 }
 
+/**
+ * buildHumanSummary — generates premium, vivid prediction text from pure stats
+ * Used as AI fallback so the dashboard always shows human-feeling language.
+ */
+export function buildHumanSummary(
+  stats: CrashStats,
+  betSignal: ReturnType<typeof computeBetSignal>
+): string {
+  const { riskScore, ema, trend, currentLowStreak, currentHighStreak, volatility, recentOutcomes, detectedPatterns, sequenceMatch } = stats;
+  const { strategy, cashout_target, volatility_phase, skip_reason } = betSignal;
+
+  const lastCrash = recentOutcomes?.[0] ?? 0;
+  const recentAvg = recentOutcomes && recentOutcomes.length >= 3
+    ? (recentOutcomes.slice(0, 5).reduce((a, b) => a + b, 0) / Math.min(5, recentOutcomes.length)).toFixed(2)
+    : null;
+
+  // Sentence 1 — describe the current market state
+  let s1 = '';
+  if (strategy === 'SKIP') {
+    if (currentLowStreak >= 3) {
+      s1 = `The algorithm is detecting a sustained low-crash cluster — ${currentLowStreak} consecutive rounds below 2x signals a grinding phase, not a recovery.`;
+    } else if (lastCrash >= 1.04 && lastCrash <= 1.18) {
+      s1 = `Last crash landed in the danger zone at ${lastCrash.toFixed(2)}x — the 1.04x–1.18x band historically precedes continued suppression.`;
+    } else {
+      s1 = `The risk engine is holding back — current volatility reads ${volatility_phase} with an EMA of ${ema.toFixed(2)}x, signaling elevated uncertainty.`;
+    }
+  } else if (detectedPatterns && detectedPatterns.length > 0 && detectedPatterns[0].occurrences >= 3) {
+    const p = detectedPatterns[0];
+    s1 = `Pattern match: "${p.patternName}" has triggered ${p.occurrences} times historically — the sequence engine is registering a high-probability setup.`;
+  } else if (sequenceMatch && sequenceMatch.pSafeNext >= 65) {
+    s1 = `The N-gram engine is reading [${sequenceMatch.sequence.join(' → ')}] — this exact sequence has preceded a safe round ${sequenceMatch.pSafeNext}% of the time across ${sequenceMatch.occurrences} historical occurrences.`;
+  } else if (trend === 'rising' && currentHighStreak >= 2) {
+    s1 = `Momentum is building — ${currentHighStreak} consecutive strong rounds with an EMA of ${ema.toFixed(2)}x suggests the current cycle has upward pressure.`;
+  } else if (volatility_phase === 'CALM') {
+    s1 = `Low-volatility window detected — the spread is compressing with stdDev ${stats.stdDev.toFixed(2)}, which historically favors tight, high-probability cashout entries.`;
+  } else if (riskScore < 50) {
+    s1 = recentAvg
+      ? `The recent ${Math.min(5, recentOutcomes?.length ?? 0)}-round average is ${recentAvg}x with a risk score of ${riskScore}/100 — conditions are within acceptable parameters.`
+      : `Risk score reads ${riskScore}/100 with EMA at ${ema.toFixed(2)}x — the pattern engine has identified a statistically viable entry window.`;
+  } else {
+    s1 = `Market EMA at ${ema.toFixed(2)}x with ${riskScore}/100 risk score — the engine is applying adaptive targeting based on ${stats.count.toLocaleString()} rounds of historical data.`;
+  }
+
+  // Sentence 2 — state the exact action
+  let s2 = '';
+  if (strategy === 'SKIP') {
+    s2 = `Standing by — skip this round and observe. Re-entry signal will fire once the pattern stabilizes.`;
+  } else {
+    const hitRate = stats.targets.find(t => Math.abs(t.target - cashout_target) < 0.05)?.hitRate;
+    const coverage = hitRate ? ` (${hitRate}% historical coverage)` : '';
+    if (strategy === 'AGGRESSIVE') {
+      s2 = `Entering at ${cashout_target.toFixed(2)}x${coverage} — elevated confidence window, use ${betSignal.recommended_stake_pct}% stake.`;
+    } else {
+      s2 = `Target: ${cashout_target.toFixed(2)}x${coverage} — conservative position with ${betSignal.recommended_stake_pct}% bankroll exposure.`;
+    }
+  }
+
+  return `${s1} ${s2}`;
+}

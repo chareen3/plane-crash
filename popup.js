@@ -23,6 +23,7 @@ const els = {
   statRounds:      $('stat-rounds'),
   statEvents:      $('stat-events'),
   badgeCount:      $('badge-count'),
+  heroLabel:       $('hero-label'),
   heroMultiplier:  $('hero-multiplier'),
   heroTime:        $('hero-time'),
   btnStart:        $('btn-start'),
@@ -42,6 +43,7 @@ let sessionStartMs = null;
 let feedEntries = [];
 const MAX_FEED_ENTRIES = 60;
 let debugMode = false;
+let isRoundActive = false; // Prevents polling from overwriting live UI
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -119,14 +121,13 @@ function updateStats(stats) {
   els.statEvents.textContent  = stats.totalEvents ?? 0;
   els.badgeCount.textContent  = stats.totalEvents ?? 0;
 
-  // Update hero multiplier if we have a last crash value
-  if (stats.lastCrash && stats.lastCrash !== '—') {
+  // Update hero multiplier if we have a last crash value (only when round isn't active)
+  if (!isRoundActive && stats.lastCrash && stats.lastCrash !== '—') {
     const val = parseFloat(stats.lastCrash);
     els.heroMultiplier.textContent = isNaN(val) ? stats.lastCrash : val.toFixed(2) + 'x';
     els.heroMultiplier.className = 'hero-value crashed';
-    // Remove animation class after it plays
-    setTimeout(() => { els.heroMultiplier.classList.remove('crashed'); }, 600);
     els.heroTime.textContent = 'Crashed at ' + new Date().toLocaleTimeString();
+    if (els.heroLabel) els.heroLabel.textContent = 'Last Crash';
   }
 }
 
@@ -306,6 +307,51 @@ chrome.runtime.onMessage.addListener((msg) => {
     case 'NEW_EVENT':
       addFeedEntry(msg.event);
       updateStats(msg.stats);
+
+      // --- Live Hero Animation Logic ---
+      if (msg.event.eventType === 'multiplier_tick') {
+        isRoundActive = true;
+        const val = parseFloat(msg.event.multiplier);
+        if (!isNaN(val)) {
+          els.heroMultiplier.textContent = val.toFixed(2) + 'x';
+          els.heroMultiplier.className = 'hero-value'; // default color while ticking
+          els.heroTime.textContent = 'Flying...';
+          if (els.heroLabel) els.heroLabel.textContent = 'Current Round';
+        }
+      } else if (msg.event.eventType === 'round_result') {
+        isRoundActive = false;
+        const val = parseFloat(msg.event.multiplier);
+        if (!isNaN(val)) {
+          els.heroMultiplier.textContent = val.toFixed(2) + 'x';
+          els.heroMultiplier.className = 'hero-value crashed'; // red color on crash
+          els.heroTime.textContent = 'Crashed at ' + new Date().toLocaleTimeString();
+          if (els.heroLabel) els.heroLabel.textContent = 'Last Crash';
+        }
+      } else if (msg.event.eventType === 'websocket' && msg.event.rawPayload) {
+        try {
+          const cleanStr = msg.event.rawPayload.replace(/\x1e$/, '');
+          const payloadObj = JSON.parse(cleanStr);
+          if (payloadObj.target === 'OnStage' && payloadObj.arguments) {
+            const stage = payloadObj.arguments[0];
+            if (stage === 1) { // Betting Open
+              isRoundActive = true;
+              els.heroMultiplier.textContent = '1.00x';
+              els.heroMultiplier.className = 'hero-value';
+              els.heroTime.textContent = 'Betting Open';
+              if (els.heroLabel) els.heroLabel.textContent = 'Next Round';
+            } else if (stage === 2) { // Flying
+              isRoundActive = true;
+              els.heroMultiplier.textContent = '1.00x';
+              els.heroMultiplier.className = 'hero-value';
+              els.heroTime.textContent = 'Flying...';
+              if (els.heroLabel) els.heroLabel.textContent = 'Current Round';
+            } else if (stage === 3) {
+              // Wait for the OnCrash event to supply the actual crash multiplier
+              isRoundActive = false;
+            }
+          }
+        } catch (e) {}
+      }
       break;
 
     case 'STATS_UPDATE':
