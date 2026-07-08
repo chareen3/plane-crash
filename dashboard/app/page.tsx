@@ -76,38 +76,7 @@ function timeAgo(iso: string) {
   return `${Math.floor(s / 60)}m ago`;
 }
 
-function AnimatedCrashMultiplier({ target }: { target: number }) {
-  const [displayValue, setDisplayValue] = useState(1.00);
-
-  useEffect(() => {
-    setDisplayValue(1.00);
-    if (!target || target <= 1.00) {
-      if (target) setDisplayValue(target);
-      return;
-    }
-    
-    let current = 1.00;
-    const duration = 1200;
-    const fps = 60;
-    const steps = (duration / 1000) * fps;
-    const increment = (target - 1.00) / steps;
-    const intervalTime = 1000 / fps;
-    
-    const interval = setInterval(() => {
-      current += increment;
-      if (current >= target) {
-        setDisplayValue(target);
-        clearInterval(interval);
-      } else {
-        setDisplayValue(current);
-      }
-    }, intervalTime);
-    
-    return () => clearInterval(interval);
-  }, [target]);
-
-  return <>{displayValue.toFixed(2)}x</>;
-}
+// Function AnimatedCrashMultiplier removed per user request to drop animations
 
 export default function Dashboard() {
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -412,7 +381,7 @@ export default function Dashboard() {
               }}>
                 {liveData?.state === 'active' ? 
                   (liveData.multiplierText || '—') : 
-                  (lastCrash ? <AnimatedCrashMultiplier target={Number(lastCrash.crash_point)} /> : '—')
+                  (lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '—')
                 }
               </div>
               <div className="ssc-stake" style={{ 

@@ -321,11 +321,12 @@ chrome.runtime.onMessage.addListener((msg) => {
       break;
 
     case 'TIMER_TICK':
-      els.heroMultiplier.textContent = '—';
       els.heroTime.textContent = 'Next round: ' + (msg.timerText || 'waiting');
-      els.heroMultiplier.style.color = '#94a3b8';
-      if (els.heroLabel) els.heroLabel.textContent = 'Waiting';
-      if (els.heroLabel) els.heroLabel.style.color = '#94a3b8';
+      if (els.heroLabel && els.heroLabel.textContent !== 'Last Crash') {
+        els.heroLabel.textContent = 'Waiting';
+        els.heroLabel.style.color = '#94a3b8';
+        els.heroMultiplier.style.color = '#94a3b8';
+      }
       break;
 
     case 'STATS_UPDATE':

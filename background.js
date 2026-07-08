@@ -771,6 +771,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
         return { received: true };
 
+      case 'LIVE_TICK':
+      case 'TIMER_TICK':
+        // Forward real-time ticks to dashboard tabs
+        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+          if (tabs) tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, msg).catch(() => {});
+          });
+        });
+        return { received: true };
+
       case 'BET_AMOUNT_CHANGE':
         chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
