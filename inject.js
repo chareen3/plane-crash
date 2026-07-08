@@ -213,7 +213,6 @@
 
   // Replace global WebSocket with our wrapper
   window.WebSocket = WrappedWebSocket;
-  window.WebSocket.prototype = OriginalWebSocket.prototype;
 
   console.log('[CAC Inject] WebSocket observer active');
 })();

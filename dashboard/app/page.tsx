@@ -131,6 +131,7 @@ export default function Dashboard() {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [lastSyncedRound, setLastSyncedRound] = useState<number | null>(null);
   const prevStatusRef = useRef<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [liveData, setLiveData] = useState<{ multiplierText?: string; timerText?: string; state?: string } | null>(null);
 
   const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info', duration = 4000) => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -248,6 +249,12 @@ export default function Dashboard() {
       } else if (type === 'EXTENSION_BET_CHANGE') {
         setIsExtensionConnected(true);
         setBetAmount(evt.data.amount);
+      } else if (type === 'LIVE_TICK') {
+        setIsExtensionConnected(true);
+        setLiveData(prev => ({ ...prev, multiplierText: evt.data.multiplierText, state: evt.data.state, timerText: undefined }));
+      } else if (type === 'TIMER_TICK') {
+        setIsExtensionConnected(true);
+        setLiveData(prev => ({ ...prev, timerText: evt.data.timerText, multiplierText: undefined, state: 'waiting' }));
       }
     };
     window.addEventListener('message', handleMessage);
@@ -375,29 +382,50 @@ export default function Dashboard() {
         </nav>
 
         <div className="sidebar-bottom">
-          {/* Last Crash Sidebar Box */}
-          <div className="sidebar-last-crash-card">
+          {/* Dynamic Unified Sidebar Box (Live / Last Crash) */}
+          <div className="sidebar-last-crash-card" style={{ 
+            borderColor: liveData?.state === 'active' ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.05)', 
+            background: liveData?.state === 'active' ? 'rgba(30,41,59,0.5)' : 'rgba(20,20,20,0.5)' 
+          }}>
             <div className="sidebar-plane-container">
               <img 
                 src="https://lk.1xbet.com/genfiles/cms/1-285/desktop/media_asset/cfe62b7edd586ad537fdb14cd95172a6.svg" 
                 className="sidebar-plane-img"
                 alt="1xBet Crash Plane"
+                style={{ opacity: liveData?.state === 'active' ? 1 : 0.6 }}
               />
             </div>
             <div className="sidebar-plane-info">
-              <div className="ssc-label" style={{ color: '#888', fontSize: '9px' }}>LAST CRASH</div>
+              <div className="ssc-label" style={{ 
+                color: liveData?.state === 'active' ? '#38bdf8' : '#888', 
+                fontSize: '9px' 
+              }}>
+                {liveData?.state === 'active' ? 'LIVE ROUND' : 'LAST CRASH'}
+              </div>
               <div className="ssc-target" style={{
-                color: classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366',
+                color: liveData?.state === 'active' ? '#38bdf8' : 
+                       (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : 
+                       classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366'),
                 fontSize: '32px',
                 fontWeight: '700',
                 fontFamily: 'Rajdhani, sans-serif'
               }}>
-                {lastCrash ? <AnimatedCrashMultiplier target={Number(lastCrash.crash_point)} /> : '—'}
+                {liveData?.state === 'active' ? 
+                  (liveData.multiplierText || '—') : 
+                  (lastCrash ? <AnimatedCrashMultiplier target={Number(lastCrash.crash_point)} /> : '—')
+                }
               </div>
-              {lastCrash && <div className="ssc-stake" style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>{timeAgo(lastCrash.created_at)}</div>}
+              <div className="ssc-stake" style={{ 
+                fontSize: '10px', 
+                color: liveData?.state === 'active' ? '#94a3b8' : '#888', 
+                marginTop: '2px' 
+              }}>
+                {liveData?.state === 'active' ? 'Flying...' : 
+                 liveData?.timerText ? `Next round: ${liveData.timerText}` : 
+                 (lastCrash ? timeAgo(lastCrash.created_at) : 'Waiting...')}
+              </div>
             </div>
           </div>
-
         </div>
       </aside>
 

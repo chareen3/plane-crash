@@ -434,6 +434,15 @@ function captureMultiplierTick() {
     log(`live tick updates: ${numVal}x`);
   }
 
+  // --- Real-time update for Popup/Sidebar UI ---
+  chrome.runtime.sendMessage({
+    type: 'LIVE_TICK',
+    multiplierText: text,
+    multiplier: numVal,
+    state: cState.roundActive ? 'active' : 'idle'
+  }).catch(() => {});
+  // ---------------------------------------------
+
   // Detect multiplier reset/decrease as a fallback crash signal
   if (numVal !== null && prevNum !== null && numVal < prevNum) {
     console.log(`[CAC Content] Multiplier decrease detected: ${prevNum}x -> ${numVal}x`);
@@ -461,6 +470,13 @@ function captureTimerChange() {
   if (text) {
     triggerRoundStart();
   }
+
+  // --- Real-time update for Popup/Sidebar UI ---
+  chrome.runtime.sendMessage({
+    type: 'TIMER_TICK',
+    timerText: text
+  }).catch(() => {});
+  // ---------------------------------------------
 
   return makeBaseEvent({
     eventType:    'timer_change',
