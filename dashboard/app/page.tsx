@@ -1161,14 +1161,16 @@ export default function Dashboard() {
 
                     {prediction && stats ? (
                       <>
-                        <div className="risk-conf-row">
-                          <div className="conf-bar-wrap">
-                            <div className="conf-bar-track">
-                              <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
+                        {!timeData?.isLKSleep && (
+                          <div className="risk-conf-row">
+                            <div className="conf-bar-wrap">
+                              <div className="conf-bar-track">
+                                <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
+                              </div>
+                              <span className="conf-label">{prediction.confidence}% confidence</span>
                             </div>
-                            <span className="conf-label">{prediction.confidence}% confidence</span>
                           </div>
-                        </div>
+                        )}
 
                         {timeData && (
                           <div className="time-sync-card">

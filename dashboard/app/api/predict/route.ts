@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       const prediction = {
         risk: 'HIGH',
         predicted_risk: 'HIGH', // for fallback compat
-        confidence: stats.confidence ?? 0,
+        confidence: 0, // Engine paused, so confidence is 0
         summary,
         should_bet: false,
         strategy: 'SKIP',
