@@ -768,22 +768,33 @@ function injectWSListener() {
     // Log the payload to the console so we can analyze the 1xBet structure
     console.log('[CAC WS INCEPT]', evt.data.payload);
 
-    let rawStr = evt.data.payload;
-    if (typeof rawStr === 'string' && rawStr.includes('OnCrash')) {
-       try {
-         // SignalR payloads end with the ASCII record separator \x1e
-         const cleanStr = rawStr.replace(/\x1e$/, '');
-         const msg = JSON.parse(cleanStr);
-         if (msg.target === 'OnCrash' && msg.arguments && msg.arguments[0]) {
-           const crashMult = msg.arguments[0].f;
-           if (crashMult) {
-             console.log('[CAC WS PARSED] Real WS Crash Detected:', crashMult);
-             fireCrashResult(crashMult, 'websocket');
-           }
-         }
-       } catch (err) {
-         console.warn('[CAC WS ERROR] Failed to parse 1xBet WS payload', err);
-       }
+    // Parse SignalR frames from the crash game socket
+    const rawStr = evt.data.payload && evt.data.payload.payload;
+    if (typeof rawStr === 'string') {
+      try {
+        const cleanStr = rawStr.replace(/\x1e$/, '');
+        const msg = JSON.parse(cleanStr);
+
+        if (msg.target === 'OnCrash' && msg.arguments && msg.arguments[0]) {
+          // Final crash result — grab the multiplier and fire immediately
+          const crashMult = msg.arguments[0].f;
+          if (crashMult) {
+            console.log('[CAC WS PARSED] Crash detected:', crashMult);
+            fireCrashResult(crashMult, 'websocket');
+          }
+        } else if (msg.target === 'OnStage' && msg.arguments) {
+          // Stage change: 1 = betting open, 2 = flying, 3 = crashed
+          const stage = msg.arguments[0];
+          console.log('[CAC WS PARSED] Stage change:', stage);
+          // Reset staleness timer when the round goes live so the detector
+          // does not misfire during the first few seconds of flight
+          if (stage === 2) {
+            cState.lastMultiplierTime = Date.now();
+          }
+        }
+      } catch (_) {
+        // Non-JSON frame (e.g. SignalR handshake) — ignore silently
+      }
     }
 
     enqueueEvent(event);
