@@ -386,12 +386,22 @@ async function postRoundResultToDashboard(roundEvent) {
 
     const payload = {
       round: {
-        round_number: roundNumber,
+        round_number: roundEvent.roundNumber || Date.now(),
         crash_point: roundEvent.multiplier,
         created_at: roundEvent.capturedAt || new Date().toISOString()
       },
       summary: summary
     };
+
+    // Grade the previous round's prediction using the actual crash point
+    fetch('http://localhost:3000/api/grade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roundNumber: payload.round.round_number,
+        actualCrashPoint: payload.round.crash_point,
+      }),
+    }).catch(err => warn('Grading API error:', err));
 
     const res = await fetch('http://localhost:3000/api/rounds', {
       method: 'POST',
