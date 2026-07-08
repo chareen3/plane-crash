@@ -25,7 +25,7 @@ const CONFIG = {
   /** Max events kept in storage (rolling window) */
   MAX_STORED_EVENTS: 5000,
   /** Enable WebSocket injection feature (disabled by default) */
-  WS_INJECTION_ENABLED: false,
+  WS_INJECTION_ENABLED: true,
   /** Storage key prefix */
   KEY_PREFIX: 'cac_',
 };
@@ -249,6 +249,70 @@ async function flushBuffer() {
 // ---------------------------------------------------------------------------
 // Supabase — direct REST insert (no localhost dependency)
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Deduplication and Confidence validation helper
+// ---------------------------------------------------------------------------
+function shouldSaveRound(event) {
+  const roundId = event.round_id || null;
+  const crashPoint = event.multiplier;
+  const confidence = event.capture_confidence || 'medium';
+  const now = Date.now();
+
+  if (crashPoint === null || crashPoint === undefined || isNaN(crashPoint) || crashPoint <= 1.0) {
+    log('finalize rejected due to missing valid multiplier');
+    return false;
+  }
+
+  // Generate stable fingerprint: rounded multiplier + 5s bucket
+  const timeBucket = Math.floor(now / 5000);
+  const roundedMult = Math.round(crashPoint * 10);
+  const fingerprint = `${roundedMult}|${timeBucket}`;
+
+  if (!state.savedRoundsHistory) {
+    state.savedRoundsHistory = [];
+  }
+  
+  // Clean history older than 60 seconds
+  state.savedRoundsHistory = state.savedRoundsHistory.filter(item => now - item.timestamp < 60000);
+
+  // Check for duplicates
+  for (const item of state.savedRoundsHistory) {
+    if (roundId && item.round_id === roundId) {
+      log(`finalize skipped due to duplicate round_id: ${roundId}`);
+      return false;
+    }
+    if (!roundId && !item.round_id && item.fingerprint === fingerprint) {
+      log(`finalize skipped due to duplicate stable fingerprint: ${fingerprint}`);
+      return false;
+    }
+  }
+
+  // Confidence check
+  if (confidence === 'low') {
+    const recentHighOrMedium = state.savedRoundsHistory.some(item => 
+      (now - item.timestamp < 5000) && (item.confidence === 'high' || item.confidence === 'medium')
+    );
+    if (recentHighOrMedium) {
+      log('finalize rejected for low-confidence DOM event since high/medium source was recently saved');
+      return false;
+    }
+  }
+
+  // Record in history cache
+  state.savedRoundsHistory.push({
+    round_id: roundId,
+    fingerprint: fingerprint,
+    confidence: confidence,
+    timestamp: now
+  });
+
+  log(`finalize accepted: ${crashPoint}x via ${event.source || 'unknown'} (confidence: ${confidence})`);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Supabase — direct REST insert (no localhost dependency)
+// ---------------------------------------------------------------------------
 const SUPABASE_URL     = 'https://knynrvsredfqvzcsdgoo.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtueW5ydnNyZWRmcXZ6Y3NkZ29vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyMzgxNDYsImV4cCI6MjA5ODgxNDE0Nn0.6-KjfOLhJbZXUjzFg5PztYbfko6hR9NdRpxcJnLZ09A';
 
@@ -257,10 +321,15 @@ async function saveToSupabase(events) {
     const completedRounds = events.filter(e => e.eventType === 'round_result' && typeof e.multiplier === 'number');
     if (completedRounds.length === 0) return;
 
-    const rows = completedRounds.map(e => ({
+    const uniqueRounds = completedRounds.filter(shouldSaveRound);
+    if (uniqueRounds.length === 0) return;
+
+    const rows = uniqueRounds.map(e => ({
       round_number: e.roundIndex !== null && e.roundIndex !== undefined ? e.roundIndex : Date.now(),
       crash_point: e.multiplier,
       created_at: e.capturedAt || new Date().toISOString(),
+      round_id: e.round_id || null,
+      raw_payload: e.raw_payload ? (typeof e.raw_payload === 'string' ? e.raw_payload : JSON.stringify(e.raw_payload)) : null
     }));
 
     // 🚀 Broadcast to dashboard INSTANTLY via our injected bridge script
@@ -715,7 +784,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case 'CONTENT_READY':
         log('Content script ready in tab', tabId);
-        return { capturing: state.capturing };
+        return {
+          capturing: state.capturing,
+          wsEnabled: CONFIG.WS_INJECTION_ENABLED,
+          debug: state.debugMode,
+        };
 
       case 'CONTENT_RECONNECT':
         // Content script reloaded — resend START if we're capturing
@@ -725,7 +798,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             config: { wsEnabled: CONFIG.WS_INJECTION_ENABLED, debug: state.debugMode },
           }).catch(() => {});
         }
-        return { capturing: state.capturing };
+        return {
+          capturing: state.capturing,
+          wsEnabled: CONFIG.WS_INJECTION_ENABLED,
+          debug: state.debugMode,
+        };
 
       default:
     }

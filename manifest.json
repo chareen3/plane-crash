@@ -40,7 +40,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://lk.1xbet.com/en/games/crash*"],
+      "matches": ["https://lk.1xbet.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle",
       "all_frames": false
