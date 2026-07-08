@@ -532,11 +532,17 @@ function broadcastToPopup(msg) {
 
 async function injectContentScript(tabId) {
   try {
-    await chrome.scripting.executeScript({
-      target: { tabId, allFrames: true },
-      files: ['content.js'],
-    });
-    log('Content script injected into tab (all frames)', tabId);
+    // Ping first — if content script responds, it's already there
+    const response = await chrome.tabs.sendMessage(tabId, { type: 'PING' }).catch(() => null);
+    if (response?.alive) {
+      log('[BG] Content script already active, skipping injection', tabId);
+    } else {
+      await chrome.scripting.executeScript({
+        target: { tabId, allFrames: true },
+        files: ['content.js'],
+      });
+      log('Content script injected into tab (all frames)', tabId);
+    }
 
     // Brief delay to let content script initialise
     await delay(300);
