@@ -6,6 +6,19 @@ import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
+const JetPlaneIcon = ({ className, size = 24 }: { className?: string; size?: number }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    width={size} 
+    height={size} 
+    fill="currentColor" 
+    className={className}
+    style={{ transform: 'rotate(-45deg)' }}
+  >
+    <path d="M12 2L9 9H2L7 13L5 21L12 17L19 21L17 13L22 9H15L12 2Z" />
+  </svg>
+);
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -394,47 +407,33 @@ export default function Dashboard() {
         </nav>
 
         <div className="sidebar-bottom">
-          {/* Dynamic Unified Sidebar Box (Live / Last Crash) */}
-          <div className="sidebar-last-crash-card" style={{ 
-            borderColor: liveData?.state === 'active' ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.05)', 
-            background: liveData?.state === 'active' ? 'rgba(30,41,59,0.5)' : 'rgba(20,20,20,0.5)' 
-          }}>
-            <div className="sidebar-plane-container">
-              <img 
-                src="https://lk.1xbet.com/genfiles/cms/1-285/desktop/media_asset/cfe62b7edd586ad537fdb14cd95172a6.svg" 
-                className="sidebar-plane-img"
-                alt="1xBet Crash Plane"
-                style={{ opacity: liveData?.state === 'active' ? 1 : 0.6 }}
+          {/* Redesigned 1xBet Crash Telemetry Card */}
+          <div className={`live-crash-widget ${liveData?.state === 'active' ? 'widget-active' : 'widget-crashed'}`}>
+            <div className={`widget-game-label ${liveData?.state === 'active' ? 'active' : 'crashed'}`}>
+              1xBet Crash Game
+            </div>
+            
+            <div className={`widget-radar-ring ${liveData?.state === 'active' ? 'active' : ''}`}>
+              <JetPlaneIcon 
+                size={36} 
+                className={`widget-plane-icon ${liveData?.state === 'active' ? 'active' : 'crashed'}`} 
               />
             </div>
-            <div className="sidebar-plane-info">
-              <div className="ssc-label" style={{ 
-                color: liveData?.state === 'active' ? '#38bdf8' : '#ff3366', 
-                fontSize: '9px' 
-              }}>
-                {liveData?.state === 'active' ? 'LIVE ROUND' : 'ROUND CRASHED'}
+
+            <div className="widget-multiplier-box">
+              <div className="widget-state-sub">
+                {liveData?.state === 'active' ? 'LIVE MULTIPLIER' : 'ROUND CRASHED'}
               </div>
-              <div className="ssc-target" style={{
-                color: liveData?.state === 'active' ? '#38bdf8' : 
-                       (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : 
-                       classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366'),
-                fontSize: '32px',
-                fontWeight: '700',
-                fontFamily: 'Rajdhani, sans-serif'
-              }}>
+              <div className={`widget-mult-val ${liveData?.state === 'active' ? 'active' : 'crashed'}`}>
                 {liveData?.state === 'active' ? 
-                  (liveData.multiplierText || '—') : 
+                  (liveData.multiplierText || '1.00x') : 
                   (lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '—')
                 }
               </div>
-              <div className="ssc-stake" style={{ 
-                fontSize: '10px', 
-                color: liveData?.state === 'active' ? '#94a3b8' : '#888', 
-                marginTop: '2px' 
-              }}>
-                {liveData?.state === 'active' ? 'Flying...' : 
-                 liveData?.timerText ? `Next round: ${liveData.timerText}` : 
-                 (lastCrash ? timeAgo(lastCrash.created_at) : 'Waiting...')}
+              <div className="widget-time-ago">
+                {liveData?.state === 'active' ? 'Flying supersonic...' : 
+                 liveData?.timerText ? `Next flight in ${liveData.timerText}s` : 
+                 (lastCrash ? timeAgo(lastCrash.created_at) : 'Telemetry standby')}
               </div>
             </div>
           </div>
@@ -535,39 +534,35 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="drawer-footer">
-          <div className="sidebar-last-crash-card" style={{ 
-            borderColor: liveData?.state === 'active' ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.05)', 
-            background: liveData?.state === 'active' ? 'rgba(30,41,59,0.5)' : 'rgba(20,20,20,0.5)',
-            marginBottom: '0',
-            width: '100%'
-          }}>
-            <div className="sidebar-plane-container">
-              <img 
-                src="https://lk.1xbet.com/genfiles/cms/1-285/desktop/media_asset/cfe62b7edd586ad537fdb14cd95172a6.svg" 
-                className="sidebar-plane-img"
-                alt="1xBet Crash Plane"
-                style={{ opacity: liveData?.state === 'active' ? 1 : 0.6 }}
+        <div className="drawer-footer" style={{ width: '100%' }}>
+          {/* Redesigned 1xBet Crash Telemetry Card */}
+          <div className={`live-crash-widget ${liveData?.state === 'active' ? 'widget-active' : 'widget-crashed'}`} style={{ width: '100%' }}>
+            <div className={`widget-game-label ${liveData?.state === 'active' ? 'active' : 'crashed'}`}>
+              1xBet Crash Game
+            </div>
+            
+            <div className={`widget-radar-ring ${liveData?.state === 'active' ? 'active' : ''}`}>
+              <JetPlaneIcon 
+                size={32} 
+                className={`widget-plane-icon ${liveData?.state === 'active' ? 'active' : 'crashed'}`} 
               />
             </div>
-            <div className="sidebar-plane-info">
-              <div className="ssc-label" style={{ 
-                color: liveData?.state === 'active' ? '#38bdf8' : '#ff3366', 
-                fontSize: '9px' 
-              }}>
-                {liveData?.state === 'active' ? 'LIVE ROUND' : 'ROUND CRASHED'}
+
+            <div className="widget-multiplier-box">
+              <div className="widget-state-sub">
+                {liveData?.state === 'active' ? 'LIVE MULTIPLIER' : 'ROUND CRASHED'}
               </div>
-              <div className="ssc-target" style={{
-                color: liveData?.state === 'active' ? '#38bdf8' : 
-                       (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : 
-                       classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366'),
-                fontSize: '28px',
-              }}>
-                {liveData?.state === 'active' ? (liveData?.multiplierText || '1.00x') : (lastCrash ? Number(lastCrash.crash_point).toFixed(2) + 'x' : '—')}
+              <div className={`widget-mult-val ${liveData?.state === 'active' ? 'active' : 'crashed'}`} style={{ fontSize: '30px' }}>
+                {liveData?.state === 'active' ? 
+                  (liveData.multiplierText || '1.00x') : 
+                  (lastCrash ? `${Number(lastCrash.crash_point).toFixed(2)}x` : '—')
+                }
               </div>
-              {liveData?.state === 'active' && liveData?.timerText && (
-                <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Next in {liveData.timerText}s</div>
-              )}
+              <div className="widget-time-ago">
+                {liveData?.state === 'active' ? 'Flying...' : 
+                 liveData?.timerText ? `Next in ${liveData.timerText}s` : 
+                 (lastCrash ? timeAgo(lastCrash.created_at) : 'Standby')}
+              </div>
             </div>
           </div>
         </div>
@@ -690,19 +685,14 @@ export default function Dashboard() {
         <div className="mobile-live-status-bar">
           <div className="mlsb-container">
             <div className="mlsb-plane-wrapper">
-              <img 
-                src="https://lk.1xbet.com/genfiles/cms/1-285/desktop/media_asset/cfe62b7edd586ad537fdb14cd95172a6.svg" 
-                className="mlsb-plane-img"
-                alt="Plane"
-                style={{ 
-                  opacity: liveData?.state === 'active' ? 1 : 0.6,
-                  filter: liveData?.state === 'active' ? 'drop-shadow(0 0 6px #38bdf8)' : 'grayscale(0.5)'
-                }}
+              <JetPlaneIcon 
+                size={20} 
+                className={liveData?.state === 'active' ? 'widget-plane-icon active' : 'widget-plane-icon crashed'} 
               />
             </div>
             <div className="mlsb-info">
               <span className="mlsb-label">
-                {liveData?.state === 'active' ? 'LIVE MULTIPLIER' : 'LAST CRASH'}
+                1XBET CRASH: {liveData?.state === 'active' ? 'LIVE' : 'LAST'}
               </span>
               <span className="mlsb-val" style={{
                 color: liveData?.state === 'active' ? '#38bdf8' : 
@@ -737,7 +727,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '24px' }}>
+              <div className="live-feed-grid">
                 <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                     <thead>
@@ -814,7 +804,7 @@ export default function Dashboard() {
                 <p style={{ color: '#888', fontSize: '13px', lineHeight: '1.6' }}>Review past crashes to understand market rhythm, spot volatility streaks, and build your intuitive experience.</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+              <div className="history-stats-grid">
                 <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Session Average</span>
                   <span style={{ fontSize: '24px', fontFamily: 'monospace', fontWeight: '800', color: '#fff' }}>{avg}x</span>
@@ -838,7 +828,7 @@ export default function Dashboard() {
                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <BarChart3 size={16} /> Advanced Analytics
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                <div className="analytics-grid">
                   <div>
                     <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Volatility Index</div>
                     <div style={{ fontSize: '18px', fontFamily: 'monospace', color: stats?.volatility === 'high' ? '#ff3366' : '#fff' }}>
@@ -869,7 +859,7 @@ export default function Dashboard() {
               <div className="glass-card" style={{ padding: '24px' }}>
                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} color="#00ffd5" /> Recent Crash Timeline</div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
+                <div className="recent-timeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
                   {rounds.slice(0, 48).map((r) => {
                     const color = r.crash_point < 2 ? '#ff3366' : r.crash_point < 5 ? '#ffd000' : '#00e5a0';
                     const bg = r.crash_point < 2 ? 'rgba(255,51,102,0.1)' : r.crash_point < 5 ? 'rgba(255,208,0,0.1)' : 'rgba(0,229,160,0.1)';
@@ -1038,10 +1028,10 @@ export default function Dashboard() {
               {prediction && stratMeta ? (
                 <div className="hero-banner-3d" style={{ borderColor: stratMeta.color + '60' }} ref={heroRef}>
                   <div className="hero-grid-overlay" />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '24px', position: 'relative', zIndex: 2, transform: 'translateZ(30px)' }}>
+                  <div className="hero-banner-content">
                     <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px' }}>{stratMeta.icon}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ color: stratMeta.color, fontSize: '18px', fontWeight: '800', letterSpacing: '1px' }}>{stratMeta.label}</div>
+                      <div className="hero-banner-title" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
                       <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
                          {prediction.strategy_reason || prediction.skip_reason || 'AI strategy active.'}
                       </div>
@@ -1058,7 +1048,7 @@ export default function Dashboard() {
                     <div style={{ textAlign: 'right', minWidth: '120px' }}>
                       <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Target</div>
                       {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
-                        <div style={{ color: stratMeta.color, fontSize: '42px', fontWeight: '900', fontFamily: 'monospace', lineHeight: 1, marginTop: '4px' }}>
+                        <div className="hero-banner-target" style={{ color: stratMeta.color }}>
                           {Number(prediction.cashout_target).toFixed(2)}x
                         </div>
                       ) : (
@@ -1070,7 +1060,7 @@ export default function Dashboard() {
               ) : (
                 <div className="hero-banner-3d" ref={heroRef} style={{ minHeight: '120px', display: 'flex', alignItems: 'center' }}>
                   <div className="hero-grid-overlay" />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', zIndex: 2, transform: 'translateZ(30px)', width: '100%' }}>
+                  <div className="hero-banner-content" style={{ width: '100%' }}>
                     <div className="spin" style={{ color: '#00ffd5', flexShrink: 0 }}><Orbit size={28} /></div>
                     <div style={{ flex: 1 }}>
                       <div style={{ color: '#00ffd5', letterSpacing: '3px', fontWeight: '800', fontSize: '13px', textTransform: 'uppercase', marginBottom: '6px' }}>⚡ NEURAL ENGINE LOADING</div>
@@ -1089,10 +1079,10 @@ export default function Dashboard() {
 
               {/* AI Prediction Panel */}
               <div className={`glass-card pred-card2 ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
-                <div className="pc2-header">
+                <div className="pc2-header responsive-header">
                   <div className="pc2-title">
-                    <Bot size={16} color="#a78bfa" />
-                    AI RISK COACH & PROBABILITY ESTIMATOR
+                    <Bot size={16} color="#a78bfa" style={{ flexShrink: 0 }} />
+                    <span className="pc2-title-text">AI Risk Coach & Probability Estimator</span>
                   </div>
                   <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
                     {predStatus === 'predicting' ? <><RefreshCw size={11} className="spin" /> Analyzing…</> : predStatus === 'done' ? <><CheckCircle2 size={11} /> Ready</> : 'Waiting'}
@@ -1144,7 +1134,7 @@ export default function Dashboard() {
                     </div>
 
                     {timeData && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'rgba(108,99,255,0.06)', borderRadius: '10px', border: '1px solid rgba(108,99,255,0.15)', margin: '4px 0 14px' }}>
+                      <div className="time-sync-card">
                         <Clock size={16} color="#6c63ff" style={{ flexShrink: 0 }} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: '11px', fontWeight: '800', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1176,7 +1166,7 @@ export default function Dashboard() {
                       </div>
                     ) : (
                       <>
-                        <div className="cashout-targets" style={{ display: 'grid', gridTemplateColumns: prediction.swing_target ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '10px' }}>
+                        <div className={`cashout-targets ${prediction.swing_target ? '' : 'single'}`}>
                           {(() => {
                             const targetVal = prediction.cashout_target || (stats ? stats.conservativeCashout : 1.10);
                             const tStats = getTargetStats(targetVal);
@@ -1331,7 +1321,7 @@ export default function Dashboard() {
                 <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                   <Zap size={14} color="#a78bfa" /> AI Data Stream
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="ai-stream-grid">
                   <div style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: 0, right: 0, width: '40px', height: '40px', background: 'radial-gradient(circle, rgba(0,229,160,0.2) 0%, transparent 70%)' }}></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9px', textTransform: 'uppercase', color: '#888', marginBottom: '8px', letterSpacing: '1px' }}><Activity size={12} color="#00e5a0" /> Live Engine State</div>
