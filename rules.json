@@ -1,16 +1,1 @@
-[
-  {
-    "id": 1,
-    "priority": 100,
-    "action": {
-      "type": "redirect",
-      "redirect": {
-        "url": "https://lk.1xbet.com/en/games/crash"
-      }
-    },
-    "condition": {
-      "regexFilter": "^https://1xlite-[^.]+\\.pro/en/games/crash(?:[/?#].*)?$",
-      "resourceTypes": ["main_frame"]
-    }
-  }
-]
+[]

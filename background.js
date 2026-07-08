@@ -793,18 +793,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // Tab events — detect navigation/reload of captured tab
 // ---------------------------------------------------------------------------
 
-// Fallback redirect for 1xlite domains bypassing declarativeNetRequest rules
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (!changeInfo.url) return;
-
-  const badUrl = /^https:\/\/1xlite-[^.]+\.pro\/en\/games\/crash(?:[/?#].*)?$/i;
-  const targetUrl = "https://lk.1xbet.com/en/games/crash";
-
-  if (badUrl.test(changeInfo.url)) {
-    log('Fallback redirecting bad URL:', changeInfo.url, 'to:', targetUrl);
-    chrome.tabs.update(tabId, { url: targetUrl });
-  }
-});
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!state.capturing || tabId !== state.tabId) return;
