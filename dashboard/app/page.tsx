@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
@@ -95,6 +95,7 @@ export default function Dashboard() {
   const lastPredictedRoundRef = useRef<number>(-1);
   const [currency, setCurrency] = useState<'USD' | 'LKR' | 'INR' | 'BRL'>('USD');
   const [activeGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
   const [latency, setLatency] = useState<number>(0);
   const lastMessageTimeRef = useRef<number>(Date.now());
@@ -372,8 +373,8 @@ export default function Dashboard() {
 
   return (
     <div className="dash-shell">
-      {/* ─── SIDEBAR ─── */}
-      <aside className="sidebar">
+      {/* ─── DESKTOP SIDEBAR ─── */}
+      <aside className="sidebar desktop-sidebar">
         <div className="sidebar-logo">
           <Orbit size={22} color="#00ffd5" />
           <span className="sidebar-logo-text">CrashAI</span>
@@ -440,10 +441,142 @@ export default function Dashboard() {
         </div>
       </aside>
 
+      {/* ─── MOBILE DRAWER (SLIDE-IN SIDEBAR) ─── */}
+      <div className={`mobile-drawer-backdrop ${mobileDrawerOpen ? 'open' : ''}`} onClick={() => setMobileDrawerOpen(false)} />
+      <div className={`mobile-drawer ${mobileDrawerOpen ? 'open' : ''}`}>
+        <div className="drawer-header">
+          <div className="sidebar-logo">
+            <Orbit size={22} color="#00ffd5" />
+            <span className="sidebar-logo-text">CrashAI</span>
+          </div>
+          <button className="drawer-close" onClick={() => setMobileDrawerOpen(false)}>
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="drawer-content">
+          <div className="drawer-section">
+            <h4 className="drawer-section-title">Connection Status</h4>
+            {connectionStatus === 'connected' ? (
+              <div className="live-badge connected" style={{ borderColor: 'rgba(0,229,160,0.25)', color: '#00e5a0', background: 'rgba(0,229,160,0.1)' }}>
+                <span className="live-dot synced" style={{ background: '#00e5a0', boxShadow: '0 0 6px #00e5a0', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>SYNCED</span>
+                  {latency > 0 && <span style={{ fontSize: '9px', opacity: 0.7, background: 'rgba(0,229,160,0.15)', padding: '2px 6px', borderRadius: '10px' }}>{latency}ms</span>}
+                </div>
+              </div>
+            ) : connectionStatus === 'connecting' ? (
+              <div className="live-badge connecting" style={{ borderColor: 'rgba(255,208,0,0.25)', color: '#ffd000', background: 'rgba(255,208,0,0.1)' }}>
+                <span className="live-dot trying" style={{ background: '#ffd000', boxShadow: '0 0 6px #ffd000', animation: 'pulse 1.5s infinite' }} />
+                <span>CONNECTING...</span>
+              </div>
+            ) : (
+              <div className="live-badge disconnected" style={{ borderColor: 'rgba(255,51,102,0.25)', color: '#ff3366', background: 'rgba(255,51,102,0.1)' }}>
+                <span className="live-dot off" style={{ background: '#ff3366' }} />
+                <span>DISCONNECTED</span>
+              </div>
+            )}
+            
+            {connectionStatus !== 'connected' && (
+              <button 
+                className="top-btn reconnect-btn" 
+                onClick={() => {
+                  triggerReconnect();
+                  setMobileDrawerOpen(false);
+                }} 
+                style={{ width: '100%', marginTop: '8px', justifyContent: 'center' }}
+              >
+                <RefreshCw size={14} className={connectionStatus === 'connecting' ? 'spin' : ''} />
+                Reconnect Sync
+              </button>
+            )}
+          </div>
+          
+          <div className="drawer-section">
+            <h4 className="drawer-section-title">Preferences</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Select Currency</span>
+                <select
+                  value={currency}
+                  onChange={(e) => handleCurrencyChange(e.target.value as any)}
+                  className="currency-select"
+                  style={{ width: 'auto', background: 'rgba(255,255,255,0.05)' }}
+                >
+                  {Object.entries(CURRENCIES).map(([k, v]) => (
+                    <option key={k} value={k} style={{ background: '#0f111a' }}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+              {betAmount && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>Bet Size</span>
+                  <span className="bet-badge">
+                    <Coins size={13} color="#ffd000" style={{ marginRight: '4px' }} />
+                    {betAmount} USD
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="drawer-section">
+            <h4 className="drawer-section-title">System Actions</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button className="top-btn" style={{ width: '100%', justifyContent: 'center' }} onClick={async () => {
+                if (confirm('Clear all data?')) {
+                  await fetch('/api/reset', { method: 'POST' });
+                  window.location.reload();
+                }
+              }}>
+                <Trash2 size={14} /> Clear Cached Data
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="drawer-footer">
+          <div className="sidebar-last-crash-card" style={{ 
+            borderColor: liveData?.state === 'active' ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.05)', 
+            background: liveData?.state === 'active' ? 'rgba(30,41,59,0.5)' : 'rgba(20,20,20,0.5)',
+            marginBottom: '0',
+            width: '100%'
+          }}>
+            <div className="sidebar-plane-container">
+              <img 
+                src="https://lk.1xbet.com/genfiles/cms/1-285/desktop/media_asset/cfe62b7edd586ad537fdb14cd95172a6.svg" 
+                className="sidebar-plane-img"
+                alt="1xBet Crash Plane"
+                style={{ opacity: liveData?.state === 'active' ? 1 : 0.6 }}
+              />
+            </div>
+            <div className="sidebar-plane-info">
+              <div className="ssc-label" style={{ 
+                color: liveData?.state === 'active' ? '#38bdf8' : '#ff3366', 
+                fontSize: '9px' 
+              }}>
+                {liveData?.state === 'active' ? 'LIVE ROUND' : 'ROUND CRASHED'}
+              </div>
+              <div className="ssc-target" style={{
+                color: liveData?.state === 'active' ? '#38bdf8' : 
+                       (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : 
+                       classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366'),
+                fontSize: '28px',
+              }}>
+                {liveData?.state === 'active' ? (liveData?.multiplierText || '1.00x') : (lastCrash ? Number(lastCrash.crash_point).toFixed(2) + 'x' : '—')}
+              </div>
+              {liveData?.state === 'active' && liveData?.timerText && (
+                <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Next in {liveData.timerText}s</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ─── MAIN CONTENT ─── */}
       <div className="dash-main">
-        {/* ─── TOP BAR ─── */}
-        <header className="dash-topbar">
+        {/* ─── DESKTOP TOP BAR ─── */}
+        <header className="dash-topbar desktop-header">
           <div className="dash-topbar-title">
             <Bot size={18} color="#00ffd5" />
             <span>AI Crash Tracker</span>
@@ -527,6 +660,63 @@ export default function Dashboard() {
             </button>
           </div>
         </header>
+
+        {/* ─── MOBILE TOP BAR ─── */}
+        <header className="dash-topbar mobile-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button className="mobile-menu-btn" onClick={() => setMobileDrawerOpen(true)}>
+              <Menu size={22} color="#fff" />
+            </button>
+            <div className="dash-topbar-title">
+              <Orbit size={20} color="#00ffd5" />
+              <span className="sidebar-logo-text">CrashAI</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {connectionStatus === 'connected' ? (
+              <span className="mobile-status-dot connected" title={`Synced: ${latency}ms`} />
+            ) : (
+              <span className="mobile-status-dot disconnected" title="Disconnected" />
+            )}
+
+            <button className="mobile-action-btn" onClick={() => runPrediction()} disabled={isPredicting || rounds.length === 0}>
+              {isPredicting ? <RefreshCw size={14} className="spin" color="#00ffd5" /> : <Zap size={14} color="#00ffd5" />}
+            </button>
+          </div>
+        </header>
+
+        {/* ─── MOBILE LIVE STATUS BAR ─── */}
+        <div className="mobile-live-status-bar">
+          <div className="mlsb-container">
+            <div className="mlsb-plane-wrapper">
+              <img 
+                src="https://lk.1xbet.com/genfiles/cms/1-285/desktop/media_asset/cfe62b7edd586ad537fdb14cd95172a6.svg" 
+                className="mlsb-plane-img"
+                alt="Plane"
+                style={{ 
+                  opacity: liveData?.state === 'active' ? 1 : 0.6,
+                  filter: liveData?.state === 'active' ? 'drop-shadow(0 0 6px #38bdf8)' : 'grayscale(0.5)'
+                }}
+              />
+            </div>
+            <div className="mlsb-info">
+              <span className="mlsb-label">
+                {liveData?.state === 'active' ? 'LIVE MULTIPLIER' : 'LAST CRASH'}
+              </span>
+              <span className="mlsb-val" style={{
+                color: liveData?.state === 'active' ? '#38bdf8' : 
+                       (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' : 
+                       classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366')
+              }}>
+                {liveData?.state === 'active' ? (liveData?.multiplierText || '1.00x') : (lastCrash ? Number(lastCrash.crash_point).toFixed(2) + 'x' : '—')}
+              </span>
+            </div>
+            {liveData?.state === 'active' && liveData?.timerText && (
+              <div className="mlsb-timer">Next: {liveData.timerText}s</div>
+            )}
+          </div>
+        </div>
 
         {/* ─── BODY ─── */}
         <div className="dash-body">
@@ -1283,6 +1473,25 @@ export default function Dashboard() {
                 &times;
               </button>
             </div>
+          );
+        })}
+      </div>
+
+      {/* ─── BOTTOM TAB BAR (MOBILE ONLY) ─── */}
+      <div className="mobile-tabbar">
+        {navItems.map(item => {
+          const isActive = activeNav === item.id;
+          return (
+            <button
+              key={item.id}
+              className={`mobile-tab-item ${isActive ? 'active' : ''}`}
+              onClick={() => setActiveNav(item.id)}
+            >
+              <div className="tab-icon-wrapper">
+                {item.icon}
+              </div>
+              <span className="tab-label">{item.label}</span>
+            </button>
           );
         })}
       </div>
