@@ -80,16 +80,18 @@ export async function POST(request: Request) {
     let wasCorrect = null;
     const { data: pred, error: fetchErr } = await supabase
       .from('predictions')
-      .select('id, predicted_risk')
+      .select('id, predicted_risk, cashout_target')
       .eq('round_number', roundNumber)
       .is('was_correct', null)
+      .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (!fetchErr && pred) {
       wasCorrect = gradePrediction(
         pred.predicted_risk as 'LOW' | 'MEDIUM' | 'HIGH',
-        crashPoint
+        crashPoint,
+        pred.cashout_target
       );
 
       const { error: updateErr } = await supabase
@@ -198,7 +200,7 @@ export async function POST(request: Request) {
     // 6. Save the next prediction to Supabase
     const { data: insertedPred, error: predErr } = await supabase
       .from('predictions')
-      .insert({
+      .upsert({
         predicted_risk:       aiRisk,
         confidence:           aiConfidence,
         summary:              aiSummary,
@@ -214,7 +216,7 @@ export async function POST(request: Request) {
         swing_target:         swingTarget,
         volatility_phase:     volatilityPhase,
         recommended_stake_pct: recommendedStakePct,
-      })
+      }, { onConflict: 'round_number', ignoreDuplicates: false })
       .select()
       .maybeSingle();
 

@@ -25,18 +25,18 @@ const CONFIG = {
   /** Max events kept in storage (rolling window) */
   MAX_STORED_EVENTS: 5000,
   /** Enable WebSocket injection feature (disabled by default) */
-  WS_INJECTION_ENABLED: true,
+  WS_INJECTION_ENABLED: false,
   /** Storage key prefix */
   KEY_PREFIX: 'cac_',
 };
 
 const STORAGE_KEYS = {
-  EVENTS:        'cac_events',
-  SUMMARIES:     'cac_summaries',
+  EVENTS: 'cac_events',
+  SUMMARIES: 'cac_summaries',
   CAPTURE_STATE: 'cac_capture_state',
   SESSION_START: 'cac_session_start',
-  DEBUG_MODE:    'cac_debug_mode',
-  STATS:         'cac_stats',
+  DEBUG_MODE: 'cac_debug_mode',
+  STATS: 'cac_stats',
 };
 
 // ---------------------------------------------------------------------------
@@ -68,13 +68,13 @@ chrome.storage.local.get([
   STORAGE_KEYS.DEBUG_MODE,
   STORAGE_KEYS.STATS,
 ]).then((data) => {
-  state.debugMode    = !!data[STORAGE_KEYS.DEBUG_MODE];
-  state.capturing    = !!data[STORAGE_KEYS.CAPTURE_STATE];
+  state.debugMode = !!data[STORAGE_KEYS.DEBUG_MODE];
+  state.capturing = !!data[STORAGE_KEYS.CAPTURE_STATE];
   state.sessionStart = data[STORAGE_KEYS.SESSION_START] || null;
   if (data[STORAGE_KEYS.STATS]) {
     Object.assign(state.stats, data[STORAGE_KEYS.STATS]);
   }
-  
+
   if (state.capturing) {
     log('Resuming flush timer on SW wake-up');
     startFlushTimer();
@@ -91,11 +91,11 @@ function startHeartbeat() {
   heartbeatTimer = setInterval(() => {
     chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
       if (tabs) tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, { 
+        chrome.tabs.sendMessage(tab.id, {
           type: 'EXTENSION_HEARTBEAT',
           capturing: state.capturing,
           stats: state.stats
-        }).catch(() => {});
+        }).catch(() => { });
       });
     });
   }, 5000);
@@ -305,11 +305,11 @@ async function saveToSupabase(events) {
       chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
         if (tabs) tabs.forEach(tab => {
           rows.forEach(row => {
-            chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => {});
+            chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => { });
           });
         });
       });
-    } catch (_) {}
+    } catch (_) { }
 
     const response = await fetch(`${SUPABASE_URL}/rest/v1/crash_rounds`, {
       method: 'POST',
@@ -339,7 +339,7 @@ function compileRoundSummary(roundIndex, events) {
 
   roundEvents.sort((a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime());
   const first = roundEvents[0];
-  const last  = roundEvents[roundEvents.length - 1];
+  const last = roundEvents[roundEvents.length - 1];
 
   const resultEv = roundEvents.find(e => e.eventType === 'round_result');
   const finalMult = resultEv?.multiplier ?? last?.multiplier ?? null;
@@ -354,8 +354,8 @@ function compileRoundSummary(roundIndex, events) {
     )
   );
 
-  const startedAt  = first.capturedAt;
-  const endedAt    = last.capturedAt;
+  const startedAt = first.capturedAt;
+  const endedAt = last.capturedAt;
   const durationMs = endedAt && startedAt
     ? new Date(endedAt).getTime() - new Date(startedAt).getTime()
     : null;
@@ -397,7 +397,7 @@ async function postRoundResultToDashboard(roundEvent) {
     if (res.ok) {
       const data = await res.json();
       log('Successfully sent crash round to dashboard and ran prediction:', data);
-      
+
       // Broadcast the updated state and prediction directly to the dashboard tabs!
       if (data.success && data.round && data.prediction) {
         chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
@@ -407,7 +407,7 @@ async function postRoundResultToDashboard(roundEvent) {
               round: data.round,
               prediction: data.prediction,
               stats: data.stats
-            }).catch(() => {});
+            }).catch(() => { });
           });
         });
       }
@@ -427,28 +427,28 @@ function ingestEvent(rawEvent) {
   if (!state.capturing) return;
 
   const event = {
-    id:             generateId(),
-    capturedAt:     rawEvent.capturedAt || new Date().toISOString(),
-    pageUrl:        rawEvent.pageUrl    || state.tabUrl || '',
-    pageTitle:      rawEvent.pageTitle  || '',
-    source:         rawEvent.source     || 'dom',
-    eventType:      rawEvent.eventType  || 'unknown',
-    roundIndex:     rawEvent.roundIndex ?? null,
-    multiplier:     rawEvent.multiplier ?? null,
+    id: generateId(),
+    capturedAt: rawEvent.capturedAt || new Date().toISOString(),
+    pageUrl: rawEvent.pageUrl || state.tabUrl || '',
+    pageTitle: rawEvent.pageTitle || '',
+    source: rawEvent.source || 'dom',
+    eventType: rawEvent.eventType || 'unknown',
+    roundIndex: rawEvent.roundIndex ?? null,
+    multiplier: rawEvent.multiplier ?? null,
     multiplierText: rawEvent.multiplierText || null,
-    historyValues:  rawEvent.historyValues  || null,
-    currentTimer:   rawEvent.currentTimer   || null,
-    roundState:     rawEvent.roundState     || null,
-    betAmountText:  rawEvent.betAmountText  || null,
-    cashoutText:    rawEvent.cashoutText    || null,
-    autoCashoutText:rawEvent.autoCashoutText|| null,
-    buttonLabels:   rawEvent.buttonLabels   || null,
-    visibleLabels:  rawEvent.visibleLabels  || null,
-    rawTextSample:  rawEvent.rawTextSample  || null,
-    rawPayload:     rawEvent.rawPayload     || null,
-    domPath:        rawEvent.domPath        || null,
-    fingerprint:    null,
-    roundSummary:   rawEvent.roundSummary   || null,
+    historyValues: rawEvent.historyValues || null,
+    currentTimer: rawEvent.currentTimer || null,
+    roundState: rawEvent.roundState || null,
+    betAmountText: rawEvent.betAmountText || null,
+    cashoutText: rawEvent.cashoutText || null,
+    autoCashoutText: rawEvent.autoCashoutText || null,
+    buttonLabels: rawEvent.buttonLabels || null,
+    visibleLabels: rawEvent.visibleLabels || null,
+    rawTextSample: rawEvent.rawTextSample || null,
+    rawPayload: rawEvent.rawPayload || null,
+    domPath: rawEvent.domPath || null,
+    fingerprint: null,
+    roundSummary: rawEvent.roundSummary || null,
   };
 
   // Build fingerprint and dedup
@@ -568,11 +568,11 @@ async function startCapture(tabId, tabUrl) {
     await stopCapture();
   }
 
-  state.capturing  = true;
-  state.tabId      = tabId;
-  state.tabUrl     = tabUrl;
+  state.capturing = true;
+  state.tabId = tabId;
+  state.tabUrl = tabUrl;
   state.sessionStart = Date.now();
-  state.buffer     = [];
+  state.buffer = [];
   // Don't reset seenFingerprints to avoid re-ingesting on reconnect
 
   await chrome.storage.local.set({
@@ -611,7 +611,7 @@ async function exportData() {
     // Final flush first
     await flushBuffer();
 
-    const events    = await loadEvents();
+    const events = await loadEvents();
     const summaries = await loadSummaries();
 
     if (events.length === 0) {
@@ -619,18 +619,18 @@ async function exportData() {
     }
 
     const exportObj = {
-      exportedAt:    new Date().toISOString(),
-      version:       '1.0.0',
-      totalEvents:   events.length,
-      totalSummaries:summaries.length,
-      disclaimer:    'This data was collected for analytics/research only. It does not predict future game outcomes.',
+      exportedAt: new Date().toISOString(),
+      version: '1.0.0',
+      totalEvents: events.length,
+      totalSummaries: summaries.length,
+      disclaimer: 'This data was collected for analytics/research only. It does not predict future game outcomes.',
       events,
       roundSummaries: summaries,
     };
 
-    const json     = JSON.stringify(exportObj, null, 2);
-    const blob     = new Blob([json], { type: 'application/json' });
-    const url      = URL.createObjectURL(blob);
+    const json = JSON.stringify(exportObj, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const filename = `crash-auto-collector-${fileTimestamp()}.json`;
 
     await chrome.downloads.download({
@@ -695,9 +695,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case 'GET_STATUS':
         return {
-          capturing:    state.capturing,
+          capturing: state.capturing,
           sessionStart: state.sessionStart,
-          stats:        { ...state.stats },
+          stats: { ...state.stats },
         };
 
       case 'DASHBOARD_OPENED':
@@ -707,11 +707,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         // Service worker has been woken up. Send immediate heartbeat/status back to all dashboard tabs
         chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, { 
-              type: 'EXTENSION_HEARTBEAT', 
-              capturing: state.capturing, 
-              stats: state.stats 
-            }).catch(() => {});
+            chrome.tabs.sendMessage(tab.id, {
+              type: 'EXTENSION_HEARTBEAT',
+              capturing: state.capturing,
+              stats: state.stats
+            }).catch(() => { });
           });
         });
         return { success: true, capturing: state.capturing };
@@ -721,7 +721,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         await chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: state.debugMode });
         // Propagate to content script
         if (state.tabId) {
-           chrome.tabs.sendMessage(state.tabId, { type: 'SET_DEBUG', debug: state.debugMode }).catch(() => {});
+          chrome.tabs.sendMessage(state.tabId, { type: 'SET_DEBUG', debug: state.debugMode }).catch(() => { });
         }
         return { success: true };
 
@@ -745,7 +745,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_BET_CHANGE',
               amount: msg.amount
-            }).catch(() => {});
+            }).catch(() => { });
           });
         });
         return { received: true };
@@ -760,7 +760,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           chrome.tabs.sendMessage(tabId, {
             type: 'START_COLLECTION',
             config: { wsEnabled: CONFIG.WS_INJECTION_ENABLED, debug: state.debugMode },
-          }).catch(() => {});
+          }).catch(() => { });
         }
         return { capturing: state.capturing };
 

@@ -486,10 +486,19 @@ function emptyStats(): CrashStats {
 /**
  * Grade a prediction: was the risk label correct for the actual outcome?
  */
-export function gradePrediction(predicted: 'LOW' | 'MEDIUM' | 'HIGH', actual: number): boolean {
-  if (predicted === 'HIGH')    return actual < 2;
-  if (predicted === 'MEDIUM') return actual >= 2 && actual < 5;
-  if (predicted === 'LOW')   return actual >= 5;
+export function gradePrediction(
+  risk: 'LOW' | 'MEDIUM' | 'HIGH',
+  actualCrash: number,
+  cashoutTarget?: number | null
+): boolean {
+  // Primary: did the cashout target get hit?
+  if (cashoutTarget && cashoutTarget > 1.0) {
+    return actualCrash >= cashoutTarget; // ✅ real accuracy
+  }
+  // Fallback: risk-based
+  if (risk === 'LOW')    return actualCrash >= 2.0;
+  if (risk === 'MEDIUM') return actualCrash >= 1.5 && actualCrash < 4.0;
+  if (risk === 'HIGH')   return actualCrash < 1.5;
   return false;
 }
 
