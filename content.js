@@ -498,31 +498,47 @@ function enqueueEvent(event) {
 
 function flushToBackground() {
   if (!cState.buffer.length) return;
-  const batch = cState.buffer.splice(0, cState.buffer.length);
+
+  // ✅ Peek — don't splice yet
+  const batch = [...cState.buffer];
 
   try {
-    chrome.runtime.sendMessage({ type: 'BATCH_EVENTS', events: batch })
-      .catch(e => {
-        warn('Failed to send batch:', e.message);
-        // Re-enqueue if background is not reachable yet
-        cState.buffer.unshift(...batch);
-      });
+    const sendPromise = chrome.runtime.sendMessage({ type: 'BATCH_EVENTS', events: batch });
+
+    if (sendPromise && typeof sendPromise.then === 'function') {
+      sendPromise
+        .then(() => {
+          // ✅ Only remove items AFTER confirmed delivery
+          cState.buffer.splice(0, batch.length);
+        })
+        .catch(e => {
+          warn('Failed to send batch (will retry):', e.message);
+          if (
+            e.message &&
+            (e.message.includes('Extension context invalidated') ||
+             e.message.includes('Could not establish connection'))
+          ) {
+            warn('Extension reloaded — this batch is lost. Refresh the page to reconnect fully.');
+            cState.active = false;
+            cState.buffer = []; // context is gone — nothing recoverable
+          }
+          // Otherwise leave buffer intact for the next 3s flush retry
+        });
+    } else {
+      // Synchronous path — assume delivered
+      cState.buffer.splice(0, batch.length);
+    }
   } catch (err) {
     if (err.message && err.message.includes('Extension context invalidated')) {
-      warn('Extension updated or reloaded. Stopping observer. Please refresh the page.');
+      warn('Extension context invalidated (sync). Stopping. Please refresh the page.');
       cState.active = false;
+      cState.buffer = [];
     } else {
-      warn('Failed to send batch (sync error):', err.message);
-      cState.buffer.unshift(...batch);
+      warn('Failed to send batch (sync error, will retry):', err.message);
+      // Leave buffer intact — next flushTimer tick will retry
     }
   }
 }
-
-// Throttled version of capturing multiplier changes
-const throttledMultiplierCapture = throttle(() => {
-  const ev = captureMultiplierTick();
-  if (ev) enqueueEvent(ev);
-}, 500); // at most once per 500ms
 
 function throttle(fn, limit) {
   let last = 0;
@@ -544,6 +560,12 @@ function debouncedSnapshot(delay = 600) {
     enqueueEvent(snap);
   }, delay);
 }
+
+// Throttled version of capturing multiplier changes
+const throttledMultiplierCapture = throttle(() => {
+  const ev = captureMultiplierTick();
+  if (ev) enqueueEvent(ev);
+}, 500); // at most once per 500ms
 
 // ---------------------------------------------------------------------------
 // MutationObserver setup
