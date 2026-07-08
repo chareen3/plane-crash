@@ -764,6 +764,28 @@ function injectWSListener() {
       source:     'websocket',
       rawPayload: JSON.stringify(evt.data.payload).slice(0, 1000),
     });
+    
+    // Log the payload to the console so we can analyze the 1xBet structure
+    console.log('[CAC WS INCEPT]', evt.data.payload);
+
+    let rawStr = evt.data.payload;
+    if (typeof rawStr === 'string' && rawStr.includes('OnCrash')) {
+       try {
+         // SignalR payloads end with the ASCII record separator \x1e
+         const cleanStr = rawStr.replace(/\x1e$/, '');
+         const msg = JSON.parse(cleanStr);
+         if (msg.target === 'OnCrash' && msg.arguments && msg.arguments[0]) {
+           const crashMult = msg.arguments[0].f;
+           if (crashMult) {
+             console.log('[CAC WS PARSED] Real WS Crash Detected:', crashMult);
+             fireCrashResult(crashMult, 'websocket');
+           }
+         }
+       } catch (err) {
+         console.warn('[CAC WS ERROR] Failed to parse 1xBet WS payload', err);
+       }
+    }
+
     enqueueEvent(event);
   }, false);
 }
@@ -781,9 +803,7 @@ function startCollection(config = {}) {
 
   log('Collection started. WS injection:', cState.wsEnabled);
 
-  if (cState.wsEnabled) {
-    injectWSListener();
-  }
+  log('Collection started.');
 
   tryStartObserver();
 
@@ -879,6 +899,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 })();
 
 log('Content script loaded on', location.href);
+
+// ---------------------------------------------------------------------------
+// Early WebSocket Injection
+// ---------------------------------------------------------------------------
+// Inject the WebSocket listener immediately on script load so it beats the SPA
+injectWSListener();
 
 // ---------------------------------------------------------------------------
 // Keepalive port — auto-reconnect on SW idle (MV3 service worker wakes up

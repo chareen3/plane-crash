@@ -41,6 +41,16 @@
   "content_scripts": [
     {
       "matches": [
+        "https://lk.1xbet.com/en/games/crash*",
+        "https://lk.1xbet.com/games-frame/*",
+        "https://*.1xbet.com/games-frame/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
         "https://plane-crash.vercel.app/*",
         "http://localhost:3000/*",
         "http://127.0.0.1:3000/*"
