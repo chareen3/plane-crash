@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { computeStats, computeBetSignal } from '../../../lib/stats';
-import { PEAK_HOURS_UTC, buildPrompt, callAI } from '../../../lib/ai';
+import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData } from '../../../lib/ai';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -52,13 +52,7 @@ export async function GET(request: Request) {
     const stats = computeStats(values);
     const betSignal = computeBetSignal(stats, gameType);
 
-    const now = new Date();
-    const timeData = {
-      currentUTCHour: now.getUTCHours(),
-      currentLocalHour: now.getHours(),
-      currentAMPM: now.getHours() >= 12 ? 'PM' : 'AM',
-      peakHours: PEAK_HOURS_UTC,
-    };
+    const timeData = getLKTimeData();
 
     // Return cached pred but with fresh stats
     if (existingPred) {

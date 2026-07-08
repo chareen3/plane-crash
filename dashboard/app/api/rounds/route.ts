@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { computeStats, gradePrediction, computeBetSignal } from '../../../lib/stats';
-import { PEAK_HOURS_UTC, buildPrompt, callAI } from '../../../lib/ai';
+import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData } from '../../../lib/ai';
 
 
 const supabase = createClient(
@@ -133,13 +133,7 @@ export async function POST(request: Request) {
     const nextRoundNumber = roundNumber + 1;
 
     // Time context
-    const now = new Date();
-    const timeData = {
-      currentUTCHour: now.getUTCHours(),
-      currentLocalHour: now.getHours(),
-      currentAMPM: now.getHours() >= 12 ? 'PM' : 'AM',
-      peakHours: PEAK_HOURS_UTC,
-    };
+    const timeData = getLKTimeData();
 
     // Stats-only fallbacks
     let aiRisk = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
