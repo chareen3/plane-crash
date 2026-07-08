@@ -215,7 +215,7 @@ function queryAll(selectors, root = document) {
       }
     } catch (_) { /* invalid selector — skip */ }
   }
-  return [];
+  return []
 }
 
 /**
@@ -879,15 +879,64 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 log('Content script loaded on', location.href);
 
-// Self-destruct gracefully when extension reloads
-try {
-  const _port = chrome.runtime.connect({ name: 'content-keepalive' });
-  _port.onDisconnect.addListener(() => {
-    warn('Background disconnected — context invalidated. Halting.');
-    stopObserver();
-    clearTimers();
-    cState.active = false;
-  });
-} catch (err) {
-  // Ignore error if context was already dead on load
-}
+// ---------------------------------------------------------------------------
+// Keepalive port — auto-reconnect on SW idle (MV3 service worker wakes up
+// after ~5 min of inactivity and the port disconnects; we reconnect instead
+// of halting collection permanently).
+// ---------------------------------------------------------------------------
+(function initKeepalivePort() {
+  let _port = null;
+  let _reconnectTimer = null;
+  // Track whether this is a genuine extension reload (context gone)
+  // vs. a normal SW idle disconnect (context still valid)
+  const MAX_RECONNECT_ATTEMPTS = 10;
+  let _reconnectAttempts = 0;
+
+  function connectPort() {
+    if (!isContextValid()) return; // extension was unloaded — give up
+    try {
+      _port = chrome.runtime.connect({ name: 'content-keepalive' });
+      _reconnectAttempts = 0; // reset on successful connect
+      log('Keepalive port connected');
+
+      _port.onDisconnect.addListener(() => {
+        _port = null;
+
+        // chrome.runtime.lastError is set when context is truly gone
+        const err = chrome.runtime?.lastError;
+        const isGone = err && (
+          err.message?.includes('Extension context invalidated') ||
+          err.message?.includes('Extension has been disabled')
+        );
+
+        if (isGone || !isContextValid()) {
+          // Extension was actually unloaded — halt and warn user
+          warn('Extension unloaded — context invalidated. Halting. Please refresh the page.');
+          stopObserver();
+          clearTimers();
+          cState.active = false;
+          return;
+        }
+
+        // SW idled out — reconnect after a short delay
+        _reconnectAttempts++;
+        if (_reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+          warn('Too many reconnect attempts. Halting. Please refresh the page.');
+          stopObserver();
+          clearTimers();
+          cState.active = false;
+          return;
+        }
+
+        log(`Keepalive port disconnected (SW idle). Reconnecting in 1s (attempt ${_reconnectAttempts})...`);
+        clearTimeout(_reconnectTimer);
+        _reconnectTimer = setTimeout(connectPort, 1000);
+      });
+    } catch (err) {
+      // Ignore — context may have been invalidated at the moment of connect
+      log('connectPort error (ignored):', err.message);
+    }
+  }
+
+  connectPort();
+})();
