@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { computeStats, gradePrediction, computeBetSignal } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData } from '../../../lib/ai';
+import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
 
 const supabase = createClient(
@@ -42,7 +43,9 @@ export async function POST(request: Request) {
       .insert({
         round_number: roundNumber,
         crash_point: crashPoint,
-        created_at: round.created_at || new Date().toISOString()
+        created_at: round.created_at || new Date().toISOString(),
+        duration_ms: round.duration_ms || (summary ? summary.duration_ms : null),
+        source: round.source || 'extension'
       })
       .select()
       .single();

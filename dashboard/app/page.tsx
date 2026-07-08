@@ -192,7 +192,6 @@ export default function Dashboard() {
         type === 'EXTENSION_CRASH_LIVE' ||
         type === 'NEW_CRASH'
       ) {
-        missedPongsRef.current = 0;
         lastMessageTimeRef.current = Date.now();
         setIsExtensionConnected(true);
       }

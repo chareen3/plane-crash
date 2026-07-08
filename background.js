@@ -25,7 +25,7 @@ const CONFIG = {
   /** Max events kept in storage (rolling window) */
   MAX_STORED_EVENTS: 5000,
   /** Enable WebSocket injection feature (disabled by default) */
-  WS_INJECTION_ENABLED: false,
+  WS_INJECTION_ENABLED: true,
   /** Storage key prefix */
   KEY_PREFIX: 'cac_',
 };
@@ -249,19 +249,56 @@ async function flushBuffer() {
 // ---------------------------------------------------------------------------
 // Supabase — direct REST insert (no localhost dependency)
 // ---------------------------------------------------------------------------
-const SUPABASE_URL     = 'https://knynrvsredfqvzcsdgoo.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtueW5ydnNyZWRmcXZ6Y3NkZ29vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyMzgxNDYsImV4cCI6MjA5ODgxNDE0Nn0.6-KjfOLhJbZXUjzFg5PztYbfko6hR9NdRpxcJnLZ09A';
+const SUPABASE_URL = 'https://knynrvsredfqvzcsdgoo.supabase.co';
+let cachedAnonKey = null;
+
+async function loadSupabaseKey() {
+  if (cachedAnonKey) return cachedAnonKey;
+
+  // Try loading from local storage first
+  const stored = await chrome.storage.local.get('supabase_anon_key');
+  if (stored && stored.supabase_anon_key) {
+    cachedAnonKey = stored.supabase_anon_key;
+    return cachedAnonKey;
+  }
+
+  // Fetch key from our own Vercel API
+  try {
+    const res = await fetch('https://plane-crash.vercel.app/api/config');
+    const { key } = await res.json();
+    if (key) {
+      cachedAnonKey = key;
+      await chrome.storage.local.set({ supabase_anon_key: key });
+      return key;
+    }
+  } catch (err) {
+    warn('Failed to load Supabase key from Vercel config endpoint:', err);
+  }
+
+  return null;
+}
 
 async function saveToSupabase(events) {
   try {
+    const key = await loadSupabaseKey();
+    if (!key) {
+      warn('Cannot save to Supabase: Anon key is unavailable.');
+      return;
+    }
+
     const completedRounds = events.filter(e => e.eventType === 'round_result' && typeof e.multiplier === 'number');
     if (completedRounds.length === 0) return;
 
-    const rows = completedRounds.map(e => ({
-      round_number: e.roundIndex !== null && e.roundIndex !== undefined ? e.roundIndex : Date.now(),
-      crash_point: e.multiplier,
-      created_at: e.capturedAt || new Date().toISOString(),
-    }));
+    const rows = completedRounds.map(e => {
+      const summary = compileRoundSummary(e.roundIndex, state.recentEvents);
+      return {
+        round_number: e.roundIndex !== null && e.roundIndex !== undefined ? e.roundIndex : Date.now(),
+        crash_point: e.multiplier,
+        created_at: e.capturedAt || new Date().toISOString(),
+        duration_ms: summary ? summary.duration_ms : null,
+        source: e.source || 'extension',
+      };
+    });
 
     // 🚀 Broadcast to dashboard INSTANTLY via our injected bridge script
     try {
@@ -277,8 +314,8 @@ async function saveToSupabase(events) {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/crash_rounds`, {
       method: 'POST',
       headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal,resolution=ignore-duplicates',
       },

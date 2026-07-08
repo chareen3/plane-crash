@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { computeStats, computeBetSignal } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData } from '../../../lib/ai';
+import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

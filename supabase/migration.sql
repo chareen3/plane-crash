@@ -57,3 +57,12 @@ CREATE POLICY "Allow public read" ON public.predictions
 
 -- Index for fast round_number lookup (used in cache check)
 CREATE INDEX idx_predictions_round_number ON public.predictions (round_number);
+
+-- Add hour/day tracking columns (Sri Lanka and UTC) & duration columns
+ALTER TABLE public.crash_rounds 
+ADD COLUMN IF NOT EXISTS hour_utc SMALLINT GENERATED ALWAYS AS (EXTRACT(HOUR FROM (created_at AT TIME ZONE 'UTC'))) STORED,
+ADD COLUMN IF NOT EXISTS hour_sl SMALLINT GENERATED ALWAYS AS (EXTRACT(HOUR FROM (created_at AT TIME ZONE 'Asia/Colombo'))) STORED,
+ADD COLUMN IF NOT EXISTS day_of_week SMALLINT GENERATED ALWAYS AS (EXTRACT(DOW FROM (created_at AT TIME ZONE 'Asia/Colombo'))) STORED,
+ADD COLUMN IF NOT EXISTS duration_ms INTEGER,
+ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'extension';
+

@@ -166,6 +166,8 @@ const cState = {
   lastHistoryLen: 0,
   roundIndex:     0,
   seenHistory:    new Set(),
+  roundLocked:    false,
+  roundLockTimer:  null,
 };
 
 // ---------------------------------------------------------------------------
@@ -305,6 +307,27 @@ function makeBaseEvent(overrides = {}) {
   };
 }
 
+function fireCrashResult(multiplier, source) {
+  if (cState.roundLocked) return; // already fired for this round
+  cState.roundLocked = true;
+
+  cState.roundIndex++;
+  const event = makeBaseEvent({
+    eventType: 'round_result',
+    source,
+    multiplierText: String(multiplier) + 'x',
+    multiplier: parseFloat(multiplier),
+  });
+  enqueueEvent(event);
+
+  // Unlock after 6s (safe gap between rounds)
+  clearTimeout(cState.roundLockTimer);
+  cState.roundLockTimer = setTimeout(() => {
+    cState.roundLocked = false;
+  }, 6000);
+}
+
+
 // ---------------------------------------------------------------------------
 // Snapshot helpers — capture current visible state
 // ---------------------------------------------------------------------------
@@ -323,14 +346,8 @@ function captureMultiplierTick() {
 
   // If the new multiplier is smaller than the previous one, the previous round just ended!
   if (numVal !== null && prevNum !== null && numVal < prevNum) {
-    cState.roundIndex++;
-    return makeBaseEvent({
-      eventType:      'round_result',
-      source:         'observer',
-      multiplierText: String(prevNum) + 'x',
-      multiplier:     prevNum,
-      domPath:        getDomPath(mEl),
-    });
+    fireCrashResult(prevNum, 'observer');
+    return null;
   }
 
   return makeBaseEvent({
@@ -374,19 +391,11 @@ function captureRoundStateChange() {
     // The user requested a 2-second delay after the crash class is detected
     // to allow the UI to fully settle and the final multiplier to stop moving.
     setTimeout(() => {
-      cState.roundIndex++;
       // Re-read the multiplier to get the absolute final frozen value
       const finalMultText = readText(SELECTORS.MULTIPLIER) || mult;
       const finalMultVal = parseMultiplier(finalMultText) || multVal;
       
-      const delayedEvent = makeBaseEvent({
-        eventType:      'round_result',
-        source:         'observer_delayed',
-        roundState:     'crashed',
-        multiplierText: finalMultText,
-        multiplier:     finalMultVal,
-      });
-      enqueueEvent(delayedEvent);
+      fireCrashResult(finalMultVal || 1.0, 'observer_delayed');
     }, 2000);
 
     // Immediately return just the state change, not the crash result yet
@@ -398,6 +407,7 @@ function captureRoundStateChange() {
       multiplier:     multVal,
     });
   }
+
 
   const event = makeBaseEvent({
     eventType:      'state_change',
@@ -713,25 +723,15 @@ function startCollection(config = {}) {
   // Periodic flush to background
   cState.flushTimer = setInterval(flushToBackground, 3000);
 
-  // Crash staleness detector — if multiplier stops moving for >2000ms, assume crashed
+  // Crash staleness detector — if multiplier stops moving for >3500ms, assume crashed
   cState.crashDetectorTimer = setInterval(() => {
     if (!cState.lastMultiplierTime || !cState.lastMultiplier) return;
-    
     const numVal = parseMultiplier(cState.lastMultiplier);
-    if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 2000)) {
-      cState.roundIndex++;
-      const mEl = queryFirst(SELECTORS.MULTIPLIER);
-      const event = makeBaseEvent({
-        eventType:      'round_result',
-        source:         'staleness_detector',
-        multiplierText: String(numVal) + 'x',
-        multiplier:     numVal,
-        domPath:        getDomPath(mEl),
-      });
-      enqueueEvent(event);
-      log('Staleness crash detected:', numVal);
-      
-      // Reset so it doesn't fire twice for the same pause
+    const stale = Date.now() - cState.lastMultiplierTime > 3500;
+    const aboveFloor = numVal && numVal >= 1.01; // ignore 1.00x waiting state
+    
+    if (aboveFloor && stale) {
+      fireCrashResult(numVal, 'staleness_detector'); // use the locked guard
       cState.lastMultiplierTime = 0;
       cState.lastMultiplier = null;
     }
@@ -801,13 +801,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     }
     // Auto-begin collection immediately
     startCollection({
-      wsEnabled: false, // set true if you want WebSocket injection
+      wsEnabled: true, // set true if you want WebSocket injection
       debug: false,
     });
     console.log('[CrashCollector] ✅ Auto-started on', location.href);
   }).catch(() => {
     // Background not ready yet — start anyway
-    startCollection({ wsEnabled: false, debug: false });
+    startCollection({ wsEnabled: true, debug: false });
   });
 })();
 
