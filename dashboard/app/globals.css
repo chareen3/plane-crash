@@ -2,7 +2,7 @@
    Crash Tracker — Casino Modern Dark UI (Screenshot Clone)
    ===================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Rajdhani:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800;900&family=Noto+Sans+Tamil:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap');
 
 :root {
   --bg:       #080c18;
@@ -28,7 +28,7 @@
 
 html, body {
   height: 100%;
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Inter', 'Noto Sans Sinhala', 'Noto Sans Tamil', -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -150,7 +150,7 @@ html, body {
 }
 
 .ssc-target {
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Rajdhani', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
   font-size: 32px;
   font-weight: 700;
   line-height: 1;
@@ -434,7 +434,7 @@ html, body {
   border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Rajdhani', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
   letter-spacing: 0.5px;
   border: 1px solid rgba(255,255,255,0.06);
   transition: all 0.2s ease;
@@ -446,7 +446,7 @@ html, body {
   border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Rajdhani', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
   letter-spacing: 0.5px;
   display: inline-flex;
   align-items: center;
@@ -868,6 +868,8 @@ html, body {
 .mobile-drawer-backdrop { display: none !important; }
 .mobile-drawer { display: none !important; }
 .mobile-tabbar { display: none !important; }
+.mobile-dash-tabs { display: none !important; }
+.hide-on-desktop { display: none !important; }
 .desktop-header { display: flex !important; }
 .desktop-sidebar { display: flex !important; }
 
@@ -993,7 +995,7 @@ html, body {
   }
   
   .mlsb-val {
-    font-family: 'Rajdhani', sans-serif;
+    font-family: 'Rajdhani', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
     font-size: 18px;
     font-weight: 700;
   }
@@ -1248,7 +1250,7 @@ html, body {
     background: transparent !important;
     border: none !important;
     color: var(--text-dim) !important;
-    font-family: 'Rajdhani', sans-serif !important;
+    font-family: 'Rajdhani', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif !important;
     font-size: 12px !important;
     font-weight: 700 !important;
     letter-spacing: 1px !important;
@@ -1612,7 +1614,7 @@ html, body {
 }
 
 .widget-game-label {
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Rajdhani', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
   font-size: 11px;
   font-weight: 800;
   color: #00ffd5;
@@ -1692,7 +1694,7 @@ html, body {
 }
 
 .widget-mult-val {
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Rajdhani', 'Noto Sans Sinhala', 'Noto Sans Tamil', sans-serif;
   font-size: 36px;
   font-weight: 900;
   line-height: 1;
