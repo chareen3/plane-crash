@@ -81,7 +81,7 @@ export async function GET(request: Request) {
     if (existingPred) {
       return NextResponse.json({
         risk: existingPred.predicted_risk,
-        confidence: existingPred.confidence ?? Math.min(stats.confidence, 85),
+        confidence: Math.min(existingPred.confidence ?? Math.min(stats.confidence, 85), 99),
         // Always regenerate summary so it reflects current live stats and looks human
         summary: buildHumanSummary(stats, betSignal),
         predicted_multiplier: existingPred.predicted_multiplier ?? betSignal.cashout_target,
@@ -133,7 +133,7 @@ export async function GET(request: Request) {
         aiModelUsed = model;
         
         if (['LOW','MEDIUM','HIGH'].includes(ai.risk)) aiRisk = ai.risk;
-        if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = ai.confidence;
+        if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = Math.min(ai.confidence, 99);
         if (typeof ai.summary === 'string' && ai.summary.length > 5) aiSummary = ai.summary;
         
         // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.

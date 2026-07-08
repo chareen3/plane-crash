@@ -1169,27 +1169,22 @@ html, body {
   
   /* Card layouts mobile tweaks */
   .stat-strip {
-    display: flex !important;
-    overflow-x: auto !important;
-    scroll-snap-type: x mandatory !important;
-    -webkit-overflow-scrolling: touch !important;
-    gap: 10px !important;
-    padding: 4px 12px 14px !important;
-    margin: 0 -12px !important; /* Full bleed to screen edges */
-    scrollbar-width: none !important; /* Firefox hide scrollbar */
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
   
   .stat-strip::-webkit-scrollbar {
-    display: none !important; /* Webkit hide scrollbar */
+    display: none !important;
   }
   
   .stat-card2 {
-    flex: 0 0 145px !important;
-    scroll-snap-align: start !important;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%) !important;
     border: 1px solid rgba(255, 255, 255, 0.06) !important;
-    border-radius: 14px !important;
-    padding: 12px !important;
+    border-radius: 12px !important;
+    padding: 10px 12px !important;
     gap: 8px !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
     transition: all 0.2s;

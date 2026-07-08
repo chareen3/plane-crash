@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 
@@ -110,6 +110,7 @@ export default function Dashboard() {
   const [activeGame] = useState<'1xbet' | 'aviator' | 'luckyjet'>('1xbet');
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [dashTab, setDashTab] = useState<'signals' | 'stats'>('signals');
+  const [showMobileStatsPanel, setShowMobileStatsPanel] = useState(true);
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
   const [latency, setLatency] = useState<number>(0);
   const lastMessageTimeRef = useRef<number>(Date.now());
@@ -971,7 +972,18 @@ export default function Dashboard() {
             /* ─── DEFAULT DASHBOARD ─── */
             <>
               {/* ─── TOP ROW: Stat Cards ─── */}
-              <div className="stat-strip">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Performance Stats</span>
+                <button 
+                  onClick={() => setShowMobileStatsPanel(!showMobileStatsPanel)} 
+                  style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px' }}
+                >
+                  {showMobileStatsPanel ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              </div>
+              
+              {showMobileStatsPanel && (
+                <div className="stat-strip">
                 <div className="stat-card2">
                   <div className="sc2-icon" style={{ background: 'rgba(0,229,160,0.12)', color: '#00e5a0' }}><BarChart3 size={18} /></div>
                   <div>
@@ -1025,6 +1037,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Segmented Controller (Mobile only) */}
               <div className="mobile-dash-tabs hide-on-desktop">
