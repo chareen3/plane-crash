@@ -131,14 +131,14 @@ export async function POST(request: Request) {
 
     const values = historyRounds.map((r: any) => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
+    // Time context
+    const timeData = getLKTimeData();
+
     // Compute complete stats for recommendations across the entire dataset (no slice!)
     const gameType = body.gameType || '1xbet';
     const stats = computeStats(values);
-    const betSignal = computeBetSignal(stats, gameType);
+    const betSignal = computeBetSignal(stats, gameType, timeData);
     const nextRoundNumber = roundNumber + 1;
-
-    // Time context
-    const timeData = getLKTimeData();
 
     let aiRisk = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
     let aiConfidence = Math.min(stats.confidence, 85);
@@ -179,8 +179,22 @@ export async function POST(request: Request) {
       // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
       if (betSignal.strategy !== 'SKIP') {
         if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
-          aiPredMultiplier = ai.cashout_target;
-          finalCashout     = ai.cashout_target;
+          let targetVal = ai.cashout_target;
+          if (targetVal > 2.0) {
+            const closestTarget = stats.targets.reduce((prev: any, curr: any) => 
+              Math.abs(curr.target - targetVal) < Math.abs(prev.target - targetVal) ? curr : prev
+            );
+            const hasPositiveEv = closestTarget ? closestTarget.ev > 0 : false;
+            const isCalmOrNormal = volatilityPhase === 'CALM' || volatilityPhase === 'NORMAL';
+            const allowHighTarget = timeData.isLKPrime && isCalmOrNormal && hasPositiveEv;
+
+            if (!allowHighTarget) {
+              swingTarget = targetVal;
+              targetVal = 2.0;
+            }
+          }
+          aiPredMultiplier = targetVal;
+          finalCashout     = targetVal;
         }
         if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) {
           strategyLabel = ai.strategy === 'BALANCED' ? 'CONSERVATIVE' : ai.strategy;

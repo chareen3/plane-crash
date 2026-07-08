@@ -91,11 +91,13 @@ export async function GET() {
     let totalProfitUnits = 0;
     let totalLosses = 0;
     let totalWins = 0;
+    let sumTarget = 0;
 
     for (const p of activeBets) {
+      const target = Number(p.cashout_target || p.predicted_multiplier || 1.10);
+      sumTarget += target;
       if (p.was_correct !== null) {
         if (p.was_correct) {
-          const target = Number(p.cashout_target || p.predicted_multiplier || 1.10);
           totalProfitUnits += (target - 1);
           totalWins++;
         } else {
@@ -104,6 +106,9 @@ export async function GET() {
         }
       }
     }
+
+    const avgTarget = total > 0 ? Number((sumTarget / total).toFixed(3)) : 0;
+    const realizedEv = total > 0 ? Number((totalProfitUnits / total).toFixed(4)) : 0;
 
     // Break down by risk type
     const byRisk = { LOW: { total: 0, correct: 0 }, MEDIUM: { total: 0, correct: 0 }, HIGH: { total: 0, correct: 0 } };
@@ -123,6 +128,8 @@ export async function GET() {
       totalProfitUnits: Number(totalProfitUnits.toFixed(2)),
       totalLosses,
       totalWins,
+      avgTarget,
+      realizedEv,
       recent: data?.slice(0, 10)
     });
   } catch (err: any) {

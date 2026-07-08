@@ -39,6 +39,8 @@ type WinRate = {
   totalProfitUnits?: number;
   totalLosses?: number;
   totalWins?: number;
+  avgTarget?: number;
+  realizedEv?: number;
 };
 
 const CURRENCIES = {
@@ -326,6 +328,15 @@ export default function Dashboard() {
   }, [isExtensionConnected, lastSyncedRound, addToast]);
 
   const stats = localStats;
+  const getTargetStats = (target: number | undefined | null) => {
+    if (!rounds || rounds.length === 0 || !target || target <= 0) {
+      return { hitRate: 0, ev: 0 };
+    }
+    const hits = rounds.filter(r => Number(r.crash_point) >= target).length;
+    const hitRate = Math.round((hits / rounds.length) * 100);
+    const ev = (hitRate / 100) * target - 1;
+    return { hitRate, ev };
+  };
   const avg = stats ? stats.mean.toFixed(2) : '—';
   const median = stats ? stats.median.toFixed(2) : '—';
   const highest = rounds.length > 0 ? Math.max(...rounds.map(r => Number(r.crash_point))).toFixed(2) : '—';
@@ -781,24 +792,34 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(0,255,213,0.12)', color: '#00ffd5' }}><TrendingDown size={18} /></div>
+              <div className="sc2-icon" style={{ background: 'rgba(0,255,213,0.12)', color: '#00ffd5' }}><Target size={18} /></div>
               <div>
-                <div className="sc2-label">Median</div>
-                <div className="sc2-val">{median}x</div>
+                <div className="sc2-label">Avg Target</div>
+                <div className="sc2-val" style={{ color: '#00ffd5' }}>{winRate.avgTarget ? winRate.avgTarget.toFixed(2) + 'x' : 'N/A'}</div>
               </div>
             </div>
             <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}><Rocket size={18} /></div>
-              <div>
-                <div className="sc2-label">Highest</div>
-                <div className="sc2-val" style={{ color: '#a78bfa' }}>{highest}x</div>
-              </div>
+              {(() => {
+                const evVal = winRate.realizedEv ?? 0;
+                const evColor = evVal > 0 ? '#00e5a0' : evVal < 0 ? '#ff3366' : '#ffd000';
+                const evBg = evVal > 0 ? 'rgba(0,229,160,0.12)' : evVal < 0 ? 'rgba(255,51,102,0.12)' : 'rgba(255,208,0,0.12)';
+                const evStr = winRate.realizedEv !== undefined ? (evVal >= 0 ? '+' : '') + evVal.toFixed(3) : 'N/A';
+                return (
+                  <>
+                    <div className="sc2-icon" style={{ background: evBg, color: evColor }}><Coins size={18} /></div>
+                    <div>
+                      <div className="sc2-label">Realized EV / Bet</div>
+                      <div className="sc2-val" style={{ color: evColor }}>{evStr}</div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             <div className="stat-card2">
               <div className="sc2-icon" style={{ background: 'rgba(255,51,102,0.12)', color: '#ff3366' }}><AlertOctagon size={18} /></div>
               <div>
-                <div className="sc2-label">Under 2x</div>
-                <div className="sc2-val" style={{ color: '#ff3366' }}>{stats?.pUnder2 ?? 0}%</div>
+                <div className="sc2-label">Instant Floor (≤1.01)</div>
+                <div className="sc2-val" style={{ color: '#ff3366' }}>{stats?.pInstantCrash !== undefined ? stats.pInstantCrash.toFixed(1) + '%' : '0.0%'}</div>
               </div>
             </div>
             <div className="stat-card2">
@@ -809,10 +830,10 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="stat-card2">
-              <div className="sc2-icon" style={{ background: 'rgba(0,229,160,0.12)', color: '#00e5a0' }}><Activity size={18} /></div>
+              <div className="sc2-icon" style={{ background: 'rgba(167,139,250,0.12)', color: '#a78bfa' }}><Activity size={18} /></div>
               <div>
-                <div className="sc2-label">Rounds</div>
-                <div className="sc2-val">{winRate.total ?? rounds.length}</div>
+                <div className="sc2-label">Total Bets</div>
+                <div className="sc2-val" style={{ color: '#a78bfa' }}>{winRate.total ?? 0}</div>
               </div>
             </div>
           </div>
@@ -964,28 +985,55 @@ export default function Dashboard() {
                         </div>
                       </div>
                     ) : (
-                      <div className="cashout-targets" style={{ display: 'grid', gridTemplateColumns: prediction.swing_target ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '14px' }}>
-                        <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0,229,160,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
-                          <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><ShieldCheck size={12} color="#00e5a0" /> Safe Auto-Cashout</div>
-                          <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
-                            {prediction.cashout_target ? prediction.cashout_target.toFixed(2) : stats.conservativeCashout.toFixed(2)}x
-                          </div>
-                          <div className="ct-pct" style={{ fontSize: '10px', color: '#666' }}>
-                            ~{prediction.cashout_target ? Math.round((0.97 / prediction.cashout_target) * 100) : 90}% mathematical probability
-                          </div>
+                      <>
+                        <div className="cashout-targets" style={{ display: 'grid', gridTemplateColumns: prediction.swing_target ? '1fr 1fr' : '1fr', gap: '10px', marginBottom: '10px' }}>
+                          {(() => {
+                            const targetVal = prediction.cashout_target || (stats ? stats.conservativeCashout : 1.10);
+                            const tStats = getTargetStats(targetVal);
+                            const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
+                            const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
+                            return (
+                              <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0,229,160,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
+                                <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><ShieldCheck size={12} color="#00e5a0" /> Safe Auto-Cashout</div>
+                                <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
+                                  {targetVal.toFixed(2)}x
+                                </div>
+                                <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span>Chance: {tStats.hitRate}% (historical)</span>
+                                  <span style={{ color: evColor, fontWeight: '600' }}>Expected Profit: {evStr} units</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          {prediction.swing_target && (() => {
+                            const tStats = getTargetStats(prediction.swing_target);
+                            const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
+                            const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
+                            return (
+                              <div className="cashout-target risk" style={{ borderLeftColor: '#ffd000', background: 'rgba(255,208,0,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
+                                <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><Scale size={12} color="#ffd000" /> Optional Swing</div>
+                                <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#ffd000', margin: '4px 0' }}>
+                                  {prediction.swing_target.toFixed(2)}x
+                                </div>
+                                <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span>Chance: {tStats.hitRate}% (historical)</span>
+                                  <span style={{ color: evColor, fontWeight: '600' }}>Expected Profit: {evStr} units</span>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
-                        {prediction.swing_target && (
-                          <div className="cashout-target risk" style={{ borderLeftColor: '#ffd000', background: 'rgba(255,208,0,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
-                            <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><Scale size={12} color="#ffd000" /> Optional Swing</div>
-                            <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#ffd000', margin: '4px 0' }}>
-                              {prediction.swing_target.toFixed(2)}x
-                            </div>
-                            <div className="ct-pct" style={{ fontSize: '10px', color: '#666' }}>
-                              ~{Math.round((0.97 / prediction.swing_target) * 100)}% mathematical probability
+
+                        {stats?.pInstantCrash !== undefined && (
+                          <div style={{ background: 'rgba(255,51,102,0.06)', border: '1px solid rgba(255,51,102,0.15)', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', marginBottom: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <AlertTriangle size={14} color="#ff3366" style={{ flexShrink: 0, marginTop: '2px' }} />
+                            <div style={{ fontSize: '10px', color: '#c7d2fe', lineHeight: '1.4' }}>
+                              <span style={{ color: '#ff3366', fontWeight: '800', textTransform: 'uppercase', marginRight: '4px' }}>Instant Crash Floor:</span>
+                              Approx <strong style={{ color: '#ff3366' }}>{stats.pInstantCrash.toFixed(1)}%</strong> of rounds crash at ≤1.01x due to house-edge geometric distribution. No algorithm can avoid these instant losses; size stakes accordingly.
                             </div>
                           </div>
                         )}
-                      </div>
+                      </>
                     )}
 
                     {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (

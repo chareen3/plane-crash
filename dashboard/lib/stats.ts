@@ -65,6 +65,7 @@ export interface CrashStats {
   pUnder2: number;
   p2to5: number;
   pOver5: number;
+  pInstantCrash: number;
 
   // Per-level target analysis
   targets: TargetLevel[];
@@ -134,6 +135,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
   const pUnder2 = Math.round((under2 / n) * 100);
   const p2to5   = Math.round((in2to5  / n) * 100);
   const pOver5  = Math.round((over5   / n) * 100);
+  const pInstantCrash = Math.round((values.filter(v => v <= 1.01).length / n) * 1000) / 10;
 
   // ── Per-level target analysis ──
   const TARGET_LEVELS = [1.05, 1.10, 1.18, 1.2, 1.5, 1.8, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0];
@@ -449,7 +451,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
   return {
     count: n, mean: +mean.toFixed(2), median: +median.toFixed(2),
     stdDev: +stdDev.toFixed(2), min: +min.toFixed(2), max: +max.toFixed(2),
-    pUnder2, p2to5, pOver5,
+    pUnder2, p2to5, pOver5, pInstantCrash,
     targets,
     p99SafeCashout, p95SafeCashout, p90SafeCashout, p80SafeCashout, p70SafeCashout, p60SafeCashout, p50SafeCashout,
     ema, currentLowStreak, currentHighStreak, longestLowStreak,
@@ -469,7 +471,7 @@ function emptyStats(): CrashStats {
   }));
   return {
     count: 0, mean: 0, median: 0, stdDev: 0, min: 0, max: 0,
-    pUnder2: 0, p2to5: 0, pOver5: 0,
+    pUnder2: 0, p2to5: 0, pOver5: 0, pInstantCrash: 0,
     targets: emptyTargets,
     p99SafeCashout: 1.05, p95SafeCashout: 1.10,
     p90SafeCashout: 1.2, p80SafeCashout: 1.5, p70SafeCashout: 1.8,
@@ -502,7 +504,11 @@ export function gradePrediction(
   return false;
 }
 
-export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator' | 'luckyjet' = '1xbet'): {
+export function computeBetSignal(
+  stats: CrashStats,
+  gameType: '1xbet' | 'aviator' | 'luckyjet' = '1xbet',
+  timeData?: any
+): {
   should_bet: boolean;
   skip_reason: string | null;
   strategy: string;
@@ -521,22 +527,39 @@ export function computeBetSignal(stats: CrashStats, gameType: '1xbet' | 'aviator
   if (stdDev < 1.5) volatility_phase = 'CALM';
   else if (stdDev > 3.5) volatility_phase = 'VOLATILE';
 
-  // 1. SKIP Round Range Isolation Check
-  const lastCrashVal = stats.recentOutcomes && stats.recentOutcomes.length > 0 ? stats.recentOutcomes[0] : 1.5;
-  const inSkipRange = lastCrashVal >= 1.04 && lastCrashVal <= 1.18;
-
-  if (inSkipRange) {
-    reasons.push(`Last crash of ${lastCrashVal.toFixed(2)}x is in the dangerous 1.04x-1.18x grinding range.`);
+  // 1. Hard-lock SKIP for Sleep phase
+  if (timeData && timeData.isLKSleep) {
+    reasons.push(`Sri Lanka Sleep Phase (${timeData.currentLKTimeStr}): near-random RNG, enforcing SKIP.`);
   }
 
-  // 1.5 Volatility Range Scanner (Micro detection only for stake adjustments)
-  let ultraMicroDetected = false;
-  if (stats.recentOutcomes && stats.recentOutcomes.length >= 3) {
-    const r1 = stats.recentOutcomes[0];
-    const isUltraMicro = (v: number) => v < 1.04;
+  // 2. Ultra-micro cool-down: SKIP next 2-3 rounds if an ultra-micro (<1.02x) occurred in the last 3 rounds
+  const last3 = stats.recentOutcomes ? stats.recentOutcomes.slice(0, 3) : [];
+  const ultraMicroInLast3 = last3.some(v => v < 1.02);
+  if (ultraMicroInLast3) {
+    reasons.push(`Recent ultra-micro crash (<1.02x) detected in last 3 rounds. Safety cool-down active.`);
+  }
 
-    // Preemptive warning check for any single ultra-micro round to halve the stake
-    if (isUltraMicro(r1)) {
+  // 3. Grind-band Cluster Skip: 2+ grind-band crashes (1.04x - 1.18x) in last 10 rounds
+  const grindBandCount = stats.recentOutcomes
+    ? stats.recentOutcomes.filter(v => v >= 1.04 && v <= 1.18).length
+    : 0;
+  if (grindBandCount >= 2) {
+    reasons.push(`Grind-band crash cluster detected (${grindBandCount} in last 10 rounds). Enforcing SKIP.`);
+  }
+
+  // 4. Caution phase (MORNING or LATE) skip elevation: treat 1.00-1.25 as dangerous
+  if (timeData && (timeData.lkPhase === 'MORNING' || timeData.lkPhase === 'LATE')) {
+    const lastCrashVal = stats.recentOutcomes && stats.recentOutcomes.length > 0 ? stats.recentOutcomes[0] : 1.5;
+    if (lastCrashVal >= 1.00 && lastCrashVal <= 1.25) {
+      reasons.push(`Caution phase (${timeData.lkPhase}): Last crash of ${lastCrashVal.toFixed(2)}x is in dangerous skip range (1.00x-1.25x).`);
+    }
+  }
+
+  // 5. Preemptive warning check for any single ultra-micro round to halve the stake
+  let ultraMicroDetected = false;
+  if (stats.recentOutcomes && stats.recentOutcomes.length > 0) {
+    const r1 = stats.recentOutcomes[0];
+    if (r1 < 1.04) {
       ultraMicroDetected = true;
     }
   }

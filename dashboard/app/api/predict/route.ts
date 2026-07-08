@@ -51,9 +51,8 @@ export async function GET(request: Request) {
 
     // ── Compute stats immediately ──
     const stats = computeStats(values);
-    const betSignal = computeBetSignal(stats, gameType);
-
     const timeData = getLKTimeData();
+    const betSignal = computeBetSignal(stats, gameType, timeData);
 
     // Return cached pred but with fresh stats — fill in any null fields with fresh betSignal
     if (existingPred) {
@@ -117,8 +116,22 @@ export async function GET(request: Request) {
         // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
         if (betSignal.strategy !== 'SKIP') {
           if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
-            aiPredMultiplier = ai.cashout_target;
-            finalCashout = ai.cashout_target;
+            let targetVal = ai.cashout_target;
+            if (targetVal > 2.0) {
+              const closestTarget = stats.targets.reduce((prev: any, curr: any) => 
+                Math.abs(curr.target - targetVal) < Math.abs(prev.target - targetVal) ? curr : prev
+              );
+              const hasPositiveEv = closestTarget ? closestTarget.ev > 0 : false;
+              const isCalmOrNormal = volatilityPhase === 'CALM' || volatilityPhase === 'NORMAL';
+              const allowHighTarget = timeData.isLKPrime && isCalmOrNormal && hasPositiveEv;
+
+              if (!allowHighTarget) {
+                swingTarget = targetVal;
+                targetVal = 2.0;
+              }
+            }
+            aiPredMultiplier = targetVal;
+            finalCashout = targetVal;
           }
           if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) {
             strategyLabel = ai.strategy === 'BALANCED' ? 'CONSERVATIVE' : ai.strategy;
