@@ -74,12 +74,10 @@ export async function POST(request: Request) {
 // GET — return current win rate stats
 export async function GET() {
   try {
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from('predictions')
       .select('was_correct, predicted_risk, actual_crash_point, created_at, confidence, summary, should_bet, cashout_target, predicted_multiplier')
       .not('was_correct', 'is', null)
-      .gte('created_at', yesterday)
       .order('created_at', { ascending: false })
       .limit(100);
 
