@@ -61,6 +61,12 @@ const state = {
   },
 };
 
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'content-keepalive') {
+    port.onDisconnect.addListener(() => log('Content script disconnected'));
+  }
+});
+
 // Restore state from storage on service worker load/wake-up
 chrome.storage.local.get([
   STORAGE_KEYS.CAPTURE_STATE,

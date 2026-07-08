@@ -496,8 +496,42 @@ function enqueueEvent(event) {
   }
 }
 
+function stopObserver() {
+  if (cState.observer) {
+    cState.observer.disconnect();
+    cState.observer = null;
+  }
+  if (cState.crashDetectorTimer) {
+    clearInterval(cState.crashDetectorTimer);
+    cState.crashDetectorTimer = null;
+  }
+}
+
+function clearTimers() {
+  if (cState.flushTimer)  { clearTimeout(cState.flushTimer);  cState.flushTimer  = null; }
+  if (cState.retryTimer)  { clearTimeout(cState.retryTimer);  cState.retryTimer  = null; }
+  if (cState.roundLockTimer) { clearTimeout(cState.roundLockTimer); cState.roundLockTimer = null; }
+  cState.buffer = [];
+}
+
+function isContextValid() {
+  try {
+    // This throws immediately if the context is gone
+    return !!chrome.runtime?.id;
+  } catch (_) {
+    return false;
+  }
+}
+
 function flushToBackground() {
   if (!cState.buffer.length) return;
+  if (!isContextValid()) {
+    warn('Extension context invalidated (sync). Stopping. Please refresh the page.');
+    stopObserver();
+    clearTimers();
+    cState.active = false;
+    return;
+  }
 
   // ✅ Peek — don't splice yet
   const batch = [...cState.buffer];
@@ -519,10 +553,10 @@ function flushToBackground() {
              e.message.includes('Could not establish connection'))
           ) {
             warn('Extension reloaded — this batch is lost. Refresh the page to reconnect fully.');
+            stopObserver();
+            clearTimers();
             cState.active = false;
-            cState.buffer = []; // context is gone — nothing recoverable
           }
-          // Otherwise leave buffer intact for the next 3s flush retry
         });
     } else {
       // Synchronous path — assume delivered
@@ -531,11 +565,11 @@ function flushToBackground() {
   } catch (err) {
     if (err.message && err.message.includes('Extension context invalidated')) {
       warn('Extension context invalidated (sync). Stopping. Please refresh the page.');
+      stopObserver();
+      clearTimers();
       cState.active = false;
-      cState.buffer = [];
     } else {
       warn('Failed to send batch (sync error, will retry):', err.message);
-      // Leave buffer intact — next flushTimer tick will retry
     }
   }
 }
@@ -844,3 +878,16 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 })();
 
 log('Content script loaded on', location.href);
+
+// Self-destruct gracefully when extension reloads
+try {
+  const _port = chrome.runtime.connect({ name: 'content-keepalive' });
+  _port.onDisconnect.addListener(() => {
+    warn('Background disconnected — context invalidated. Halting.');
+    stopObserver();
+    clearTimers();
+    cState.active = false;
+  });
+} catch (err) {
+  // Ignore error if context was already dead on load
+}
