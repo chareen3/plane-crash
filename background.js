@@ -25,18 +25,18 @@ const CONFIG = {
   /** Max events kept in storage (rolling window) */
   MAX_STORED_EVENTS: 5000,
   /** Enable WebSocket injection feature (disabled by default) */
-  WS_INJECTION_ENABLED: true,
+  WS_INJECTION_ENABLED: false,
   /** Storage key prefix */
   KEY_PREFIX: 'cac_',
 };
 
 const STORAGE_KEYS = {
-  EVENTS: 'cac_events',
-  SUMMARIES: 'cac_summaries',
+  EVENTS:        'cac_events',
+  SUMMARIES:     'cac_summaries',
   CAPTURE_STATE: 'cac_capture_state',
   SESSION_START: 'cac_session_start',
-  DEBUG_MODE: 'cac_debug_mode',
-  STATS: 'cac_stats',
+  DEBUG_MODE:    'cac_debug_mode',
+  STATS:         'cac_stats',
 };
 
 // ---------------------------------------------------------------------------
@@ -68,17 +68,16 @@ chrome.storage.local.get([
   STORAGE_KEYS.DEBUG_MODE,
   STORAGE_KEYS.STATS,
 ]).then((data) => {
-  state.debugMode = !!data[STORAGE_KEYS.DEBUG_MODE];
-  state.capturing = !!data[STORAGE_KEYS.CAPTURE_STATE];
+  state.debugMode    = !!data[STORAGE_KEYS.DEBUG_MODE];
+  state.capturing    = !!data[STORAGE_KEYS.CAPTURE_STATE];
   state.sessionStart = data[STORAGE_KEYS.SESSION_START] || null;
   if (data[STORAGE_KEYS.STATS]) {
     Object.assign(state.stats, data[STORAGE_KEYS.STATS]);
   }
-
+  
   if (state.capturing) {
-    log('Resuming flush timer and heartbeat on SW wake-up');
+    log('Resuming flush timer on SW wake-up');
     startFlushTimer();
-    startHeartbeat();
   }
   updateBadge(state.stats.totalEvents || 0);
   log('State restored on SW load, capturing:', state.capturing);
@@ -92,11 +91,11 @@ function startHeartbeat() {
   heartbeatTimer = setInterval(() => {
     chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
       if (tabs) tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
+        chrome.tabs.sendMessage(tab.id, { 
           type: 'EXTENSION_HEARTBEAT',
           capturing: state.capturing,
           stats: state.stats
-        }).catch(() => { });
+        }).catch(() => {});
       });
     });
   }, 5000);
@@ -250,71 +249,7 @@ async function flushBuffer() {
 // ---------------------------------------------------------------------------
 // Supabase — direct REST insert (no localhost dependency)
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-// Deduplication and Confidence validation helper
-// ---------------------------------------------------------------------------
-function shouldSaveRound(event) {
-  const roundId = event.round_id || null;
-  const crashPoint = event.multiplier;
-  const confidence = event.capture_confidence || 'medium';
-  const now = Date.now();
-
-  if (crashPoint === null || crashPoint === undefined || isNaN(crashPoint) || crashPoint <= 1.0) {
-    log('finalize rejected due to missing valid multiplier');
-    return false;
-  }
-
-  // Generate stable fingerprint: rounded multiplier + 5s bucket
-  const timeBucket = Math.floor(now / 5000);
-  const roundedMult = Math.round(crashPoint * 10);
-  const fingerprint = `${roundedMult}|${timeBucket}`;
-
-  if (!state.savedRoundsHistory) {
-    state.savedRoundsHistory = [];
-  }
-
-  // Clean history older than 60 seconds
-  state.savedRoundsHistory = state.savedRoundsHistory.filter(item => now - item.timestamp < 60000);
-
-  // Check for duplicates
-  for (const item of state.savedRoundsHistory) {
-    if (roundId && item.round_id === roundId) {
-      log(`finalize skipped due to duplicate round_id: ${roundId}`);
-      return false;
-    }
-    if (!roundId && !item.round_id && item.fingerprint === fingerprint) {
-      log(`finalize skipped due to duplicate stable fingerprint: ${fingerprint}`);
-      return false;
-    }
-  }
-
-  // Confidence check
-  if (confidence === 'low') {
-    const recentHighOrMedium = state.savedRoundsHistory.some(item =>
-      (now - item.timestamp < 5000) && (item.confidence === 'high' || item.confidence === 'medium')
-    );
-    if (recentHighOrMedium) {
-      log('finalize rejected for low-confidence DOM event since high/medium source was recently saved');
-      return false;
-    }
-  }
-
-  // Record in history cache
-  state.savedRoundsHistory.push({
-    round_id: roundId,
-    fingerprint: fingerprint,
-    confidence: confidence,
-    timestamp: now
-  });
-
-  log(`finalize accepted: ${crashPoint}x via ${event.source || 'unknown'} (confidence: ${confidence})`);
-  return true;
-}
-
-// ---------------------------------------------------------------------------
-// Supabase — direct REST insert (no localhost dependency)
-// ---------------------------------------------------------------------------
-const SUPABASE_URL = 'https://knynrvsredfqvzcsdgoo.supabase.co';
+const SUPABASE_URL     = 'https://knynrvsredfqvzcsdgoo.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtueW5ydnNyZWRmcXZ6Y3NkZ29vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyMzgxNDYsImV4cCI6MjA5ODgxNDE0Nn0.6-KjfOLhJbZXUjzFg5PztYbfko6hR9NdRpxcJnLZ09A';
 
 async function saveToSupabase(events) {
@@ -322,15 +257,10 @@ async function saveToSupabase(events) {
     const completedRounds = events.filter(e => e.eventType === 'round_result' && typeof e.multiplier === 'number');
     if (completedRounds.length === 0) return;
 
-    const uniqueRounds = completedRounds.filter(shouldSaveRound);
-    if (uniqueRounds.length === 0) return;
-
-    const rows = uniqueRounds.map(e => ({
+    const rows = completedRounds.map(e => ({
       round_number: e.roundIndex !== null && e.roundIndex !== undefined ? e.roundIndex : Date.now(),
       crash_point: e.multiplier,
       created_at: e.capturedAt || new Date().toISOString(),
-      round_id: e.round_id || null,
-      raw_payload: e.raw_payload ? (typeof e.raw_payload === 'string' ? e.raw_payload : JSON.stringify(e.raw_payload)) : null
     }));
 
     // 🚀 Broadcast to dashboard INSTANTLY via our injected bridge script
@@ -338,11 +268,11 @@ async function saveToSupabase(events) {
       chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
         if (tabs) tabs.forEach(tab => {
           rows.forEach(row => {
-            chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => { });
+            chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => {});
           });
         });
       });
-    } catch (_) { }
+    } catch (_) {}
 
     const response = await fetch(`${SUPABASE_URL}/rest/v1/crash_rounds`, {
       method: 'POST',
@@ -372,7 +302,7 @@ function compileRoundSummary(roundIndex, events) {
 
   roundEvents.sort((a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime());
   const first = roundEvents[0];
-  const last = roundEvents[roundEvents.length - 1];
+  const last  = roundEvents[roundEvents.length - 1];
 
   const resultEv = roundEvents.find(e => e.eventType === 'round_result');
   const finalMult = resultEv?.multiplier ?? last?.multiplier ?? null;
@@ -387,8 +317,8 @@ function compileRoundSummary(roundIndex, events) {
     )
   );
 
-  const startedAt = first.capturedAt;
-  const endedAt = last.capturedAt;
+  const startedAt  = first.capturedAt;
+  const endedAt    = last.capturedAt;
   const durationMs = endedAt && startedAt
     ? new Date(endedAt).getTime() - new Date(startedAt).getTime()
     : null;
@@ -430,7 +360,7 @@ async function postRoundResultToDashboard(roundEvent) {
     if (res.ok) {
       const data = await res.json();
       log('Successfully sent crash round to dashboard and ran prediction:', data);
-
+      
       // Broadcast the updated state and prediction directly to the dashboard tabs!
       if (data.success && data.round && data.prediction) {
         chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
@@ -440,7 +370,7 @@ async function postRoundResultToDashboard(roundEvent) {
               round: data.round,
               prediction: data.prediction,
               stats: data.stats
-            }).catch(() => { });
+            }).catch(() => {});
           });
         });
       }
@@ -460,28 +390,28 @@ function ingestEvent(rawEvent) {
   if (!state.capturing) return;
 
   const event = {
-    id: generateId(),
-    capturedAt: rawEvent.capturedAt || new Date().toISOString(),
-    pageUrl: rawEvent.pageUrl || state.tabUrl || '',
-    pageTitle: rawEvent.pageTitle || '',
-    source: rawEvent.source || 'dom',
-    eventType: rawEvent.eventType || 'unknown',
-    roundIndex: rawEvent.roundIndex ?? null,
-    multiplier: rawEvent.multiplier ?? null,
+    id:             generateId(),
+    capturedAt:     rawEvent.capturedAt || new Date().toISOString(),
+    pageUrl:        rawEvent.pageUrl    || state.tabUrl || '',
+    pageTitle:      rawEvent.pageTitle  || '',
+    source:         rawEvent.source     || 'dom',
+    eventType:      rawEvent.eventType  || 'unknown',
+    roundIndex:     rawEvent.roundIndex ?? null,
+    multiplier:     rawEvent.multiplier ?? null,
     multiplierText: rawEvent.multiplierText || null,
-    historyValues: rawEvent.historyValues || null,
-    currentTimer: rawEvent.currentTimer || null,
-    roundState: rawEvent.roundState || null,
-    betAmountText: rawEvent.betAmountText || null,
-    cashoutText: rawEvent.cashoutText || null,
-    autoCashoutText: rawEvent.autoCashoutText || null,
-    buttonLabels: rawEvent.buttonLabels || null,
-    visibleLabels: rawEvent.visibleLabels || null,
-    rawTextSample: rawEvent.rawTextSample || null,
-    rawPayload: rawEvent.rawPayload || null,
-    domPath: rawEvent.domPath || null,
-    fingerprint: null,
-    roundSummary: rawEvent.roundSummary || null,
+    historyValues:  rawEvent.historyValues  || null,
+    currentTimer:   rawEvent.currentTimer   || null,
+    roundState:     rawEvent.roundState     || null,
+    betAmountText:  rawEvent.betAmountText  || null,
+    cashoutText:    rawEvent.cashoutText    || null,
+    autoCashoutText:rawEvent.autoCashoutText|| null,
+    buttonLabels:   rawEvent.buttonLabels   || null,
+    visibleLabels:  rawEvent.visibleLabels  || null,
+    rawTextSample:  rawEvent.rawTextSample  || null,
+    rawPayload:     rawEvent.rawPayload     || null,
+    domPath:        rawEvent.domPath        || null,
+    fingerprint:    null,
+    roundSummary:   rawEvent.roundSummary   || null,
   };
 
   // Build fingerprint and dedup
@@ -519,11 +449,6 @@ function ingestEvent(rawEvent) {
   }
 
   state.buffer.push(event);
-
-  // If a crash just happened, flush immediately to Supabase
-  if (event.eventType === 'round_result') {
-    flushBuffer();
-  }
 
   // Maintain sliding window for recentEvents
   state.recentEvents.push(event);
@@ -606,11 +531,11 @@ async function startCapture(tabId, tabUrl) {
     await stopCapture();
   }
 
-  state.capturing = true;
-  state.tabId = tabId;
-  state.tabUrl = tabUrl;
+  state.capturing  = true;
+  state.tabId      = tabId;
+  state.tabUrl     = tabUrl;
   state.sessionStart = Date.now();
-  state.buffer = [];
+  state.buffer     = [];
   // Don't reset seenFingerprints to avoid re-ingesting on reconnect
 
   await chrome.storage.local.set({
@@ -649,7 +574,7 @@ async function exportData() {
     // Final flush first
     await flushBuffer();
 
-    const events = await loadEvents();
+    const events    = await loadEvents();
     const summaries = await loadSummaries();
 
     if (events.length === 0) {
@@ -657,18 +582,18 @@ async function exportData() {
     }
 
     const exportObj = {
-      exportedAt: new Date().toISOString(),
-      version: '1.0.0',
-      totalEvents: events.length,
-      totalSummaries: summaries.length,
-      disclaimer: 'This data was collected for analytics/research only. It does not predict future game outcomes.',
+      exportedAt:    new Date().toISOString(),
+      version:       '1.0.0',
+      totalEvents:   events.length,
+      totalSummaries:summaries.length,
+      disclaimer:    'This data was collected for analytics/research only. It does not predict future game outcomes.',
       events,
       roundSummaries: summaries,
     };
 
-    const json = JSON.stringify(exportObj, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    const json     = JSON.stringify(exportObj, null, 2);
+    const blob     = new Blob([json], { type: 'application/json' });
+    const url      = URL.createObjectURL(blob);
     const filename = `crash-auto-collector-${fileTimestamp()}.json`;
 
     await chrome.downloads.download({
@@ -733,9 +658,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case 'GET_STATUS':
         return {
-          capturing: state.capturing,
+          capturing:    state.capturing,
           sessionStart: state.sessionStart,
-          stats: { ...state.stats },
+          stats:        { ...state.stats },
         };
 
       case 'DASHBOARD_OPENED':
@@ -745,11 +670,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         // Service worker has been woken up. Send immediate heartbeat/status back to all dashboard tabs
         chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
-              type: 'EXTENSION_HEARTBEAT',
-              capturing: state.capturing,
-              stats: state.stats
-            }).catch(() => { });
+            chrome.tabs.sendMessage(tab.id, { 
+              type: 'EXTENSION_HEARTBEAT', 
+              capturing: state.capturing, 
+              stats: state.stats 
+            }).catch(() => {});
           });
         });
         return { success: true, capturing: state.capturing };
@@ -759,7 +684,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         await chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: state.debugMode });
         // Propagate to content script
         if (state.tabId) {
-          chrome.tabs.sendMessage(state.tabId, { type: 'SET_DEBUG', debug: state.debugMode }).catch(() => { });
+           chrome.tabs.sendMessage(state.tabId, { type: 'SET_DEBUG', debug: state.debugMode }).catch(() => {});
         }
         return { success: true };
 
@@ -777,34 +702,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
         return { received: true };
 
-      case 'LIVE_TICK':
-      case 'TIMER_TICK':
-        // Forward real-time ticks to dashboard tabs
-        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
-          if (tabs) tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, msg).catch(() => { });
-          });
-        });
-        return { received: true };
-
       case 'BET_AMOUNT_CHANGE':
         chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_BET_CHANGE',
               amount: msg.amount
-            }).catch(() => { });
+            }).catch(() => {});
           });
         });
         return { received: true };
 
       case 'CONTENT_READY':
         log('Content script ready in tab', tabId);
-        return {
-          capturing: state.capturing,
-          wsEnabled: CONFIG.WS_INJECTION_ENABLED,
-          debug: state.debugMode,
-        };
+        return { capturing: state.capturing };
 
       case 'CONTENT_RECONNECT':
         // Content script reloaded — resend START if we're capturing
@@ -812,13 +723,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           chrome.tabs.sendMessage(tabId, {
             type: 'START_COLLECTION',
             config: { wsEnabled: CONFIG.WS_INJECTION_ENABLED, debug: state.debugMode },
-          }).catch(() => { });
+          }).catch(() => {});
         }
-        return {
-          capturing: state.capturing,
-          wsEnabled: CONFIG.WS_INJECTION_ENABLED,
-          debug: state.debugMode,
-        };
+        return { capturing: state.capturing };
 
       default:
     }

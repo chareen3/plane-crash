@@ -25,9 +25,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   } else if (
     msg.type === 'EXTENSION_CRASH_LIVE' ||
     msg.type === 'EXTENSION_BET_CHANGE' ||
-    msg.type === 'EXTENSION_HEARTBEAT' ||
-    msg.type === 'LIVE_TICK' ||
-    msg.type === 'TIMER_TICK'
+    msg.type === 'EXTENSION_HEARTBEAT'
   ) {
     // Forward the rich prediction and bet events directly to the React application
     window.postMessage(msg, '*');

@@ -32,7 +32,6 @@ const els = {
   btnDebug:        $('btn-debug'),
   liveFeed:        $('live-feed'),
   feedCount:       $('feed-count'),
-  heroLabel:       $('hero-label'),
 };
 
 // ---------------------------------------------------------------------------
@@ -120,6 +119,15 @@ function updateStats(stats) {
   els.statEvents.textContent  = stats.totalEvents ?? 0;
   els.badgeCount.textContent  = stats.totalEvents ?? 0;
 
+  // Update hero multiplier if we have a last crash value
+  if (stats.lastCrash && stats.lastCrash !== '—') {
+    const val = parseFloat(stats.lastCrash);
+    els.heroMultiplier.textContent = isNaN(val) ? stats.lastCrash : val.toFixed(2) + 'x';
+    els.heroMultiplier.className = 'hero-value crashed';
+    // Remove animation class after it plays
+    setTimeout(() => { els.heroMultiplier.classList.remove('crashed'); }, 600);
+    els.heroTime.textContent = 'Crashed at ' + new Date().toLocaleTimeString();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -298,23 +306,6 @@ chrome.runtime.onMessage.addListener((msg) => {
     case 'NEW_EVENT':
       addFeedEntry(msg.event);
       updateStats(msg.stats);
-      break;
-
-    case 'LIVE_TICK':
-      els.heroMultiplier.textContent = msg.multiplierText || '—';
-      els.heroTime.textContent = msg.state === 'active' ? 'Flying...' : 'Idle';
-      els.heroMultiplier.style.color = '#38bdf8'; // light blue
-      if (els.heroLabel) els.heroLabel.textContent = 'Live Round';
-      if (els.heroLabel) els.heroLabel.style.color = '#38bdf8';
-      break;
-
-    case 'TIMER_TICK':
-      els.heroTime.textContent = 'Next round: ' + (msg.timerText || 'waiting');
-      if (els.heroLabel && els.heroLabel.textContent !== 'Round Crashed') {
-        els.heroLabel.textContent = 'Waiting';
-        els.heroLabel.style.color = '#94a3b8';
-        els.heroMultiplier.style.color = '#94a3b8';
-      }
       break;
 
     case 'STATS_UPDATE':

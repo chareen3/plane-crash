@@ -4,15 +4,39 @@
  * This script is injected into the target crash game tab and is responsible
  * for observing DOM changes, capturing game state, and forwarding events to
  * the background service worker.
+ *
+ * =========================================================================
+ * HOW TO ADAPT SELECTORS FOR YOUR CRASH GAME
+ * =========================================================================
+ *
+ * All selectors are defined in the SELECTORS object below.
+ * Open DevTools on your target crash game, inspect the live multiplier
+ * element, round history rows, countdown timer, etc., then update the
+ * corresponding selector strings.
+ *
+ * Tips:
+ *  - Prefer data-* attributes or unique class names over positional selectors
+ *  - Use `document.querySelector(selector)` in DevTools console to test
+ *  - If the site uses a canvas-only UI, DOM scraping won't work; consider
+ *    WebSocket injection (enable WS_INJECTION_ENABLED in background.js)
+ *
+ * Example (Aviator-style layout):
+ *   MULTIPLIER:      '.pf-cashout__coefficient'
+ *   HISTORY_ITEMS:   '.history-item__coefficient'
+ *   ROUND_STATE:     '.game-state-label'
+ *   TIMER:           '.waiting-countdown'
+ *   BET_BUTTON:      '[data-testid="bet-button"]'
+ * =========================================================================
  */
 
 'use strict';
 
 // ---------------------------------------------------------------------------
-// ★ SELECTOR CONFIGURATION ★
+// ★ SELECTOR CONFIGURATION — update these for your target crash game ★
 // ---------------------------------------------------------------------------
 const SELECTORS = {
   // The live multiplier display (e.g. "2.34x")
+  // Update this to match the element showing the current multiplier in flight
   MULTIPLIER: [
     '.crash-game__counter', // 1xbet specific
     '.c-crash-game__counter',
@@ -28,12 +52,10 @@ const SELECTORS = {
     '.current-odd',
     '.crash-value',
     '.game-multiplier',
-    '[class*="crash"]',
-    '[class*="state"]',
-    '[class*="status"]',
   ],
 
   // History list rows — items showing past round results
+  // Each element's text should contain a multiplier like "3.21x"
   HISTORY_ITEMS: [
     '.crash-game__history-item', // 1xbet specific
     '.c-crash-game__history-item',
@@ -47,7 +69,6 @@ const SELECTORS = {
     '.round-result',
     '.previous-multiplier',
     'li[class*="history"]',
-    '[class*="history"]',
   ],
 
   // History container (to watch for new rows being added)
@@ -82,8 +103,6 @@ const SELECTORS = {
     '[class*="game-state"]',
     '.round-state',
     '.game-phase',
-    '[class*="crash"]',
-    '[class*="coef"]',
   ],
 
   // Bet amount input / display
@@ -114,6 +133,7 @@ const SELECTORS = {
   ],
 
   // Root game area container — used as MutationObserver root
+  // Update to the outermost element wrapping the entire game
   GAME_ROOT: [
     '[class*="game"]',
     '[class*="crash"]',
@@ -138,17 +158,6 @@ const cState = {
   flushTimer:     null,
   retryTimer:     null,
   buffer:         [],
-  
-  // State machine fields
-  currentRoundId: null,
-  roundActive: false,
-  latestLiveMultiplier: null,
-  latestHistoryTopValue: null,
-  lastSavedRoundId: null,
-  lastSavedMultiplier: null,
-  pendingFinalizeTimer: null,
-
-  // Backward compatibility fields
   lastMultiplier: null,
   lastMultiplierTime: 0,
   crashDetectorTimer: null,
@@ -158,8 +167,6 @@ const cState = {
   roundIndex:     0,
   seenHistory:    new Set(),
 };
-
-let pendingFinalize = null;
 
 // ---------------------------------------------------------------------------
 // Debug logging
@@ -178,16 +185,14 @@ function warn(...args) {
 
 /**
  * Try each selector in the array and return the first matching element.
- * Logs which selector succeeded if debug mode is active.
+ * Logs which selector succeeded so you can narrow it down.
  */
-function queryFirst(selectors, root = document, label = 'element') {
+function queryFirst(selectors, root = document) {
   for (const sel of selectors) {
     try {
       const el = root.querySelector(sel);
       if (el) {
-        if (cState.debug) {
-          console.log(`[CAC Content] [Selector Match] ${label} resolved using: "${sel}"`);
-        }
+        log(`Selector matched: "${sel}"`);
         return el;
       }
     } catch (_) { /* invalid selector — skip */ }
@@ -198,14 +203,12 @@ function queryFirst(selectors, root = document, label = 'element') {
 /**
  * Try each selector in the array and return all matching elements.
  */
-function queryAll(selectors, root = document, label = 'elements') {
+function queryAll(selectors, root = document) {
   for (const sel of selectors) {
     try {
       const els = root.querySelectorAll(sel);
       if (els.length > 0) {
-        if (cState.debug) {
-          console.log(`[CAC Content] [Selector Match] ${label} resolved using: "${sel}" (found ${els.length})`);
-        }
+        log(`Selector matched ${els.length} items: "${sel}"`);
         return Array.from(els);
       }
     } catch (_) { /* invalid selector — skip */ }
@@ -241,16 +244,16 @@ function getDomPath(el) {
 /**
  * Read text from the first matching element.
  */
-function readText(selectors, root = document, label = 'element') {
-  const el = queryFirst(selectors, root, label);
+function readText(selectors, root = document) {
+  const el = queryFirst(selectors, root);
   return el ? (el.textContent || el.innerText || '').trim() : null;
 }
 
 /**
  * Read all text values from matching elements.
  */
-function readAllText(selectors, root = document, label = 'elements') {
-  return queryAll(selectors, root, label)
+function readAllText(selectors, root = document) {
+  return queryAll(selectors, root)
     .map(el => (el.textContent || el.innerText || '').trim())
     .filter(t => t.length > 0);
 }
@@ -268,7 +271,7 @@ function parseMultiplier(text) {
  * Take a raw text snapshot from the game area (first 300 chars).
  */
 function getRawTextSample() {
-  const root = queryFirst(SELECTORS.GAME_ROOT, document, 'Game Root');
+  const root = queryFirst(SELECTORS.GAME_ROOT);
   if (!root) return (document.body.textContent || '').trim().slice(0, 300);
   return (root.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 300);
 }
@@ -303,151 +306,31 @@ function makeBaseEvent(overrides = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// State Machine Operations
-// ---------------------------------------------------------------------------
-
-function triggerRoundStart(roundId = null) {
-  if (cState.roundActive && roundId && cState.currentRoundId === roundId) {
-    return;
-  }
-
-  console.log('[CAC Content] round start', { roundId, previousRoundId: cState.currentRoundId });
-  cState.roundActive = true;
-  if (roundId) {
-    cState.currentRoundId = roundId;
-  }
-  cState.latestLiveMultiplier = null;
-
-  if (cState.pendingFinalizeTimer) {
-    clearTimeout(cState.pendingFinalizeTimer);
-    cState.pendingFinalizeTimer = null;
-  }
-}
-
-function queueFinalize(source, crashPoint, roundId = null, confidence = 'medium', rawPayload = null) {
-  if (roundId !== null && cState.lastSavedRoundId === roundId) {
-    console.log(`[CAC Content] finalize skipped due to duplicate round_id: ${roundId}`);
-    return;
-  }
-
-  if (pendingFinalize) {
-    const prevConf = getConfidenceRank(pendingFinalize.confidence);
-    const newConf = getConfidenceRank(confidence);
-    if (newConf < prevConf) {
-      console.log(`[CAC Content] Ignored lower confidence finalize candidate (${confidence}) since a higher one (${pendingFinalize.confidence}) is pending.`);
-      return;
-    }
-  }
-
-  console.log(`[CAC Content] Queueing finalize candidate from ${source} with confidence ${confidence}: ${crashPoint}x`);
-
-  if (cState.pendingFinalizeTimer) {
-    clearTimeout(cState.pendingFinalizeTimer);
-  }
-
-  pendingFinalize = { source, crashPoint, roundId, confidence, rawPayload };
-
-  // 600ms debounce window
-  cState.pendingFinalizeTimer = setTimeout(() => {
-    cState.pendingFinalizeTimer = null;
-    const item = pendingFinalize;
-    pendingFinalize = null;
-    if (item) {
-      executeFinalize(item.source, item.crashPoint, item.roundId, item.confidence, item.rawPayload);
-    }
-  }, 600);
-}
-
-function getConfidenceRank(conf) {
-  if (conf === 'high') return 3;
-  if (conf === 'medium') return 2;
-  return 1; // 'low'
-}
-
-function executeFinalize(source, crashPoint, roundId = null, confidence = 'medium', rawPayload = null) {
-  if (crashPoint === null || crashPoint === undefined || isNaN(crashPoint) || crashPoint <= 1.0) {
-    console.log('[CAC Content] finalize rejected due to missing valid multiplier');
-    return;
-  }
-
-  if (roundId !== null && cState.lastSavedRoundId === roundId) {
-    console.log(`[CAC Content] finalize skipped due to duplicate round_id: ${roundId}`);
-    return;
-  }
-
-  const now = Date.now();
-  const timeBucket = Math.floor(now / 5000);
-  const roundedMult = Math.round(crashPoint * 10);
-  const fingerprint = `${roundedMult}|${timeBucket}`;
-
-  if (!roundId && cState.lastSavedMultiplier === crashPoint && (now - cState.lastMultiplierTime < 5000)) {
-    console.log(`[CAC Content] finalize skipped due to duplicate stable fingerprint: ${fingerprint}`);
-    return;
-  }
-
-  console.log(`[CAC Content] finalize accepted: ${crashPoint}x via ${source} (confidence: ${confidence})`);
-
-  cState.roundActive = false;
-  cState.lastSavedRoundId = roundId;
-  cState.lastSavedMultiplier = crashPoint;
-  cState.lastMultiplier = null;
-  cState.lastMultiplierTime = 0;
-
-  const event = makeBaseEvent({
-    eventType: 'round_result',
-    source: source === 'ws' ? 'ws' : (source === 'history' ? 'history' : 'dom-fallback'),
-    round_id: roundId || null,
-    multiplier: crashPoint,
-    multiplierText: crashPoint.toFixed(2) + 'x',
-    round_state: 'crashed',
-    capture_confidence: confidence,
-    raw_payload: rawPayload,
-    capturedAt: new Date().toISOString(),
-    roundIndex: cState.roundIndex
-  });
-
-  enqueueEvent(event);
-  cState.roundIndex++;
-}
-
-// ---------------------------------------------------------------------------
 // Snapshot helpers — capture current visible state
 // ---------------------------------------------------------------------------
 
 function captureMultiplierTick() {
-  const text = readText(SELECTORS.MULTIPLIER, document, 'Multiplier Display');
+  const text = readText(SELECTORS.MULTIPLIER);
   if (!text) return null;
-  if (text === cState.lastMultiplier) return null;
+  if (text === cState.lastMultiplier) return null; // unchanged
 
   const numVal = parseMultiplier(text);
   const prevNum = parseMultiplier(cState.lastMultiplier);
   
   cState.lastMultiplier = text;
   cState.lastMultiplierTime = Date.now(); // Mark time of change
-  const mEl = queryFirst(SELECTORS.MULTIPLIER, document, 'Multiplier Display');
+  const mEl = queryFirst(SELECTORS.MULTIPLIER);
 
-  if (numVal && numVal > 1.00) {
-    if (!cState.roundActive) {
-      triggerRoundStart();
-    }
-    cState.latestLiveMultiplier = numVal;
-    log(`live tick updates: ${numVal}x`);
-  }
-
-  // --- Real-time update for Popup/Sidebar UI ---
-  chrome.runtime.sendMessage({
-    type: 'LIVE_TICK',
-    multiplierText: text,
-    multiplier: numVal,
-    state: cState.roundActive ? 'active' : 'idle'
-  }).catch(() => {});
-  // ---------------------------------------------
-
-  // Detect multiplier reset/decrease as a fallback crash signal
+  // If the new multiplier is smaller than the previous one, the previous round just ended!
   if (numVal !== null && prevNum !== null && numVal < prevNum) {
-    console.log(`[CAC Content] Multiplier decrease detected: ${prevNum}x -> ${numVal}x`);
-    queueFinalize('dom-fallback', prevNum, null, 'low');
-    triggerRoundStart();
+    cState.roundIndex++;
+    return makeBaseEvent({
+      eventType:      'round_result',
+      source:         'observer',
+      multiplierText: String(prevNum) + 'x',
+      multiplier:     prevNum,
+      domPath:        getDomPath(mEl),
+    });
   }
 
   return makeBaseEvent({
@@ -460,24 +343,11 @@ function captureMultiplierTick() {
 }
 
 function captureTimerChange() {
-  const text = readText(SELECTORS.TIMER, document, 'Timer Display');
+  const text = readText(SELECTORS.TIMER);
   if (!text) return null;
   if (text === cState.lastTimer) return null;
 
   cState.lastTimer = text;
-  
-  // If the timer starts ticking, we expect the upcoming round
-  if (text) {
-    triggerRoundStart();
-  }
-
-  // --- Real-time update for Popup/Sidebar UI ---
-  chrome.runtime.sendMessage({
-    type: 'TIMER_TICK',
-    timerText: text
-  }).catch(() => {});
-  // ---------------------------------------------
-
   return makeBaseEvent({
     eventType:    'timer_change',
     source:       'observer',
@@ -486,7 +356,7 @@ function captureTimerChange() {
 }
 
 function captureRoundStateChange() {
-  const text = readText(SELECTORS.ROUND_STATE, document, 'State Container');
+  const text = readText(SELECTORS.ROUND_STATE);
   if (!text) return null;
   if (text === cState.lastRoundState) return null;
 
@@ -496,47 +366,53 @@ function captureRoundStateChange() {
   if (lower.includes('wait') || lower.includes('next'))     normalisedState = 'waiting';
   else if (lower.includes('fly') || lower.includes('crash')) normalisedState = lower.includes('crash') ? 'crashed' : 'flying';
 
-  log(`Round state changed: ${normalisedState}`);
+  const isResult = normalisedState === 'crashed';
+  const mult     = cState.lastMultiplier;
+  const multVal  = parseMultiplier(mult);
 
-  if (normalisedState === 'flying' || normalisedState === 'waiting') {
-    triggerRoundStart();
+  if (isResult) {
+    // The user requested a 2-second delay after the crash class is detected
+    // to allow the UI to fully settle and the final multiplier to stop moving.
+    setTimeout(() => {
+      cState.roundIndex++;
+      // Re-read the multiplier to get the absolute final frozen value
+      const finalMultText = readText(SELECTORS.MULTIPLIER) || mult;
+      const finalMultVal = parseMultiplier(finalMultText) || multVal;
+      
+      const delayedEvent = makeBaseEvent({
+        eventType:      'round_result',
+        source:         'observer_delayed',
+        roundState:     'crashed',
+        multiplierText: finalMultText,
+        multiplier:     finalMultVal,
+      });
+      enqueueEvent(delayedEvent);
+    }, 2000);
+
+    // Immediately return just the state change, not the crash result yet
+    return makeBaseEvent({
+      eventType:      'state_change',
+      source:         'observer',
+      roundState:     'crashed',
+      multiplierText: mult,
+      multiplier:     multVal,
+    });
   }
 
-  if (normalisedState === 'crashed') {
-    const topHistoryText = readText(SELECTORS.HISTORY_ITEMS, document, 'History List');
-    const topHistoryVal = parseMultiplier(topHistoryText);
-    const finalVal = topHistoryVal !== null ? topHistoryVal : cState.latestLiveMultiplier;
-    
-    if (finalVal !== null) {
-      queueFinalize('dom-fallback', finalVal, null, 'low');
-    }
-  }
-
-  return makeBaseEvent({
+  const event = makeBaseEvent({
     eventType:      'state_change',
     source:         'observer',
     roundState:     normalisedState,
-    multiplierText: cState.lastMultiplier,
-    multiplier:     parseMultiplier(cState.lastMultiplier),
+    multiplierText: mult,
+    multiplier:     multVal,
   });
+
+  return event;
 }
 
 function captureHistoryItems() {
-  const items = readAllText(SELECTORS.HISTORY_ITEMS, document, 'History List');
+  const items = readAllText(SELECTORS.HISTORY_ITEMS);
   if (!items.length) return null;
-  
-  const topItemText = items[0];
-  const topValue = parseMultiplier(topItemText);
-  
-  if (topValue !== null && topValue !== cState.latestHistoryTopValue) {
-    console.log(`[CAC Content] history top changed: previous=${cState.latestHistoryTopValue}, new=${topValue}`);
-    cState.latestHistoryTopValue = topValue;
-    
-    if (cState.roundActive) {
-      queueFinalize('history', topValue, null, 'medium');
-    }
-  }
-
   if (items.length === cState.lastHistoryLen) return null;
 
   // Find newly added items
@@ -555,13 +431,13 @@ function captureHistoryItems() {
 }
 
 function captureButtonLabels() {
-  const labels = readAllText(SELECTORS.BUTTONS, document, 'Buttons');
+  const labels = readAllText(SELECTORS.BUTTONS);
   return labels.length ? labels : null;
 }
 
 function captureBetInfo() {
-  const betEl    = queryFirst(SELECTORS.BET_AMOUNT, document, 'Stake Input');
-  const cashEl   = queryFirst(SELECTORS.CASHOUT, document, 'Cashout Button');
+  const betEl    = queryFirst(SELECTORS.BET_AMOUNT);
+  const cashEl   = queryFirst(SELECTORS.CASHOUT);
   const betText  = betEl ? (betEl.value || betEl.textContent || '').trim() : null;
   const cashText = cashEl ? (cashEl.textContent || '').trim() : null;
   return { betAmountText: betText, cashoutText: cashText };
@@ -572,11 +448,11 @@ function captureBetInfo() {
 // ---------------------------------------------------------------------------
 
 function doFullSnapshot(source = 'observer') {
-  const multiplierText = readText(SELECTORS.MULTIPLIER, document, 'Multiplier Display');
+  const multiplierText = readText(SELECTORS.MULTIPLIER);
   const multiplier     = parseMultiplier(multiplierText);
-  const currentTimer   = readText(SELECTORS.TIMER, document, 'Timer Display');
-  const roundState     = readText(SELECTORS.ROUND_STATE, document, 'State Container');
-  const historyValues  = readAllText(SELECTORS.HISTORY_ITEMS, document, 'History List');
+  const currentTimer   = readText(SELECTORS.TIMER);
+  const roundState     = readText(SELECTORS.ROUND_STATE);
+  const historyValues  = readAllText(SELECTORS.HISTORY_ITEMS);
   const buttonLabels   = captureButtonLabels();
   const { betAmountText, cashoutText } = captureBetInfo();
   const rawTextSample  = getRawTextSample();
@@ -626,7 +502,7 @@ function flushToBackground() {
 const throttledMultiplierCapture = throttle(() => {
   const ev = captureMultiplierTick();
   if (ev) enqueueEvent(ev);
-}, 50); // at most once per 50ms for smooth live updates
+}, 500); // at most once per 500ms
 
 function throttle(fn, limit) {
   let last = 0;
@@ -655,7 +531,7 @@ function debouncedSnapshot(delay = 600) {
 
 function setupBetListeners() {
   try {
-    const inputs = queryAll(SELECTORS.BET_AMOUNT, document, 'Stake Input');
+    const inputs = queryAll(SELECTORS.BET_AMOUNT);
     inputs.forEach(input => {
       if (input.dataset.cacListening) return;
       input.dataset.cacListening = 'true';
@@ -683,7 +559,7 @@ function setupObserver() {
     cState.observer = null;
   }
 
-  const root = queryFirst(SELECTORS.GAME_ROOT, document, 'Game Root') || document.body;
+  const root = queryFirst(SELECTORS.GAME_ROOT) || document.body;
   log('Attaching MutationObserver to:', getDomPath(root));
 
   // Initialize listeners
@@ -763,7 +639,7 @@ const MAX_RETRIES = 30;
 const RETRY_INTERVAL = 1000; // ms
 
 function tryStartObserver() {
-  const root = queryFirst(SELECTORS.GAME_ROOT, document, 'Game Root');
+  const root = queryFirst(SELECTORS.GAME_ROOT);
   if (root) {
     retryCount = 0;
     setupObserver();
@@ -785,10 +661,13 @@ function tryStartObserver() {
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket injection
+// WebSocket injection (optional, disabled by default)
 // ---------------------------------------------------------------------------
 
 function injectWSListener() {
+  // This creates a script element in the PAGE context (not extension context)
+  // so it can wrap the native WebSocket constructor.
+  // Only works if WS_INJECTION_ENABLED = true in background.js
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL('inject.js');
   script.onload = () => {
@@ -803,17 +682,10 @@ function injectWSListener() {
     if (evt.source !== window) return;
     if (!evt.data || evt.data.source !== 'CAC_INJECT') return;
 
-    if (evt.data.type === 'ws_round_start') {
-      triggerRoundStart(evt.data.round_id);
-    } else if (evt.data.type === 'ws_round_end') {
-      console.log(`[CAC Content] websocket finish candidate: round_id=${evt.data.round_id}, crash_point=${evt.data.crash_point}`);
-      queueFinalize('ws', evt.data.crash_point, evt.data.round_id, 'high', evt.data.rawPayload);
-    }
-
     const event = makeBaseEvent({
       eventType:  'websocket',
       source:     'websocket',
-      rawPayload: evt.data.payload ? JSON.stringify(evt.data.payload).slice(0, 1000) : null,
+      rawPayload: JSON.stringify(evt.data.payload).slice(0, 1000),
     });
     enqueueEvent(event);
   }, false);
@@ -829,7 +701,6 @@ function startCollection(config = {}) {
   cState.active    = true;
   cState.debug     = !!(config.debug);
   cState.wsEnabled = !!(config.wsEnabled);
-  window.__CAC_DEBUG__ = cState.debug;
 
   log('Collection started. WS injection:', cState.wsEnabled);
 
@@ -848,8 +719,17 @@ function startCollection(config = {}) {
     
     const numVal = parseMultiplier(cState.lastMultiplier);
     if (numVal && numVal > 1.00 && (Date.now() - cState.lastMultiplierTime > 2000)) {
-      console.log(`[CAC Content] Staleness crash detected: ${numVal}`);
-      queueFinalize('dom-fallback', numVal, null, 'low');
+      cState.roundIndex++;
+      const mEl = queryFirst(SELECTORS.MULTIPLIER);
+      const event = makeBaseEvent({
+        eventType:      'round_result',
+        source:         'staleness_detector',
+        multiplierText: String(numVal) + 'x',
+        multiplier:     numVal,
+        domPath:        getDomPath(mEl),
+      });
+      enqueueEvent(event);
+      log('Staleness crash detected:', numVal);
       
       // Reset so it doesn't fire twice for the same pause
       cState.lastMultiplierTime = 0;
@@ -901,7 +781,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
     case 'SET_DEBUG':
       cState.debug = !!msg.debug;
-      window.__CAC_DEBUG__ = cState.debug;
       sendResponse({ ok: true });
       break;
 
@@ -913,17 +792,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 // ── AUTO-START on 1xBet crash page (no popup needed) ──────────────────────
 (function autoStart() {
+  // Notify background SW that content script is live
   chrome.runtime.sendMessage({ type: 'CONTENT_READY' }).then(response => {
+    // If a session is already capturing, the background will reply with capturing: true
     if (response && response.capturing) {
+      // Already running — don't double-start
       return;
     }
+    // Auto-begin collection immediately
     startCollection({
-      wsEnabled: response ? !!response.wsEnabled : true,
-      debug: response ? !!response.debug : false,
+      wsEnabled: false, // set true if you want WebSocket injection
+      debug: false,
     });
     console.log('[CrashCollector] ✅ Auto-started on', location.href);
   }).catch(() => {
-    startCollection({ wsEnabled: true, debug: false });
+    // Background not ready yet — start anyway
+    startCollection({ wsEnabled: false, debug: false });
   });
 })();
 

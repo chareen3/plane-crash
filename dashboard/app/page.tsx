@@ -177,41 +177,44 @@ export default function Dashboard() {
     fetchWinRate();
     runPrediction();
 
+    // ── Message handler ─────────────────────────────────────────────────────
     const handleMessage = (evt: MessageEvent) => {
       const type = evt.data?.type;
-      if (typeof type === 'string' && (
-        type.startsWith('EXTENSION_') || 
-        type === 'PONG' || 
-        type === 'LIVE_TICK' || 
-        type === 'TIMER_TICK' || 
+      if (!type) return;
+
+      // Any message from extension resets the missed-pong counter
+      if (
+        type === 'EXTENSION_PONG' ||
+        type === 'EXTENSION_CONNECTED' ||
+        type === 'EXTENSION_HEARTBEAT' ||
+        type === 'LIVE_TICK' ||
+        type === 'TIMER_TICK' ||
+        type === 'EXTENSION_CRASH_LIVE' ||
         type === 'NEW_CRASH'
-      )) {
-        setIsExtensionConnected(true);
+      ) {
+        missedPongsRef.current = 0;
         lastMessageTimeRef.current = Date.now();
-      }
-      if (type === 'EXTENSION_CONNECTED' || type === 'PONG') {
         setIsExtensionConnected(true);
+      }
+
+      if (type === 'EXTENSION_PONG' || type === 'EXTENSION_CONNECTED') {
         if (evt.data?.timestamp) {
           setLatency(Date.now() - evt.data.timestamp);
         }
       }
+
       if (type === 'EXTENSION_CRASH_LIVE' || type === 'NEW_CRASH') {
         const round = evt.data.round;
-        if (round?.round_number) {
-          setLastSyncedRound(round.round_number);
-        }
+        if (round?.round_number) setLastSyncedRound(round.round_number);
       }
+
       if (type === 'EXTENSION_CRASH_LIVE') {
-        setIsExtensionConnected(true);
         const { round, prediction, stats } = evt.data;
         if (round) {
           lastPredictedRoundRef.current = round.round_number;
           const roundObj: Round = { ...round, _optimistic: true };
           setLastCrash(roundObj);
-          
-          // Force the liveData UI into a crashed state instantly
           setLiveData(prev => ({ ...prev, state: 'crashed' }));
-
           setRounds(prev => {
             if (prev.some(r => r.round_number === roundObj.round_number)) return prev;
             const updated = [roundObj, ...prev].slice(0, 50);
@@ -226,32 +229,35 @@ export default function Dashboard() {
         heroRef.current?.classList.add('flash');
         fetchWinRate();
       } else if (type === 'EXTENSION_BET_CHANGE') {
-        setIsExtensionConnected(true);
         setBetAmount(evt.data.amount);
       } else if (type === 'LIVE_TICK') {
-        setIsExtensionConnected(true);
         setLiveData(prev => ({ ...prev, multiplierText: evt.data.multiplierText, state: evt.data.state, timerText: undefined }));
       } else if (type === 'TIMER_TICK') {
-        setIsExtensionConnected(true);
         setLiveData(prev => ({ ...prev, timerText: evt.data.timerText, multiplierText: undefined, state: 'waiting' }));
       }
     };
     window.addEventListener('message', handleMessage);
-    
+
+    // ── SW keepalive ping every 10s (just to keep SW awake for tick forwarding) ──
     const pingInterval = setInterval(() => {
       window.postMessage({ type: 'DASHBOARD_PING', timestamp: Date.now() }, '*');
-    }, 15000);
+    }, 10000);
 
-    const checkConnectionInterval = setInterval(() => {
-      if (Date.now() - lastMessageTimeRef.current > 25000) {
+    // ── Disconnect watchdog ───────────────────────────────────────────────────
+    // The bridge sends EXTENSION_PONG every 1 second.
+    // We only call disconnected if we heard NOTHING for 30 seconds.
+    // This only happens if the extension is disabled/removed/crashed.
+    const watchdogInterval = setInterval(() => {
+      if (Date.now() - lastMessageTimeRef.current > 30000) {
         setIsExtensionConnected(false);
       }
     }, 5000);
 
+    // ── Supabase realtime channel ────────────────────────────────────────────
     const channel = supabase.channel('crash-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crash_rounds' }, (payload) => {
-        setIsExtensionConnected(true);
         lastMessageTimeRef.current = Date.now();
+        setIsExtensionConnected(true);
         const round = payload.new as Round;
         setRounds(prev => {
           const exists = prev.findIndex(r => r.round_number === round.round_number);
@@ -268,10 +274,7 @@ export default function Dashboard() {
         }
       }).subscribe();
 
-    setTimeout(() => {
-      window.postMessage({ type: 'DASHBOARD_PING', timestamp: Date.now() }, '*');
-    }, 500);
-
+    // Mark disconnected at startup only if no heartbeat in 5s
     const connTimeout = setTimeout(() => {
       setIsExtensionConnected(curr => {
         if (!curr) {
@@ -280,11 +283,11 @@ export default function Dashboard() {
         }
         return curr;
       });
-    }, 4000);
+    }, 5000);
 
     return () => {
       clearInterval(pingInterval);
-      clearInterval(checkConnectionInterval);
+      clearInterval(watchdogInterval);
       clearTimeout(connTimeout);
       supabase.removeChannel(channel);
       window.removeEventListener('message', handleMessage);
