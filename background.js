@@ -25,7 +25,7 @@ const CONFIG = {
   /** Max events kept in storage (rolling window) */
   MAX_STORED_EVENTS: 5000,
   /** Enable WebSocket injection feature (disabled by default) */
-  WS_INJECTION_ENABLED: false,
+  WS_INJECTION_ENABLED: true,
   /** Storage key prefix */
   KEY_PREFIX: 'cac_',
 };

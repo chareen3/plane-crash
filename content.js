@@ -745,7 +745,8 @@ function injectWSListener() {
   // so it can wrap the native WebSocket constructor.
   // Only works if WS_INJECTION_ENABLED = true in background.js
   const script = document.createElement('script');
-  script.src = chrome.runtime.getURL('inject.js');
+  // Add cache-buster so Chrome doesn't serve a stale, broken inject.js
+  script.src = chrome.runtime.getURL('inject.js') + '?v=' + Date.now();
   script.onload = () => {
     log('inject.js loaded into page context');
     script.remove();
