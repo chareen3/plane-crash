@@ -1062,7 +1062,7 @@ export default function Dashboard() {
                             </span>
                           </div>
                         </div>
-                        <div style={{ textAlign: 'right', minWidth: '120px' }}>
+                        <div className="hero-banner-target-container">
                           <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Target</div>
                           {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
                             <div className="hero-banner-target" style={{ color: stratMeta.color }}>
@@ -1154,13 +1154,13 @@ export default function Dashboard() {
                           <div className="time-sync-card">
                             <Clock size={16} color="#6c63ff" style={{ flexShrink: 0 }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '11px', fontWeight: '800', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div className="time-sync-title">
                                 Colombo Time Sync
                                 <span style={{ fontSize: '9px', background: timeData.isLKPrime ? 'rgba(0,229,160,0.12)' : 'rgba(108,99,255,0.12)', color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
                                   {timeData.lkPhase} PHASE
                                 </span>
                               </div>
-                              <div style={{ fontSize: '10px', color: '#6b7fa3', marginTop: '2px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              <div className="time-sync-subtext">
                                 Local: {timeData.currentLKTimeStr} ({timeData.lkPlayerCount} active wagers) · {timeData.lkNote}
                               </div>
                             </div>
