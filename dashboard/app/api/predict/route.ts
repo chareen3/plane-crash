@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// ─── Full history fetch — paginated up to 50,000 rounds with timestamps ──
+// ─── Full history fetch — paginated up to 5,000 rounds with timestamps ──
 async function fetchRecentRounds() {
   const rounds: { round_number: number; crash_point: number; created_at: string }[] = [];
   const PAGE_SIZE = 1000;
@@ -64,11 +64,11 @@ export async function GET(request: Request) {
         summary: buildHumanSummary(stats, betSignal),
         predicted_multiplier: existingPred.predicted_multiplier ?? betSignal.cashout_target,
         long_targets: existingPred.long_targets,
-        should_bet: existingPred.should_bet ?? betSignal.should_bet,
+        should_bet: betSignal.should_bet ?? existingPred.should_bet,
         recommended_bet_units: betSignal.recommended_bet_units,
         skip_reason: existingPred.skip_reason ?? betSignal.skip_reason,
-        strategy: existingPred.strategy ?? betSignal.strategy,
-        cashout_target: existingPred.cashout_target ?? betSignal.cashout_target,
+        strategy: betSignal.strategy ?? existingPred.strategy,
+        cashout_target: betSignal.cashout_target ?? existingPred.cashout_target,
         strategy_reason: existingPred.strategy_reason ?? betSignal.strategy_reason ?? 'Based on historical pattern analysis.',
         ai_model_used: existingPred.ai_model_used ?? 'stats-only',
         stats,
@@ -76,6 +76,8 @@ export async function GET(request: Request) {
         volatility_phase: existingPred.volatility_phase ?? betSignal.volatility_phase,
         recommended_stake_pct: existingPred.recommended_stake_pct ?? betSignal.recommended_stake_pct,
         timeData,
+        ai_failed: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only',
+        ai_fallback_reason: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
       });
     }
 
@@ -163,6 +165,8 @@ export async function GET(request: Request) {
       recommended_bet_units: betSignal.recommended_bet_units,
       stats,
       timeData,
+      ai_failed: aiModelUsed === 'stats-only',
+      ai_fallback_reason: aiModelUsed === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
     });
 
   } catch (err: any) {
