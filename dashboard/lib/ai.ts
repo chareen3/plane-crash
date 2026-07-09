@@ -233,7 +233,29 @@ Return EXACTLY this JSON format (no markdown, no extra text):
 }`;
 }
 
-export async function callAI(prompt: string): Promise<{ result: any; model: string } | null> {
+export const systemPrompt = `
+You are a crash game multiplier analyst. 
+Given the last 50 rounds of crash data, you MUST output JSON with 3 tiers:
+
+{
+  "tier_safe": number,      // 65%+ reach this (min 1.8x, never below)
+  "tier_swing": number,     // 35-40% reach this (target 3.0x-5.0x)
+  "tier_moon": number,      // 15-20% reach this (target 8x-15x)
+  "skip_round": boolean,    // true if last 5 rounds avg < 1.3x AND hour is cold
+  "cold_streak": boolean,   // true if last 10 rounds had zero above 2x
+  "confidence": number,     // MAX 75, never 100
+  "reasoning": string       // explain which pattern triggered this
+}
+
+RULES:
+- NEVER output tier_safe below 1.8x
+- NEVER output confidence = 100
+- If cold_streak is true, RAISE tier_swing by +1.0x (reversion expected)
+- If last 5 rounds avg > 3x (hot streak), LOWER all tiers by 20%
+- Always consider: how many of last 50 rounds were above 3x?
+`;
+
+export async function callAI(systemPrompt: string, userMessage: string): Promise<{ result: any; model: string } | null> {
   if (!process.env.OPENROUTER_API_KEY) return null;
 
   for (const model of AI_MODELS) {
@@ -251,7 +273,10 @@ export async function callAI(prompt: string): Promise<{ result: any; model: stri
         },
         body: JSON.stringify({
           model,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
           temperature: 0.08,
           max_tokens: 200,
         }),

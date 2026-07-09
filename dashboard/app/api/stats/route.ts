@@ -45,43 +45,43 @@ export async function GET(request: Request) {
     // Average multiplier
     const avgMultiplier = (rounds.reduce((s, r) => s + Number(r.crash_point), 0) / rounds.length).toFixed(2);
 
-    // Accuracy: when we predicted cashout_target X, did crash happen ABOVE it?
+    // Accuracy: when we predicted swing target X, did crash happen ABOVE it?
     const { data: predictions, error: predictionsError } = await supabase
       .from('predictions')
-      .select('round_number, cashout_target, should_bet, confidence')
-      .not('cashout_target', 'is', null)
+      .select('round_number, cashout_target, tier_swing, swing_target, should_bet, confidence')
       .limit(500)
       .order('round_number', { ascending: false });
       
-    if (predictionsError) {
-      console.error('Error fetching predictions:', predictionsError);
-    }
-    
-    // We already have `rounds` as actuals (last 100).
-    // Let's get up to 500 actuals to match predictions
-    const { data: actuals, error: actualsError } = await supabase
-      .from('crash_rounds')
-      .select('round_number, crash_point')
-      .order('round_number', { ascending: false })
-      .limit(500);
-
-    let realHitRate = '0.0';
-    let totalBetRounds = 0;
-    let successfulHits = 0;
-
-    if (predictions && actuals) {
-      // Match predictions to actuals
-      const matched = predictions.map(p => {
-        // A prediction for round X is checked against actual round X
-        const actual = actuals.find(r => r.round_number === p.round_number);
-        if (!actual) return null;
-        return {
-          predicted: p.cashout_target,
-          actual: actual.crash_point,
-          hit: Number(actual.crash_point) >= Number(p.cashout_target), // did it stay above our target?
-          shouldBet: p.should_bet
-        };
-      }).filter(Boolean) as any[];
+      if (predictionsError) {
+        console.error('Error fetching predictions:', predictionsError);
+      }
+      
+      // We already have `rounds` as actuals (last 100).
+      // Let's get up to 500 actuals to match predictions
+      const { data: actuals, error: actualsError } = await supabase
+        .from('crash_rounds')
+        .select('round_number, crash_point')
+        .order('round_number', { ascending: false })
+        .limit(500);
+  
+      let realHitRate = '0.0';
+      let totalBetRounds = 0;
+      let successfulHits = 0;
+  
+      if (predictions && actuals) {
+        // Match predictions to actuals
+        const matched = predictions.map(p => {
+          // A prediction for round X is checked against actual round X
+          const actual = actuals.find(r => r.round_number === p.round_number);
+          if (!actual) return null;
+          const target = Number(p.tier_swing || p.swing_target || 3.5);
+          return {
+            predicted: target,
+            actual: actual.crash_point,
+            hit: Number(actual.crash_point) >= target, // did it stay above our target?
+            shouldBet: p.should_bet
+          };
+        }).filter(Boolean) as any[];
       
       const betRounds = matched.filter(m => m.shouldBet);
       totalBetRounds = betRounds.length;

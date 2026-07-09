@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     // Find the prediction for this round that hasn't been graded yet
     let query = supabase
       .from('predictions')
-      .select('id, predicted_risk, should_bet, cashout_target, predicted_multiplier')
+      .select('id, should_bet, tier_swing, swing_target')
       .is('was_correct', null);
     
     if (typeof roundNumber === 'number') {
@@ -41,8 +41,8 @@ export async function POST(request: Request) {
       // Correctly skipped if it crashed low (< 1.5x)
       wasCorrect = actualCrashPoint < 1.5;
     } else {
-      // Correctly bet if it reached or exceeded our cashout target
-      const target = Number(pred.cashout_target || pred.predicted_multiplier || 1.10);
+      // Correctly bet if it reached or exceeded our swing target
+      const target = Number(pred.tier_swing || pred.swing_target || 3.5);
       wasCorrect = actualCrashPoint >= target;
     }
 
@@ -76,7 +76,7 @@ export async function GET() {
   try {
     const { data } = await supabase
       .from('predictions')
-      .select('was_correct, predicted_risk, actual_crash_point, created_at, confidence, summary, should_bet, cashout_target, predicted_multiplier')
+      .select('was_correct, predicted_risk, actual_crash_point, created_at, confidence, summary, should_bet, cashout_target, predicted_multiplier, tier_swing, swing_target')
       .not('was_correct', 'is', null)
       .order('created_at', { ascending: false })
       .limit(100);
@@ -92,7 +92,7 @@ export async function GET() {
     let sumTarget = 0;
 
     for (const p of activeBets) {
-      const target = Number(p.cashout_target || p.predicted_multiplier || 1.10);
+      const target = Number(p.tier_swing || p.swing_target || 3.5);
       sumTarget += target;
       if (p.was_correct !== null) {
         if (p.was_correct) {

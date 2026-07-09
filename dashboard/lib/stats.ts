@@ -111,8 +111,8 @@ export interface CrashStats {
   recentOutcomes: number[];
 }
 
-export function computeStats(rawRounds: { crash_point: number, created_at: string }[], rtp = 97): CrashStats {
-  if (rawRounds.length === 0) return emptyStats(rtp);
+export function computeStats(rawRounds: { crash_point: number, created_at: string }[]): CrashStats {
+  if (rawRounds.length === 0) return emptyStats();
   const values = rawRounds.map(r => Number(r.crash_point));
   
   const n = values.length;
@@ -167,7 +167,7 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
     const ev = Math.round(((hitRate / 100) * target - 1) * 100) / 100;
 
     // Theoretical probability formula: P(reach m) = 0.97 / m. Expressed as percentage 0-100
-    const mathProb = Math.round(((rtp / 100) / target) * 1000) / 10;
+    const mathProb = Math.round((0.97 / target) * 1000) / 10;
 
     // Signal
     let signal: TargetLevel['signal'];
@@ -463,11 +463,11 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
   };
 }
 
-function emptyStats(rtp = 97): CrashStats {
+function emptyStats(): CrashStats {
   const emptyTargets = [1.05, 1.10, 1.18, 1.2, 1.5, 1.8, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0, 25.0].map(target => ({
     target, hitCount: 0, hitRate: 0, recentHitRate: 0,
     signal: 'RARE' as const, lastHitAgo: -1, longestGap: 0, ev: -1,
-    mathProb: Math.round(((rtp / 100) / target) * 1000) / 10,
+    mathProb: Math.round((0.97 / target) * 1000) / 10,
   }));
   return {
     count: 0, mean: 0, median: 0, stdDev: 0, min: 0, max: 0,

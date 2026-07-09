@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { computeStats, gradePrediction, computeBetSignal, buildHumanSummary } from '../../../lib/stats';
-import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData } from '../../../lib/ai';
+import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
 
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     let wasCorrect = null;
     const { data: pred, error: fetchErr } = await supabase
       .from('predictions')
-      .select('id, predicted_risk, cashout_target')
+      .select('id, should_bet, tier_swing, swing_target')
       .eq('round_number', roundNumber)
       .is('was_correct', null)
       .order('created_at', { ascending: false })
@@ -88,11 +88,13 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!fetchErr && pred) {
-      wasCorrect = gradePrediction(
-        pred.predicted_risk as 'LOW' | 'MEDIUM' | 'HIGH',
-        crashPoint,
-        pred.cashout_target
-      );
+      const isSkip = pred.should_bet === false;
+      if (isSkip) {
+        wasCorrect = crashPoint < 1.5;
+      } else {
+        const target = Number(pred.tier_swing || pred.swing_target || 3.5);
+        wasCorrect = crashPoint >= target;
+      }
 
       const { error: updateErr } = await supabase
         .from('predictions')
@@ -155,58 +157,89 @@ export async function POST(request: Request) {
     let finalCashout = strategyLabel === 'SKIP' ? 0 : betSignal.cashout_target;
     let aiModelUsed = 'stats-only';
 
-    // Parallel AI call
-    const prompt = buildPrompt(stats, betSignal, timeData);
-    const aiCallPromise = callAI(prompt);
+    // ── Wait for AI prediction ──
+    const { data: context } = await supabase
+      .from('ai_context_window')
+      .select('*')
+      .maybeSingle();
 
+    const contextVal = context || {
+      current_hour_utc: new Date().getUTCHours(),
+      avg_crash: 1.8,
+      median_crash: 1.5,
+      above_5x_count: 0,
+      above_10x_count: 0
+    };
+
+    const userMessage = `
+Current UTC hour: ${contextVal.current_hour_utc}
+Last 50 rounds avg: ${contextVal.avg_crash}
+Last 50 rounds median: ${contextVal.median_crash}  
+Rounds above 5x in last 50: ${contextVal.above_5x_count}
+Rounds above 10x in last 50: ${contextVal.above_10x_count}
+
+Now give me the 3-tier prediction JSON.
+`;
+
+    const cold_streak = values.length >= 5 ? values.slice(0, 5).every(v => v.crash_point < 1.5) : false;
+    let swingTarget = betSignal.swing_target;
+    let volatilityPhase = betSignal.volatility_phase;
+    let recommendedStakePct = betSignal.recommended_stake_pct;
+
+    let tierSafe   = Math.max(1.8, finalCashout);
+    let tierSwing  = swingTarget || 3.5;
+    let tierMoon   = aiLongTargets.x10 || 8.0;
+    let skipRound  = strategyLabel === 'SKIP';
+    let aiColdStreak = cold_streak;
+
+    const aiCallPromise = callAI(systemPrompt, userMessage);
     const aiResponse = await Promise.race([
       aiCallPromise,
       new Promise<null>(resolve => setTimeout(() => resolve(null), 4000)),
     ]);
 
-    let swingTarget = betSignal.swing_target;
-    let volatilityPhase = betSignal.volatility_phase;
-    let recommendedStakePct = betSignal.recommended_stake_pct;
-
     if (aiResponse) {
       const { result: ai, model } = aiResponse;
       aiModelUsed = model;
 
-      if (['LOW','MEDIUM','HIGH'].includes(ai.risk))                              aiRisk = ai.risk;
-      if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = ai.confidence;
-      if (typeof ai.summary === 'string' && ai.summary.length > 5)                aiSummary = ai.summary;
+      if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) {
+        aiConfidence = Math.min(ai.confidence, 75); // max 75, never 100
+      }
+      if (typeof ai.reasoning === 'string' && ai.reasoning.length > 5) {
+        aiSummary = ai.reasoning;
+        strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.reasoning;
+      }
+
+      if (typeof ai.tier_safe === 'number' && ai.tier_safe >= 1.0) {
+        tierSafe = ai.tier_safe;
+        aiPredMultiplier = ai.tier_safe;
+        finalCashout = ai.tier_safe;
+      }
+      if (typeof ai.tier_swing === 'number' && ai.tier_swing >= 1.0) {
+        tierSwing = ai.tier_swing;
+        swingTarget = ai.tier_swing;
+      }
+      if (typeof ai.tier_moon === 'number' && ai.tier_moon >= 1.0) {
+        tierMoon = ai.tier_moon;
+        aiLongTargets.x10 = ai.tier_moon;
+      }
+      if (typeof ai.cold_streak === 'boolean') {
+        aiColdStreak = ai.cold_streak;
+      }
+      if (typeof ai.skip_round === 'boolean') {
+        skipRound = ai.skip_round;
+      }
 
       // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
       if (betSignal.strategy !== 'SKIP') {
-        if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
-          let targetVal = ai.cashout_target;
-          if (targetVal > 2.0) {
-            const closestTarget = stats.targets.reduce((prev: any, curr: any) => 
-              Math.abs(curr.target - targetVal) < Math.abs(prev.target - targetVal) ? curr : prev
-            );
-            const hasPositiveEv = closestTarget ? closestTarget.ev > 0 : false;
-            const isCalmOrNormal = volatilityPhase === 'CALM' || volatilityPhase === 'NORMAL';
-            const allowHighTarget = timeData.isLKPrime && isCalmOrNormal && hasPositiveEv;
-
-            if (!allowHighTarget) {
-              swingTarget = targetVal;
-              targetVal = 2.0;
-            }
-          }
-          aiPredMultiplier = targetVal;
-          finalCashout     = targetVal;
+        if (skipRound) {
+          strategyLabel = 'SKIP';
+          finalBet = false;
+          finalCashout = 0;
+        } else {
+          strategyLabel = 'BET_NORMAL';
+          finalBet = true;
         }
-        if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) {
-          strategyLabel = ai.strategy === 'BALANCED' ? 'CONSERVATIVE' : ai.strategy;
-        }
-        if (typeof ai.should_bet === 'boolean')                                      finalBet = ai.should_bet;
-      }
-
-      if (typeof ai.swing_target === 'number' || ai.swing_target === null)        swingTarget = ai.swing_target;
-      if (typeof ai.volatility_phase === 'string')                                volatilityPhase = ai.volatility_phase;
-      if (typeof ai.recommended_stake_pct === 'number')                           recommendedStakePct = ai.recommended_stake_pct;
-      if (typeof ai.summary === 'string') {
-        strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.summary;
       }
     }
 
@@ -229,6 +262,12 @@ export async function POST(request: Request) {
         swing_target:         swingTarget,
         volatility_phase:     volatilityPhase,
         recommended_stake_pct: recommendedStakePct,
+        tier_safe:            tierSafe,
+        tier_swing:           tierSwing,
+        tier_moon:            tierMoon,
+        cold_streak:          aiColdStreak,
+        skip_round:           skipRound,
+        context_window:       contextVal,
       }, { onConflict: 'round_number', ignoreDuplicates: false })
       .select()
       .maybeSingle();
@@ -260,6 +299,12 @@ export async function POST(request: Request) {
         swing_target: swingTarget,
         volatility_phase: volatilityPhase,
         recommended_stake_pct: recommendedStakePct,
+        tier_safe: tierSafe,
+        tier_swing: tierSwing,
+        tier_moon: tierMoon,
+        cold_streak: aiColdStreak,
+        skip_round: skipRound,
+        context_window: contextVal,
       },
       timeData,
     });
