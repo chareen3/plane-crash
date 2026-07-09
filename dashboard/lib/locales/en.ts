@@ -16,7 +16,7 @@ export const en = {
 
   // Topbar / Header
   appName: "CrashAI",
-  appSub: "powered by Supabase · Real-time",
+  appSub: "Neural crash prediction engine",
   synced: "SYNCED",
   connecting: "CONNECTING...",
   disconnected: "DISCONNECTED",

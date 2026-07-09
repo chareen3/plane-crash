@@ -506,9 +506,10 @@ export default function Dashboard() {
             </div>
 
             <div className={`widget-radar-ring ${liveData?.state === 'active' ? 'active' : ''}`}>
-              <JetPlaneIcon
-                size={36}
-                className={`widget-plane-icon ${liveData?.state === 'active' ? 'active' : 'crashed'}`}
+              <img
+                src="https://images.dwncdn.net/images/t_app-icon-l/p/4855e891-8e6b-48b7-b768-507340e6ac23/418101296/crash-predictor-aviator-logo"
+                alt="Crash Predictor"
+                style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }}
               />
             </div>
 
@@ -797,6 +798,178 @@ export default function Dashboard() {
 
         {/* ─── BODY ─── */}
         <div className="dash-body">
+
+          {/* ─── GAME SELECTOR CARDS ─── */}
+          <div className="game-selector-section" style={{ padding: '16px 24px 0', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+            <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }}>
+              {/* Crash Predictor - Active */}
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  minWidth: '180px',
+                  background: 'linear-gradient(145deg, rgba(0,255,213,0.12), rgba(0,255,213,0.03))',
+                  border: '2px solid rgba(0,255,213,0.4)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,255,213,0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: '#00e5a0',
+                  color: '#000',
+                  fontSize: '8px',
+                  fontWeight: '800',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  ACTIVE
+                </div>
+                <img
+                  src="https://images.dwncdn.net/images/t_app-icon-l/p/4855e891-8e6b-48b7-b768-507340e6ac23/418101296/crash-predictor-aviator-logo"
+                  alt="Crash Predictor"
+                  style={{ width: '52px', height: '52px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(0,255,213,0.3)' }}
+                />
+                <div>
+                  <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '16px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>Crash Predictor</div>
+                  <div style={{ fontSize: '10px', color: '#00e5a0', fontWeight: '600' }}>1xBet Crash</div>
+                </div>
+              </div>
+
+              {/* Aviator - Coming Soon */}
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  minWidth: '180px',
+                  background: 'linear-gradient(145deg, rgba(167,139,250,0.08), rgba(167,139,250,0.02))',
+                  border: '2px solid rgba(167,139,250,0.25)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  cursor: 'not-allowed',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  opacity: 0.7
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.85';
+                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(167,139,250,0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '0.7';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: 'rgba(167,139,250,0.3)',
+                  color: '#a78bfa',
+                  fontSize: '8px',
+                  fontWeight: '800',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  COMING SOON
+                </div>
+                <img
+                  src="https://camasy-images.storage.googleapis.com/casino/spribe__theear__628f790bf3069.webp"
+                  alt="Aviator"
+                  style={{ width: '52px', height: '52px', borderRadius: '12px', objectFit: 'cover', border: '2px solid rgba(167,139,250,0.2)', filter: 'grayscale(50%)' }}
+                />
+                <div>
+                  <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '16px', fontWeight: '700', color: '#aaa', marginBottom: '2px' }}>Aviator</div>
+                  <div style={{ fontSize: '10px', color: '#a78bfa', fontWeight: '600' }}>Spribe</div>
+                </div>
+              </div>
+
+              {/* Lucky Jet - Coming Soon */}
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  minWidth: '180px',
+                  background: 'linear-gradient(145deg, rgba(255,208,0,0.08), rgba(255,208,0,0.02))',
+                  border: '2px solid rgba(255,208,0,0.2)',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  cursor: 'not-allowed',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  opacity: 0.5
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.7';
+                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(255,208,0,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '0.5';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  background: 'rgba(255,208,0,0.2)',
+                  color: '#ffd000',
+                  fontSize: '8px',
+                  fontWeight: '800',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  COMING SOON
+                </div>
+                <div style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(255,208,0,0.2), rgba(255,208,0,0.05))',
+                  border: '2px solid rgba(255,208,0,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  filter: 'grayscale(50%)'
+                }}>
+                  🚀
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '16px', fontWeight: '700', color: '#aaa', marginBottom: '2px' }}>Lucky Jet</div>
+                  <div style={{ fontSize: '10px', color: '#ffd000', fontWeight: '600' }}>1xBet</div>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {activeNav === 'live' ? (
             /* ─── LIVE FEED PAGE ─── */

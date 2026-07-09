@@ -18,7 +18,7 @@ export const si: Translations = {
 
   // Topbar / Header
   appName: "CrashAI",
-  appSub: "Supabase මඟින් බලගන්වන ලදී · තථ්‍ය කාලීන",
+  appSub: "නියුරල් ක්‍රෑෂ් පුරෝකථන එන්ජිම",
   synced: "සමමුහුර්තයි",
   connecting: "සම්බන්ධ වෙමින්...",
   disconnected: "විසන්ධි විය",

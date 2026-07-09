@@ -18,7 +18,7 @@ export const ta: Translations = {
 
   // Topbar / Header
   appName: "CrashAI",
-  appSub: "Supabase மூலம் இயக்கப்படுகிறது · நிகழ்நேர",
+  appSub: "நியூரல் கிராஷ் கணிப்பு இயந்திரம்",
   synced: "ஒத்திசைக்கப்பட்டது",
   connecting: "இணைக்கிறது...",
   disconnected: "துண்டிக்கப்பட்டது",
