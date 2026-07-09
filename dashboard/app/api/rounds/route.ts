@@ -221,7 +221,15 @@ Now give me the 3-tier prediction JSON.
       }
       if (typeof ai.tier_moon === 'number' && ai.tier_moon >= 1.0) {
         tierMoon = ai.tier_moon;
-        aiLongTargets.x10 = ai.tier_moon;
+      }
+      if (typeof ai.p5x_chance === 'number' && ai.p5x_chance >= 0 && ai.p5x_chance <= 100) {
+        aiLongTargets.x5 = ai.p5x_chance;
+      }
+      if (typeof ai.p10x_chance === 'number' && ai.p10x_chance >= 0 && ai.p10x_chance <= 100) {
+        aiLongTargets.x10 = ai.p10x_chance;
+      }
+      if (typeof ai.p20x_chance === 'number' && ai.p20x_chance >= 0 && ai.p20x_chance <= 100) {
+        aiLongTargets.x20 = ai.p20x_chance;
       }
       if (typeof ai.cold_streak === 'boolean') {
         aiColdStreak = ai.cold_streak;

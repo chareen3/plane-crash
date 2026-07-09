@@ -608,6 +608,11 @@ export function computeBetSignal(
     }
   }
 
+  // 6. Instant Crash Risk Protection (Skip if >= 25%)
+  if (stats.instant_crash_risk && stats.instant_crash_risk >= 25) {
+    reasons.push(`High Instant Crash Risk (${stats.instant_crash_risk}%). ${stats.instant_crash_warning || ''}`);
+  }
+
   if (reasons.length > 0) {
     return { 
       should_bet: false, 
@@ -655,7 +660,11 @@ export function computeBetSignal(
   const p70 = stats.p70SafeCashout;
   if (stats.riskScore < 65 && stats.ema >= 1.3 && (stats.trend === 'rising' || stats.trend === 'flat' || !isHighVolatility)) {
     strategy = 'CONSERVATIVE';
-    cashout_target = Math.max(1.30, Math.min(1.80, p70));
+    
+    // Dynamically lower the safe floor to capture low-frequency crashes (1.10 - 1.15) instead of hardcoding 1.30
+    const baseFloor = (stats.instant_crash_risk && stats.instant_crash_risk > 15) ? 1.10 : 1.15;
+    cashout_target = Math.max(baseFloor, Math.min(1.60, p70));
+    
     recommended_bet_units = 0.8;
     recommended_stake_pct = volatility_phase === 'CALM' ? 3 : 2;
     swing_target = 1.8;

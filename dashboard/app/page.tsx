@@ -1379,16 +1379,51 @@ export default function Dashboard() {
                         )}
 
                         {prediction.long_targets && (
-                          <div className="ai-long-forecast" style={{ marginBottom: '12px' }}>
+                          <div className="ai-long-forecast" style={{ marginBottom: '14px' }}>
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              marginBottom: '6px',
+                              fontSize: '10px',
+                              color: '#888',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.8px',
+                              fontWeight: '700',
+                              fontFamily: "'Rajdhani', sans-serif"
+                            }}>
+                              <span>{lang === 'si' ? 'දිගුකාලීන පුරෝකථනය' : lang === 'ta' ? 'நீண்ட கால கணிப்புகள்' : 'LONG-TERM CHANCES'}</span>
+                              <span style={{ 
+                                color: prediction.ai_model_used !== 'stats-only' ? '#6c63ff' : '#888', 
+                                fontWeight: '900',
+                                background: prediction.ai_model_used !== 'stats-only' ? 'rgba(108, 99, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                border: prediction.ai_model_used !== 'stats-only' ? '1px solid rgba(108, 99, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.08)'
+                              }}>
+                                {prediction.ai_model_used !== 'stats-only' ? '🤖 AI MODEL' : '📊 STATS'}
+                              </span>
+                            </div>
                             <div className="long-targets-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
                               {[
-                                { label: `${lang === 'si' ? 'ගණිතමය' : lang === 'ta' ? 'கணிதம்' : 'Math'}: 19.4%`, val: prediction.long_targets.x5 },
-                                { label: `${lang === 'si' ? 'ගණිතමය' : lang === 'ta' ? 'கணிதம்' : 'Math'}: 9.7%`, val: prediction.long_targets.x10 },
-                                { label: `${lang === 'si' ? 'ගණිතමය' : lang === 'ta' ? 'கணிதம்' : 'Math'}: 4.8%`, val: prediction.long_targets.x20 },
+                                { target: '5.0x', refVal: '19.4%', val: prediction.long_targets.x5 },
+                                { target: '10.0x', refVal: '9.7%', val: prediction.long_targets.x10 },
+                                { target: '20.0x', refVal: '4.8%', val: prediction.long_targets.x20 },
                               ].map(lt => (
-                                <div key={lt.label} style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '6px' }}>
-                                  <span style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{lt.val}%</span>
-                                  <span style={{ display: 'block', fontSize: '9px', color: '#666' }}>{lt.label}</span>
+                                <div key={lt.target} style={{
+                                  flex: 1,
+                                  textAlign: 'center',
+                                  background: 'rgba(255, 255, 255, 0.03)',
+                                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                                  padding: '8px 4px',
+                                  borderRadius: '8px',
+                                  fontFamily: "'Rajdhani', sans-serif"
+                                }}>
+                                  <span style={{ display: 'block', fontSize: '10px', color: '#aaa', fontWeight: '700' }}>{lt.target}</span>
+                                  <span style={{ display: 'block', fontSize: '15px', fontWeight: '800', margin: '2px 0', color: '#fff' }}>
+                                    {Number(lt.val).toFixed(1)}%
+                                  </span>
+                                  <span style={{ display: 'block', fontSize: '8px', color: '#555' }}>Ref: {lt.refVal}</span>
                                 </div>
                               ))}
                             </div>

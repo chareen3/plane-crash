@@ -223,19 +223,22 @@ Risk Score: ${stats.riskScore}/100 (${stats.riskLabel}) | Volatility: ${stats.vo
 
 Return EXACTLY this JSON format (no markdown, no extra text):
 {
-  "safe_exit": 1.8,
-  "swing_target": 3.5,
-  "moonshot": 8.0,
+  "tier_safe": 1.8,
+  "tier_swing": 3.5,
+  "tier_moon": 8.0,
   "skip_round": false,
-  "reasoning": "<2-sentence predictive strategy>",
+  "cold_streak": false,
   "confidence": 75,
-  "volatility_phase": "CALM"
+  "reasoning": "<2-sentence predictive strategy>",
+  "p5x_chance": 20,
+  "p10x_chance": 10,
+  "p20x_chance": 5
 }`;
 }
 
 export const systemPrompt = `
 You are a crash game multiplier analyst. 
-Given the last 50 rounds of crash data, you MUST output JSON with 3 tiers:
+Given the last 50 rounds of crash data, you MUST output JSON with 3 tiers and long target forecast probabilities:
 
 {
   "tier_safe": number,      // 65%+ reach this (min 1.8x, never below)
@@ -244,7 +247,10 @@ Given the last 50 rounds of crash data, you MUST output JSON with 3 tiers:
   "skip_round": boolean,    // true if last 5 rounds avg < 1.3x AND hour is cold
   "cold_streak": boolean,   // true if last 10 rounds had zero above 2x
   "confidence": number,     // MAX 75, never 100
-  "reasoning": string       // explain which pattern triggered this
+  "reasoning": string,      // explain which pattern triggered this
+  "p5x_chance": number,     // estimated percentage probability of reaching 5x (0 to 100)
+  "p10x_chance": number,    // estimated percentage probability of reaching 10x (0 to 100)
+  "p20x_chance": number     // estimated percentage probability of reaching 20x (0 to 100)
 }
 
 RULES:
