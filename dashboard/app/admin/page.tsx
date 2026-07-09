@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
-import { Orbit, Landmark, Check, Loader2, AlertCircle, ShieldAlert, ArrowLeft, RefreshCw } from 'lucide-react'
+import { Orbit, Landmark, Check, Loader2, AlertCircle, ShieldAlert, ArrowLeft, RefreshCw, Trash2, Database } from 'lucide-react'
 
 interface PendingPayment {
   id: string
@@ -28,6 +28,9 @@ export default function AdminPage() {
   // Confirm action states
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  
+  // Database reset state
+  const [resettingTable, setResettingTable] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -131,6 +134,27 @@ export default function AdminPage() {
       setConfirmError(err.message)
     } finally {
       setConfirmingId(null)
+    }
+  }
+
+  const handleResetTable = async (table: string) => {
+    if (!confirm(`Are you sure you want to clear ${table}? This action cannot be undone.`)) return
+
+    setResettingTable(table)
+    setConfirmError(null)
+    try {
+      const response = await fetch('/api/admin/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to reset table')
+      alert(`Successfully cleared ${table}`)
+    } catch (err: any) {
+      setConfirmError(err.message)
+    } finally {
+      setResettingTable(null)
     }
   }
 
@@ -271,6 +295,78 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Database Management Section */}
+        <div className="mt-12 pt-12 border-t border-white/[0.05]">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg border border-rose-500/20 bg-rose-500/10 flex items-center justify-center text-rose-400">
+              <Database size={16} />
+            </div>
+            <h2 className="text-xl font-black uppercase tracking-tight text-rose-400">Database Management</h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="p-6 rounded-2xl border border-white/[0.05] bg-[#0c1120] space-y-4">
+              <div>
+                <h3 className="font-bold text-sm mb-1">Clear Crash History</h3>
+                <p className="text-xs text-[#5a6a8a]">Deletes all records from the `crash_rounds` table.</p>
+              </div>
+              <button
+                onClick={() => handleResetTable('crash_rounds')}
+                disabled={resettingTable !== null}
+                className="w-full px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {resettingTable === 'crash_rounds' ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Clear crash_rounds
+              </button>
+            </div>
+
+            <div className="p-6 rounded-2xl border border-white/[0.05] bg-[#0c1120] space-y-4">
+              <div>
+                <h3 className="font-bold text-sm mb-1">Clear AI Predictions</h3>
+                <p className="text-xs text-[#5a6a8a]">Deletes all records from the `predictions` table.</p>
+              </div>
+              <button
+                onClick={() => handleResetTable('predictions')}
+                disabled={resettingTable !== null}
+                className="w-full px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {resettingTable === 'predictions' ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Clear predictions
+              </button>
+            </div>
+
+            <div className="p-6 rounded-2xl border border-white/[0.05] bg-[#0c1120] space-y-4">
+              <div>
+                <h3 className="font-bold text-sm mb-1">Clear Round Summaries</h3>
+                <p className="text-xs text-[#5a6a8a]">Deletes all records from the `round_summaries` table.</p>
+              </div>
+              <button
+                onClick={() => handleResetTable('round_summaries')}
+                disabled={resettingTable !== null}
+                className="w-full px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {resettingTable === 'round_summaries' ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Clear round_summaries
+              </button>
+            </div>
+
+            <div className="p-6 rounded-2xl border border-rose-500/20 bg-rose-500/5 space-y-4">
+              <div>
+                <h3 className="font-bold text-sm mb-1 text-rose-400">Nuke All Game Data</h3>
+                <p className="text-xs text-[#5a6a8a]">Clears all three tables simultaneously.</p>
+              </div>
+              <button
+                onClick={() => handleResetTable('all')}
+                disabled={resettingTable !== null}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {resettingTable === 'all' ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
+                Nuke All Data
+              </button>
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* Footer */}

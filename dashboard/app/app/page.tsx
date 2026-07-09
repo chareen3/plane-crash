@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull, Settings, User } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull, Settings, User, LogOut } from "lucide-react";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from "@/utils/supabase/client";
 import { computeStats, type CrashStats } from "@/lib/stats";
 import { translations, type LanguageCode, LANGUAGE_NAMES, type Translations } from "@/lib/locales";
@@ -215,6 +216,15 @@ export default function Dashboard() {
       });
     }, 4000);
   }, [lastSyncedRound, addToast, t]);
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
 
   useEffect(() => {
     // Lightweight cache cleanup on initialization
@@ -555,20 +565,6 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-
-          <div className="drawer-section">
-            <h4 className="drawer-section-title">System</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button className="top-btn" style={{ width: '100%', justifyContent: 'center' }} onClick={async () => {
-                if (confirm(t.confirmReset)) {
-                  await fetch('/api/reset', { method: 'POST' });
-                  window.location.reload();
-                }
-              }}>
-                <Trash2 size={14} /> {t.reset}
-              </button>
-            </div>
-          </div>
         </div>
 
         <div className="drawer-footer" style={{ width: '100%' }}>
@@ -676,20 +672,26 @@ export default function Dashboard() {
                 {t.reconnect}
               </button>
             )}
-
-            <button className="top-btn" onClick={async () => {
-              if (confirm(t.confirmReset)) {
-                await fetch('/api/reset', { method: 'POST' });
-                window.location.reload();
-              }
-            }}>
-              <Trash2 size={14} /> {t.reset}
-            </button>
-
-            <button className="top-btn accent" onClick={() => runPrediction()} disabled={isPredicting || rounds.length === 0}>
-              {isPredicting ? <RefreshCw size={14} className="spin" /> : <Zap size={14} />}
-              {isPredicting ? t.analyzingDot : t.refreshAI}
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button className="top-btn" onClick={() => setUserMenuOpen(!userMenuOpen)}>
+                <User size={14} /> Profile
+              </button>
+              {userMenuOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '200px',
+                  backgroundColor: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: '12px',
+                  padding: '8px', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '4px',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+                }}>
+                  <Link href="/app/settings" className="sidebar-nav-item" style={{ padding: '10px 12px', fontSize: '13px' }}>
+                    <Settings size={14} /> Profile Settings
+                  </Link>
+                  <button className="sidebar-nav-item" onClick={handleLogout} style={{ padding: '10px 12px', fontSize: '13px', color: 'var(--red)' }}>
+                    <LogOut size={14} /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
