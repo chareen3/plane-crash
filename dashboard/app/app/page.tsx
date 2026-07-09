@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from "@/utils/supabase/client";
 import { computeStats, type CrashStats } from "@/lib/stats";
 import { translations, type LanguageCode, LANGUAGE_NAMES, type Translations } from "@/lib/locales";
+import SafePlayModal from './SafePlayModal';
 
 const JetPlaneIcon = ({ className, size = 24 }: { className?: string; size?: number }) => (
   <svg
@@ -716,6 +717,8 @@ export default function Dashboard() {
                 {t.reconnect}
               </button>
             )}
+            {/* Safe Play button rendered by SafePlayModal */}
+            <SafePlayModal />
             <div style={{ position: 'relative' }}>
               <button className="top-btn" onClick={() => setUserMenuOpen(!userMenuOpen)}>
                 <User size={14} /> Profile
@@ -761,6 +764,7 @@ export default function Dashboard() {
             <button className="mobile-action-btn" onClick={() => runPrediction()} disabled={isPredicting || rounds.length === 0}>
               {isPredicting ? <RefreshCw size={14} className="spin" color="#00ffd5" /> : <Zap size={14} color="#00ffd5" />}
             </button>
+            <SafePlayModal />
           </div>
         </header>
 
