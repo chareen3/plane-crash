@@ -173,7 +173,8 @@ export default function Dashboard() {
     setPredStatus('predicting');
     setIsPredicting(true);
     try {
-      const res = await fetch(`/api/predict?game=${activeGame}`);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch(`/api/predict?game=${activeGame}&tz=${encodeURIComponent(tz)}`);
       if (res.ok) {
         const d = await res.json();
         // Map the predict API response to the Prediction type expected by the dashboard

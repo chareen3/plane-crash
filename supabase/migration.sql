@@ -66,3 +66,28 @@ ADD COLUMN IF NOT EXISTS day_of_week SMALLINT GENERATED ALWAYS AS (EXTRACT(DOW F
 ADD COLUMN IF NOT EXISTS duration_ms INTEGER,
 ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'extension';
 
+-- Migration: improve predictions for better AI accuracy
+ALTER TABLE public.predictions 
+  ADD COLUMN IF NOT EXISTS user_timezone TEXT,
+  ADD COLUMN IF NOT EXISTS session_hour_utc SMALLINT,
+  ADD COLUMN IF NOT EXISTS cold_streak BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS hot_hour BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS lookback_avg_20 NUMERIC,
+  ADD COLUMN IF NOT EXISTS lookback_avg_50 NUMERIC,
+  ADD COLUMN IF NOT EXISTS tier_safe NUMERIC,
+  ADD COLUMN IF NOT EXISTS tier_swing NUMERIC,
+  ADD COLUMN IF NOT EXISTS tier_moon NUMERIC,
+  ADD COLUMN IF NOT EXISTS lookback_window_rounds INTEGER DEFAULT 20;
+
+-- View for AI context: last N rounds stats for prompt injection
+CREATE OR REPLACE VIEW public.ai_context_window AS
+SELECT 
+  COUNT(*) as total_rounds,
+  ROUND(AVG(crash_point),2) as avg_crash,
+  ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY crash_point)::numeric,2) as median_crash,
+  COUNT(*) FILTER (WHERE crash_point >= 5) as above_5x_count,
+  COUNT(*) FILTER (WHERE crash_point >= 10) as above_10x_count,
+  MIN(created_at) as window_start,
+  MAX(created_at) as window_end,
+  EXTRACT(hour FROM MAX(created_at) AT TIME ZONE 'UTC') as current_hour_utc
+FROM (SELECT crash_point, created_at FROM public.crash_rounds ORDER BY created_at DESC LIMIT 50) sub;

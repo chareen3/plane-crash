@@ -211,25 +211,25 @@ Suggested Swing: ${betSignal.swing_target ? betSignal.swing_target + 'x' : 'None
 Risk Score: ${stats.riskScore}/100 (${stats.riskLabel}) | Volatility: ${stats.volatility} (${stats.volatilityPct}%) | Confidence: ${stats.confidence}%
 
 === STRATEGY DECISION RULES ===
-1. FIND PATTERNS: Actively look for cycles. If there's a long gap of low crashes, look for an upcoming recovery. If a DETECTED HISTORICAL PATTERN shows a high win rate (>70%) for a specific target, strongly consider overriding other rules to follow the historical pattern.
-2. WARMUP PHASE: If the recommendation is SKIP due to recent losses, tell the user the system is in a "Warmup Phase" analyzing patterns to guarantee 90% accuracy. Recommend observing without betting.
-3. CONSERVATIVE BETTING: If the strategy is CONSERVATIVE, recommend a safe cashout target dynamically chosen between 1.05x and 1.19x depending on volatility.
-4. ADAPTIVE MICRO-TARGETS: Output highly specific decimal targets (e.g., 1.48, 2.12, 10.45, 15.22). There is NO ceiling. If DETECTED HISTORICAL PATTERNS percentiles justify a massive 10x or 20x target, output it. Otherwise keep it mathematically safe.
-5. RNG REALITY CHECK & VOLATILITY GATES: 1xBet Crash uses provably fair SHA-256 RNG with 3% house edge. Never recommend AGGRESSIVE targets if Volatility=HIGH. Downgrade to CONSERVATIVE (1.04x–1.10x) in high volatility. Reject streak patterns of length 1. Only trust patterns with streak >= 2 AND N-Gram Sequence Engine confirmation.
-6. EV AWARENESS: Prefer targets where EV > 0 from the hit rates table above. Negative EV targets should only be used in CONSERVATIVE micro-cashout strategy.
-7. SUMMARY FORMAT: Write exactly 2 punchy, plain-English sentences. Sentence 1: describe what the data shows right now (use vivid words like 'The algorithm is picking up a recovery signal' / 'Cluster of low crashes is compressing — expect a release' / 'Volatility is elevated — the pattern engine is holding back'). Sentence 2: state the exact action (target, strategy) with a reason rooted in the stats (e.g. 'Entering at 1.18x gives 81% historical coverage based on 4,072 confirmed rounds in this dataset.').
+1. FIND PATTERNS: Actively look for cycles. If there's a long gap of low crashes, look for an upcoming recovery.
+2. WARMUP PHASE: If the recommendation is SKIP due to recent losses, tell the user the system is in a "Warmup Phase".
+3. RULE_01_LOOKBACK: Always analyze the last 20, 50, and 100 rounds separately. If the last 10 rounds median < 1.8x AND the last 50 rounds avg > 3.0x, raise targets by at least +1.5x (reversion signal).
+4. RULE_02_HOT_HOUR: If current UTC hour is in [0,1,6,8,12,13,15,17,18,20,21,22,23], set minimum target to 2.5x. Never predict below 1.8x during these hours.
+5. RULE_03_DEAD_HOUR: If current UTC hour is in [10,11], suppress predictions entirely or label as HIGH_RISK_LOW_HOUR with safe_exit capped at 1.4x.
+6. RULE_04_10X_SIGNAL: If last 30 rounds had zero 10x+ events AND the hourly 10x rate for this UTC hour is > 10%, set moonshot to >= 10x.
+7. RULE_05_CONSECUTIVE_LOW: If last 5 rounds all crashed under 1.5x, flag as "cold_streak" and increase target range to [2.0x - 5.0x].
+8. RULE_06_CONFIDENCE_CALIBRATION: Never set confidence > 70 unless the last 5 rounds show a consistent directional trend. 100% confidence is banned - max is 85.
+9. SUMMARY FORMAT: Provide exactly 2 punchy sentences in reasoning describing what the data shows and stating the exact action.
 
 Return EXACTLY this JSON format (no markdown, no extra text):
 {
-  "risk": "LOW|MEDIUM|HIGH",
-  "confidence": 0-100,
-  "should_bet": true|false,
-  "strategy": "CONSERVATIVE|AGGRESSIVE|SKIP",
-  "cashout_target": 1.19,
-  "swing_target": 1.80,
-  "recommended_stake_pct": 1-5,
-  "volatility_phase": "CALM|NORMAL|VOLATILE",
-  "summary": "<2-sentence predictive strategy>"
+  "safe_exit": 1.8,
+  "swing_target": 3.5,
+  "moonshot": 8.0,
+  "skip_round": false,
+  "reasoning": "<2-sentence predictive strategy>",
+  "confidence": 75,
+  "volatility_phase": "CALM"
 }`;
 }
 

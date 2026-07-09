@@ -46,6 +46,13 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const gameType = (url.searchParams.get('game') || '1xbet') as '1xbet' | 'aviator' | 'luckyjet';
+    const userTimezone = url.searchParams.get('tz') || 'UTC';
+    
+    const lookback_avg_20 = rounds.length > 0 ? rounds.slice(0, 20).reduce((acc, r) => acc + Number(r.crash_point), 0) / Math.min(rounds.length, 20) : 0;
+    const lookback_avg_50 = rounds.length > 0 ? rounds.slice(0, 50).reduce((acc, r) => acc + Number(r.crash_point), 0) / Math.min(rounds.length, 50) : 0;
+    const cold_streak = rounds.length >= 5 ? rounds.slice(0, 5).every(r => Number(r.crash_point) < 1.5) : false;
+    const session_hour_utc = new Date().getUTCHours();
+    const hot_hour = [0,1,6,8,12,13,15,17,18,20,21,22,23].includes(session_hour_utc);
 
     const values = rounds.map(r => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
@@ -132,43 +139,28 @@ export async function GET(request: Request) {
         const { result: ai, model } = aiResponse;
         aiModelUsed = model;
         
-        if (['LOW','MEDIUM','HIGH'].includes(ai.risk)) aiRisk = ai.risk;
-        if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = Math.min(ai.confidence, 99);
-        if (typeof ai.summary === 'string' && ai.summary.length > 5) aiSummary = ai.summary;
+        if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) aiConfidence = Math.min(ai.confidence, 85);
+        if (typeof ai.reasoning === 'string' && ai.reasoning.length > 5) {
+          aiSummary = ai.reasoning;
+          strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.reasoning;
+        }
         
         // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
         if (betSignal.strategy !== 'SKIP') {
-          if (typeof ai.cashout_target === 'number' && ai.cashout_target > 1.0 && ai.cashout_target <= 20.0) {
-            let targetVal = ai.cashout_target;
-            if (targetVal > 2.0) {
-              const closestTarget = stats.targets.reduce((prev: any, curr: any) => 
-                Math.abs(curr.target - targetVal) < Math.abs(prev.target - targetVal) ? curr : prev
-              );
-              const hasPositiveEv = closestTarget ? closestTarget.ev > 0 : false;
-              const isCalmOrNormal = volatilityPhase === 'CALM' || volatilityPhase === 'NORMAL';
-              const allowHighTarget = timeData.isLKPrime && isCalmOrNormal && hasPositiveEv;
-
-              if (!allowHighTarget) {
-                swingTarget = targetVal;
-                targetVal = 2.0;
-              }
-            }
-            aiPredMultiplier = targetVal;
-            finalCashout = targetVal;
+          if (typeof ai.safe_exit === 'number' && ai.safe_exit > 1.0) {
+            aiPredMultiplier = ai.safe_exit;
+            finalCashout = ai.safe_exit;
           }
-          if (['CONSERVATIVE','BALANCED','AGGRESSIVE','SKIP'].includes(ai.strategy)) {
-            strategyLabel = ai.strategy === 'BALANCED' ? 'CONSERVATIVE' : ai.strategy;
+          if (ai.skip_round) {
+            strategyLabel = 'SKIP';
+            finalBet = false;
           }
-          if (typeof ai.should_bet === 'boolean') finalBet = ai.should_bet;
         }
         
         if (typeof ai.swing_target === 'number' || ai.swing_target === null) swingTarget = ai.swing_target;
+        if (typeof ai.moonshot === 'number') aiLongTargets.x10 = ai.moonshot;
         if (typeof ai.volatility_phase === 'string') volatilityPhase = ai.volatility_phase;
         if (typeof ai.recommended_stake_pct === 'number') recommendedStakePct = ai.recommended_stake_pct;
-
-        if (typeof ai.summary === 'string') {
-          strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.summary;
-        }
       }
     } catch (err) {
       console.error('[AI CALL] Error:', err);
@@ -191,6 +183,15 @@ export async function GET(request: Request) {
       swing_target:         swingTarget,
       volatility_phase:     volatilityPhase,
       recommended_stake_pct: recommendedStakePct,
+      user_timezone:        userTimezone,
+      session_hour_utc:     session_hour_utc,
+      lookback_avg_20:      lookback_avg_20,
+      lookback_avg_50:      lookback_avg_50,
+      tier_safe:            aiPredMultiplier,
+      tier_swing:           swingTarget,
+      tier_moon:            aiLongTargets.x10,
+      cold_streak:          cold_streak,
+      hot_hour:             hot_hour,
     };
 
     await supabase.from('predictions').insert(aiPrediction);
