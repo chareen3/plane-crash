@@ -138,7 +138,7 @@ function PricingContent() {
     'Real-time AI Crash Multiplier signals',
     'Supports 1xbet, Aviator, and LuckyJet feeds',
     'Dynamic strategies (Safe, Swing, Moon target parameters)',
-    'Real-time database integration with Chrome extension',
+    'Real-time database integration via 24/7 cloud servers',
     'Comprehensive session statistics and evaluation logs',
     'Responsive desktop and mobile layout',
   ]

@@ -85,18 +85,18 @@ export default async function LandingPage() {
 
           {/* Headline */}
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight leading-[1.05] mb-6">
-            <span className="block text-[#e8eeff]">දිනාගන්නා Edge එක</span>
+            <span className="block text-[#e8eeff]">Stop Gambling Blind.</span>
             <span className="block bg-gradient-to-r from-cyan-300 via-blue-400 to-purple-400 bg-clip-text text-transparent mt-1">
-              AI Technology සමඟ
+              Play with an Unfair Edge.
             </span>
           </h1>
 
           {/* Sub headline in English */}
           <p className="text-base md:text-xl text-[#8090b0] max-w-3xl mx-auto mb-4 leading-relaxed">
-            The only Crash game assistant in Sri Lanka powered by <strong className="text-cyan-400">3 AI models simultaneously</strong> — analysing patterns, streaks and volatility in real-time to give you smarter cashout signals.
+            The house always has an advantage—until now. Our <strong className="text-cyan-400">Triple-AI Engine</strong> instantly analyzes real-time crash patterns, volatility, and historical streaks to calculate high-probability cashout targets.
           </p>
           <p className="text-sm text-[#5a6a8a] max-w-2xl mx-auto mb-12">
-            Used by 1xBet, LuckyJet & Aviator players across Sri Lanka. Chrome Extension syncs live data directly to your dashboard.
+            Why lose thousands guessing? For less than the cost of a single bad bet (Rs. 2,700/mo), arm yourself with the most advanced predictive tool built for Sri Lankan 1xBet & Aviator players. No installation required — our servers run 24/7.
           </p>
 
           {/* CTA Buttons */}
@@ -225,9 +225,9 @@ export default async function LandingPage() {
                 icon: <Activity size={24} />,
                 color: 'purple',
                 glow: 'purple',
-                title: 'Chrome Extension Sync',
+                title: '24/7 Server Sync',
                 badge: 'Automation',
-                desc: 'Our Chrome Extension silently reads game data from the 1xBet page and syncs it to your private dashboard in real-time — no manual data entry ever needed.',
+                desc: 'Our secure cloud infrastructure silently reads game data directly from 1xBet servers and syncs it to your private dashboard in real-time — no manual data entry ever needed.',
               },
               {
                 icon: <Layers size={24} />,
@@ -410,9 +410,9 @@ export default async function LandingPage() {
                 },
                 {
                   step: '02',
-                  title: 'Install the Chrome Extension',
-                  desc: 'Add our extension to Chrome. Open 1xBet LK as usual and it quietly starts collecting game data in the background.',
-                  icon: <Globe size={20} />,
+                  title: 'Activate the Data Link',
+                  desc: 'Create your account and instantly connect. Our 24/7 dedicated servers continuously feed live 1xBet data directly into our AI models with zero latency. No extensions required.',
+                  icon: <Cpu size={20} />,
                   color: '#a78bfa',
                 },
                 {
@@ -464,9 +464,9 @@ export default async function LandingPage() {
                 stars: 5,
               },
               {
-                name: 'Tharushi M.',
+                name: 'Kavindu D.',
                 location: 'Galle',
-                text: 'The Chrome extension is seamless. I just play, the dashboard updates itself. The 3 AI models thing is crazy — you can see all three thinking.',
+                text: 'The server sync is seamless. I just play, the dashboard updates itself. The 3 AI models thing is crazy — you can see all three thinking.',
                 stars: 5,
               },
             ].map((t, i) => (
@@ -529,22 +529,22 @@ export default async function LandingPage() {
                   That's less than 90 LKR per day — less than a cup of tea, for full AI-powered signals.
                 </p>
 
-                <div className="space-y-2 mb-8">
+                <div className="space-y-3 mb-8">
                   {[
-                    'All 3 AI Models (Claude + GPT-4o + DeepSeek)',
-                    'Unlimited real-time predictions',
-                    'Chrome Extension (1xBet LK sync)',
-                    'Conservative, Swing & Moon strategies',
-                    'Dead hour alerts & skip signals',
-                    'Full performance & win-rate analytics',
-                    'Priority support (Sinhala & English)',
-                    'Cancel anytime — no contracts',
+                    { text: 'All 3 AI Models (Claude + GPT-4o + DeepSeek)', icon: <Brain size={14} className="text-cyan-400" />, bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
+                    { text: 'Unlimited real-time predictions', icon: <Zap size={14} className="text-yellow-400" />, bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
+                    { text: '24/7 Dedicated Server Connection', icon: <Cpu size={14} className="text-purple-400" />, bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+                    { text: 'Conservative, Swing & Moon strategies', icon: <Target size={14} className="text-emerald-400" />, bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                    { text: 'Dead hour alerts & skip signals', icon: <AlertTriangle size={14} className="text-orange-400" />, bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
+                    { text: 'Full performance & win-rate analytics', icon: <BarChart3 size={14} className="text-blue-400" />, bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+                    { text: 'Priority support (Sinhala & English)', icon: <Star size={14} className="text-pink-400" />, bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+                    { text: 'Cancel anytime — no contracts', icon: <ShieldCheck size={14} className="text-green-400" />, bg: 'bg-green-500/10', border: 'border-green-500/20' },
                   ].map((feature, i) => (
-                    <div key={i} className="flex items-center gap-3 text-sm text-[#8090b0]">
-                      <div className="w-5 h-5 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shrink-0">
-                        <Check size={11} className="text-cyan-400" />
+                    <div key={i} className="flex items-center gap-3.5 text-[13px] md:text-sm text-[#8090b0] bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.02] p-2.5 rounded-xl transition-colors">
+                      <div className={`w-7 h-7 rounded-lg ${feature.bg} border ${feature.border} flex items-center justify-center shrink-0`}>
+                        {feature.icon}
                       </div>
-                      {feature}
+                      <span className="font-medium text-[#e8eeff]">{feature.text}</span>
                     </div>
                   ))}
                 </div>
@@ -620,12 +620,12 @@ export default async function LandingPage() {
                 a: 'No. Absolutely not. No system can guarantee wins in a random-number-based game. CrashTracker is an analytical tool that helps you make more structured, data-informed decisions — not a money-printing machine. Please gamble responsibly.',
               },
               {
-                q: 'Which games does it support?',
-                a: 'Currently optimised for 1xBet Crash (LK server), LuckyJet, and Aviator. The Chrome Extension reads live game data automatically.',
+                q: 'Which platforms are supported?',
+                a: 'Currently optimised for 1xBet Crash (LK server), LuckyJet, and Aviator. Our 24/7 cloud servers read live game data automatically.',
               },
               {
-                q: 'Do I need technical knowledge to set it up?',
-                a: 'No. Install the Chrome Extension (3 clicks), create an account, and your dashboard starts updating automatically. No coding or configuration required.',
+                q: 'Do I need to be a programmer to set this up?',
+                a: 'No. Just create an account, and your dashboard starts updating automatically. No coding, configuration, or downloads required.',
               },
               {
                 q: 'Can I pay in Sri Lankan Rupees?',

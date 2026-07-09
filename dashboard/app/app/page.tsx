@@ -22,6 +22,11 @@ const JetPlaneIcon = ({ className, size = 24 }: { className?: string; size?: num
   </svg>
 );
 
+type ChartType = 'area' | 'line' | 'bar';
+type TimeRange = '1h' | '6h' | '24h' | '7d' | 'all';
+type SortBy = 'newest' | 'oldest' | 'highest' | 'lowest';
+type FilterBy = 'all' | 'safe' | 'risk' | 'high';
+
 const supabase = createClient({
   realtime: { params: { eventsPerSecond: 20 } }
 });
@@ -87,6 +92,33 @@ function timeAgo(iso: string, t: Translations) {
   return t.agoMinutes.replace('{val}', String(Math.floor(s / 60)));
 }
 
+function filterRounds(rounds: Round[], filter: FilterBy): Round[] {
+  switch (filter) {
+    case 'safe': return rounds.filter(r => r.crash_point >= 2 && r.crash_point < 5);
+    case 'risk': return rounds.filter(r => r.crash_point >= 5);
+    case 'high': return rounds.filter(r => r.crash_point < 2);
+    default: return rounds;
+  }
+}
+
+function sortRounds(rounds: Round[], sort: SortBy): Round[] {
+  const sorted = [...rounds];
+  switch (sort) {
+    case 'oldest': return sorted.reverse();
+    case 'highest': return sorted.sort((a, b) => b.crash_point - a.crash_point);
+    case 'lowest': return sorted.sort((a, b) => a.crash_point - b.crash_point);
+    default: return sorted;
+  }
+}
+
+function filterByTimeRange(rounds: Round[], range: TimeRange): Round[] {
+  if (range === 'all') return rounds;
+  const now = Date.now();
+  const ranges: Record<string, number> = { '1h': 3600000, '6h': 21600000, '24h': 86400000, '7d': 604800000 };
+  const cutoff = now - (ranges[range] || 0);
+  return rounds.filter(r => new Date(r.created_at).getTime() >= cutoff);
+}
+
 // Function AnimatedCrashMultiplier removed per user request to drop animations
 
 export default function Dashboard() {
@@ -136,6 +168,15 @@ export default function Dashboard() {
   const [isExtensionConnected, setIsExtensionConnected] = useState(false);
   const [latency, setLatency] = useState<number>(0);
   const lastMessageTimeRef = useRef<number>(Date.now());
+  
+  // New state for enhanced features
+  const [chartType, setChartType] = useState<ChartType>('area');
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('newest');
+  const [filterBy, setFilterBy] = useState<FilterBy>('all');
+  const [selectedRound, setSelectedRound] = useState<Round | null>(null);
+  const [showRoundModal, setShowRoundModal] = useState(false);
+  const [displayCount, setDisplayCount] = useState<number>(50);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
@@ -411,7 +452,10 @@ export default function Dashboard() {
     { id: 'history', icon: <Clock size={18} />, label: t.navHistory },
   ];
 
-  const chartData = [...rounds].reverse().slice(0, 50).map(r => ({
+  const processedRounds = sortRounds(filterByTimeRange(filterRounds(rounds, filterBy), timeRange), sortBy);
+  const displayedRounds = processedRounds.slice(0, displayCount);
+  
+  const chartData = [...displayedRounds].reverse().map(r => ({
     name: r.round_number,
     time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     crash: Number(r.crash_point),
@@ -837,12 +881,13 @@ export default function Dashboard() {
             </div>
           ) : activeNav === 'history' ? (
             /* ─── CRASH HISTORY PAGE ─── */
-            <div style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+            <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
               <div style={{ marginBottom: '32px' }}>
                 <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '28px', fontWeight: '700', color: '#fff', marginBottom: '8px', letterSpacing: '1px' }}>{t.historyTitle}</h2>
                 <p style={{ color: '#888', fontSize: '13px', lineHeight: '1.6' }}>{t.historyDesc}</p>
               </div>
 
+              {/* Stats Overview */}
               <div className="history-stats-grid">
                 <div className="glass-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>{t.sessionAvg}</span>
@@ -862,7 +907,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Advanced Analytics Panel (Inspired by Pro Monitoring Tools) */}
+              {/* Advanced Analytics Panel */}
               <div className="glass-card" style={{ padding: '24px', marginBottom: '32px', background: 'linear-gradient(145deg, rgba(255,255,255,0.02), transparent)' }}>
                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#a78bfa', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <BarChart3 size={16} /> {t.advancedAnalytics}
@@ -895,25 +940,354 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="glass-card" style={{ padding: '24px' }}>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={16} color="#00ffd5" /> {t.recentCrashTimeline}</div>
+              {/* Distribution Analysis */}
+              <div className="glass-card" style={{ padding: '24px', marginBottom: '32px' }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#00ffd5', textTransform: 'uppercase', marginBottom: '20px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BarChart3 size={16} /> {lang === 'si' ? 'බෙදාහැරීම් විශ්ලේෂණය' : lang === 'ta' ? 'விநியோக பகுப்பாய்வு' : 'Distribution Analysis'}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+                  <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(255,51,102,0.08)', borderRadius: '12px', border: '1px solid rgba(255,51,102,0.2)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '900', fontFamily: 'monospace', color: '#ff3366' }}>{displayedRounds.filter(r => r.crash_point < 1.5).length}</div>
+                    <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginTop: '4px' }}>&lt;1.5x Instant</div>
+                    <div style={{ fontSize: '10px', color: '#ff3366', marginTop: '2px' }}>{displayedRounds.length > 0 ? Math.round((displayedRounds.filter(r => r.crash_point < 1.5).length / displayedRounds.length) * 100) : 0}%</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(255,51,102,0.05)', borderRadius: '12px', border: '1px solid rgba(255,51,102,0.15)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '900', fontFamily: 'monospace', color: '#ff3366' }}>{displayedRounds.filter(r => r.crash_point >= 1.5 && r.crash_point < 2).length}</div>
+                    <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginTop: '4px' }}>1.5x - 2x Low</div>
+                    <div style={{ fontSize: '10px', color: '#ff3366', marginTop: '2px' }}>{displayedRounds.length > 0 ? Math.round((displayedRounds.filter(r => r.crash_point >= 1.5 && r.crash_point < 2).length / displayedRounds.length) * 100) : 0}%</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(255,208,0,0.08)', borderRadius: '12px', border: '1px solid rgba(255,208,0,0.2)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '900', fontFamily: 'monospace', color: '#ffd000' }}>{displayedRounds.filter(r => r.crash_point >= 2 && r.crash_point < 5).length}</div>
+                    <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginTop: '4px' }}>2x - 5x Medium</div>
+                    <div style={{ fontSize: '10px', color: '#ffd000', marginTop: '2px' }}>{displayedRounds.length > 0 ? Math.round((displayedRounds.filter(r => r.crash_point >= 2 && r.crash_point < 5).length / displayedRounds.length) * 100) : 0}%</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(0,229,160,0.08)', borderRadius: '12px', border: '1px solid rgba(0,229,160,0.2)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '900', fontFamily: 'monospace', color: '#00e5a0' }}>{displayedRounds.filter(r => r.crash_point >= 5 && r.crash_point < 10).length}</div>
+                    <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginTop: '4px' }}>5x - 10x High</div>
+                    <div style={{ fontSize: '10px', color: '#00e5a0', marginTop: '2px' }}>{displayedRounds.length > 0 ? Math.round((displayedRounds.filter(r => r.crash_point >= 5 && r.crash_point < 10).length / displayedRounds.length) * 100) : 0}%</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '16px', background: 'rgba(167,139,250,0.08)', borderRadius: '12px', border: '1px solid rgba(167,139,250,0.2)' }}>
+                    <div style={{ fontSize: '28px', fontWeight: '900', fontFamily: 'monospace', color: '#a78bfa' }}>{displayedRounds.filter(r => r.crash_point >= 10).length}</div>
+                    <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginTop: '4px' }}>10x+ Mega</div>
+                    <div style={{ fontSize: '10px', color: '#a78bfa', marginTop: '2px' }}>{displayedRounds.length > 0 ? Math.round((displayedRounds.filter(r => r.crash_point >= 10).length / displayedRounds.length) * 100) : 0}%</div>
+                  </div>
+                </div>
+              </div>
 
-                <div className="recent-timeline-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
-                  {rounds.slice(0, 48).map((r) => {
+              {/* Enhanced Chart with Controls */}
+              <div className="glass-card" style={{ padding: '24px', marginBottom: '32px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Activity size={16} color="#00ffd5" /> {lang === 'si' ? 'වැඩිදියුණු කළ ප්‍රස්ථාරය' : lang === 'ta' ? 'மேம்படுத்தப்பட்ட வரைபடம்' : 'Enhanced Chart'}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* Chart Type Selector */}
+                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px' }}>
+                      {(['area', 'line', 'bar'] as ChartType[]).map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setChartType(type)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: chartType === type ? 'rgba(0,255,213,0.2)' : 'transparent',
+                            color: chartType === type ? '#00ffd5' : '#888',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Time Range Selector */}
+                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', padding: '2px' }}>
+                      {(['1h', '6h', '24h', '7d', 'all'] as TimeRange[]).map(range => (
+                        <button
+                          key={range}
+                          onClick={() => setTimeRange(range)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: timeRange === range ? 'rgba(0,255,213,0.2)' : 'transparent',
+                            color: timeRange === range ? '#00ffd5' : '#888',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            textTransform: 'uppercase'
+                          }}
+                        >
+                          {range}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ width: '100%', height: '350px' }}>
+                  {displayedRounds.length > 1 && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      {chartType === 'area' ? (
+                        <AreaChart data={chartData} margin={{ top: 6, right: 10, left: -25, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorCrashHistory" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#00ffd5" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#00ffd5" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} minTickGap={20} />
+                          <YAxis tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(15,17,26,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '11px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                            formatter={(value: any, name: any, props: any) => [`${value}x`, `Round ${props.payload.name}`]}
+                            labelFormatter={(label) => `Time: ${label}`}
+                          />
+                          <Area type="monotone" dataKey="crash" stroke="#00ffd5" strokeWidth={2} fillOpacity={1} fill="url(#colorCrashHistory)" dot={{ r: 3, fill: '#00ffd5', strokeWidth: 1, stroke: 'rgba(255,255,255,0.2)' }} activeDot={{ r: 6, fill: '#00ffd5', stroke: '#fff', strokeWidth: 2 }} />
+                        </AreaChart>
+                      ) : chartType === 'line' ? (
+                        <AreaChart data={chartData} margin={{ top: 6, right: 10, left: -25, bottom: 0 }}>
+                          <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} minTickGap={20} />
+                          <YAxis tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(15,17,26,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '11px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                            formatter={(value: any, name: any, props: any) => [`${value}x`, `Round ${props.payload.name}`]}
+                            labelFormatter={(label) => `Time: ${label}`}
+                          />
+                          <Area type="monotone" dataKey="crash" stroke="#00ffd5" strokeWidth={2} fillOpacity={0} dot={{ r: 3, fill: '#00ffd5', strokeWidth: 1, stroke: 'rgba(255,255,255,0.2)' }} activeDot={{ r: 6, fill: '#00ffd5', stroke: '#fff', strokeWidth: 2 }} />
+                        </AreaChart>
+                      ) : (
+                        <AreaChart data={chartData} margin={{ top: 6, right: 10, left: -25, bottom: 0 }}>
+                          <XAxis dataKey="time" tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} minTickGap={20} />
+                          <YAxis tick={{ fontSize: 9, fill: '#555' }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}x`} />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: 'rgba(15,17,26,0.95)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '11px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}
+                            formatter={(value: any, name: any, props: any) => [`${value}x`, `Round ${props.payload.name}`]}
+                            labelFormatter={(label) => `Time: ${label}`}
+                          />
+                          <Area type="monotone" dataKey="crash" stroke="#00ffd5" strokeWidth={0} fillOpacity={0.8} fill="#00ffd5" dot={{ r: 4, fill: '#00ffd5', strokeWidth: 1, stroke: 'rgba(255,255,255,0.2)' }} activeDot={{ r: 6, fill: '#00ffd5', stroke: '#fff', strokeWidth: 2 }} />
+                        </AreaChart>
+                      )}
+                    </ResponsiveContainer>
+                  )}
+                </div>
+                <div className="chart-legend" style={{ marginTop: '12px' }}>
+                  <span className="dot green" /> ≥5x
+                  <span className="dot yellow" /> 2–5x
+                  <span className="dot red" /> &lt;2x
+                </div>
+              </div>
+
+              {/* Last 50 Rounds Enhanced Section */}
+              <div className="glass-card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Clock size={16} color="#00ffd5" /> {lang === 'si' ? 'අවසන් වට 50 ක්' : lang === 'ta' ? 'கடைசி 50 சுற்றுகள்' : 'Last 50 Rounds'}
+                    <span style={{ fontSize: '10px', color: '#888', fontWeight: '500', textTransform: 'none' }}>
+                      ({displayedRounds.length} {lang === 'si' ? 'ප්‍රතිඵල' : lang === 'ta' ? 'முடிவுகள்' : 'results'})
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* Filter Selector */}
+                    <select
+                      value={filterBy}
+                      onChange={(e) => setFilterBy(e.target.value as FilterBy)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#fff',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="all" style={{ background: '#0f111a' }}>{lang === 'si' ? 'සියල්ල' : lang === 'ta' ? 'அனைத்தும்' : 'All'}</option>
+                      <option value="safe" style={{ background: '#0f111a' }}>{lang === 'si' ? 'ආරක්ෂිත (2-5x)' : lang === 'ta' ? 'பாதுகாப்பான (2-5x)' : 'Safe (2-5x)'}</option>
+                      <option value="risk" style={{ background: '#0f111a' }}>{lang === 'si' ? 'අවදානම් (5x+)' : lang === 'ta' ? 'ஆபத்தான (5x+)' : 'Risk (5x+)'}</option>
+                      <option value="high" style={{ background: '#0f111a' }}>{lang === 'si' ? 'ඉහළ අවදානම් (&lt;2x)' : lang === 'ta' ? 'அதிக ஆபத்து (&lt;2x)' : 'High Risk (&lt;2x)'}</option>
+                    </select>
+                    {/* Sort Selector */}
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortBy)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(255,255,255,0.05)',
+                        color: '#fff',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="newest" style={{ background: '#0f111a' }}>{lang === 'si' ? 'නවතම' : lang === 'ta' ? 'சமீபத்திய' : 'Newest'}</option>
+                      <option value="oldest" style={{ background: '#0f111a' }}>{lang === 'si' ? 'පැරණිතම' : lang === 'ta' ? 'பழமையான' : 'Oldest'}</option>
+                      <option value="highest" style={{ background: '#0f111a' }}>{lang === 'si' ? 'ඉහළම' : lang === 'ta' ? 'அதிகபட்சம்' : 'Highest'}</option>
+                      <option value="lowest" style={{ background: '#0f111a' }}>{lang === 'si' ? 'අඩුම' : lang === 'ta' ? 'குறைந்தபட்சம்' : 'Lowest'}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Rounds Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px' }}>
+                  {displayedRounds.map((r) => {
                     const color = r.crash_point < 2 ? '#ff3366' : r.crash_point < 5 ? '#ffd000' : '#00e5a0';
                     const bg = r.crash_point < 2 ? 'rgba(255,51,102,0.1)' : r.crash_point < 5 ? 'rgba(255,208,0,0.1)' : 'rgba(0,229,160,0.1)';
                     return (
-                      <div key={r.id || r.round_number} style={{ background: bg, border: `1px solid ${color}40`, borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'transform 0.2s', cursor: 'default' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${color}20`; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-                        <span style={{ fontSize: '18px', fontWeight: '800', fontFamily: 'monospace', color: color }}>{Number(r.crash_point).toFixed(2)}x</span>
+                      <div
+                        key={r.id || r.round_number}
+                        onClick={() => { setSelectedRound(r); setShowRoundModal(true); }}
+                        style={{
+                          background: bg,
+                          border: `1px solid ${color}40`,
+                          borderRadius: '10px',
+                          padding: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${color}30`; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}
+                      >
+                        <span style={{ fontSize: '18px', fontWeight: '800', fontFamily: 'monospace', color }}>{Number(r.crash_point).toFixed(2)}x</span>
                         <span style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>#{r.round_number}</span>
                         <span style={{ fontSize: '9px', color: '#666', marginTop: '2px' }}>{timeAgo(r.created_at, t)}</span>
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '6px' }}>
+                          {r.crash_point >= 10 && <Flame size={10} style={{ color: '#ff3366' }} />}
+                          {r.crash_point >= 5 && r.crash_point < 10 && <Target size={10} style={{ color: '#00e5a0' }} />}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Load More Button */}
+                {processedRounds.length > displayCount && (
+                  <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                    <button
+                      onClick={() => setDisplayCount(prev => Math.min(prev + 50, processedRounds.length))}
+                      style={{
+                        padding: '10px 24px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(0,255,213,0.3)',
+                        background: 'rgba(0,255,213,0.1)',
+                        color: '#00ffd5',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {lang === 'si' ? 'තවත් පෙන්වන්න' : lang === 'ta' ? 'மேலும் காட்டு' : 'Load More'} ({processedRounds.length - displayCount} {lang === 'si' ? 'ඉතිරි' : lang === 'ta' ? 'மீதமுள்ள' : 'remaining'})
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Round Detail Modal */}
+              {showRoundModal && selectedRound && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    padding: '20px'
+                  }}
+                  onClick={() => setShowRoundModal(false)}
+                >
+                  <div
+                    style={{
+                      background: 'var(--bg2)',
+                      border: '1px solid var(--border2)',
+                      borderRadius: '16px',
+                      padding: '32px',
+                      maxWidth: '500px',
+                      width: '100%',
+                      boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                      <h3 style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0 }}>
+                        {lang === 'si' ? 'වට විස්තරය' : lang === 'ta' ? 'சுற்று விவரம்' : 'Round Details'}
+                      </h3>
+                      <button
+                        onClick={() => setShowRoundModal(false)}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#888',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      <div style={{ textAlign: 'center', padding: '20px', background: `${selectedRound.crash_point < 2 ? 'rgba(255,51,102,0.1)' : selectedRound.crash_point < 5 ? 'rgba(255,208,0,0.1)' : 'rgba(0,229,160,0.1)'}`, borderRadius: '12px', border: `1px solid ${selectedRound.crash_point < 2 ? '#ff336640' : selectedRound.crash_point < 5 ? '#ffd00040' : '#00e5a040'}` }}>
+                        <div style={{ fontSize: '42px', fontWeight: '900', fontFamily: 'monospace', color: selectedRound.crash_point < 2 ? '#ff3366' : selectedRound.crash_point < 5 ? '#ffd000' : '#00e5a0' }}>
+                          {Number(selectedRound.crash_point).toFixed(2)}x
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>Crash Point</div>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Round #</div>
+                          <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', fontFamily: 'monospace' }}>#{selectedRound.round_number}</div>
+                        </div>
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Risk Level</div>
+                          <div style={{ fontSize: '16px', fontWeight: '700', color: selectedRound.crash_point < 2 ? '#ff3366' : selectedRound.crash_point < 5 ? '#ffd000' : '#00e5a0' }}>
+                            {selectedRound.crash_point < 2 ? 'HIGH' : selectedRound.crash_point < 5 ? 'MEDIUM' : 'LOW'}
+                          </div>
+                        </div>
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Time</div>
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff' }}>
+                            {new Date(selectedRound.created_at).toLocaleTimeString()}
+                          </div>
+                        </div>
+                        <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Time Ago</div>
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff' }}>
+                            {timeAgo(selectedRound.created_at, t)}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Full Timestamp</div>
+                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff', fontFamily: 'monospace' }}>
+                          {new Date(selectedRound.created_at).toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : activeNav === 'patterns' ? (
             /* ─── PATTERNS PAGE ─── */
