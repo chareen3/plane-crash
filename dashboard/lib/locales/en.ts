@@ -148,6 +148,30 @@ export const en = {
   safe: "SAFE",
   risk: "RISK",
   swing: "SWING",
+
+  // Risk & Strategy Calculator
+  calculatorTitle: "Risk & Strategy Calculator",
+  presetSafe: "Ultra-Safe",
+  presetBalanced: "Balanced",
+  presetHighRisk: "High-Risk",
+  presetCustom: "Custom Target",
+  targetMultiplier: "Target Multiplier",
+  betSizeLabel: "Bet Size (units)",
+  calcStrategy: "Evaluate Strategy",
+  probWinTheoretical: "Theoretical Win Chance",
+  probLossTheoretical: "Theoretical Loss Chance",
+  evTheoreticalLabel: "Theoretical EV / Unit",
+  probWinHistorical: "Historical Hit Rate (Last 50 r)",
+  evHistoricalLabel: "Historical EV / Unit",
+  provablyFairTitle: "Provably Fair Math",
+  provablyFairExplanation: "Crash games generate outcomes using cryptography. The server combines a secret server seed with a client seed and nonce, hashes them (HMAC-SHA256), and derives the multiplier. Once committed, outcomes are predetermined and verified after the round. AI cannot predict individual crash points, but we can calculate mathematical probabilities to manage risk.",
+  honestDisclaimer: "Future crash points are mathematically independent. We show statistics and probability models to help you size bets, not predict outcomes.",
+  warningColdStreak: "⚠️ COLD STREAK DETECTED: Last 5 rounds crashed below 1.50x. Near-term variance is high.",
+  warningHighVolatility: "⚠️ HIGH VOLATILITY DETECTED: Frequent 5x+ rounds in recent history. Consider smaller bet sizes.",
+  expectedProfitUnits: "Expected Profit: {val} units",
+  expectedLossUnits: "Expected Loss: {val} units",
+  presetLabel: "Preset",
+  aiCommentaryTitle: "AI Commentary & Volatility Analysis",
 };
 
 export type Translations = typeof en;

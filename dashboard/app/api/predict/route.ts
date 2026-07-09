@@ -54,10 +54,19 @@ export async function GET(request: Request) {
     const session_hour_utc = new Date().getUTCHours();
     const hot_hour = [0,1,6,8,12,13,15,17,18,20,21,22,23].includes(session_hour_utc);
 
+    // Fetch default game config
+    const { data: configData } = await supabase
+      .from('game_config')
+      .select('rtp, house_edge')
+      .eq('provider', 'default')
+      .maybeSingle();
+
+    const rtp = configData ? Number(configData.rtp) : 97.0;
+
     const values = rounds.map(r => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
     // ── Compute stats immediately ──
-    const stats = computeStats(values);
+    const stats = computeStats(values, rtp);
     const timeData = getLKTimeData();
     const betSignal = computeBetSignal(stats, gameType, timeData);
 

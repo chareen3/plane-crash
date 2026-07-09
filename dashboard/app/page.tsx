@@ -97,6 +97,16 @@ export default function Dashboard() {
   const [isPredicting, setIsPredicting] = useState(false);
   const [predStatus, setPredStatus] = useState<'idle' | 'predicting' | 'done'>('idle');
   const [betAmount, setBetAmount] = useState<string>('');
+
+  // Provably Fair Calculator States
+  const [targetMultiplier, setTargetMultiplier] = useState<number>(1.50);
+  const [calcBetSize, setCalcBetSize] = useState<number>(1.00);
+  const [selectedPreset, setSelectedPreset] = useState<string>('custom');
+  const [evalResults, setEvalResults] = useState<any>(null);
+  const [isEvaluating, setIsEvaluating] = useState<boolean>(false);
+  const [rtp, setRtp] = useState<number>(97.0);
+  const [houseEdge, setHouseEdge] = useState<number>(3.0);
+
   const [activeNav, setActiveNav] = useState<string>('dashboard');
   const heroRef = useRef<HTMLDivElement>(null);
   const lastPredictedRoundRef = useRef<number>(-1);
@@ -197,6 +207,31 @@ export default function Dashboard() {
     finally { setIsPredicting(false); isPredictingRef.current = false; }
   }, [activeGame]);
 
+  const runEvaluation = useCallback(async (m: number, bet: number, preset: string) => {
+    setIsEvaluating(true);
+    try {
+      const res = await fetch(`/api/evaluate?m=${m}&bet=${bet}&preset=${preset}`);
+      if (res.ok) {
+        const d = await res.json();
+        setEvalResults(d);
+      }
+    } catch (err) {
+      console.error('Error running evaluation:', err);
+    } finally {
+      setIsEvaluating(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    runEvaluation(targetMultiplier, calcBetSize, selectedPreset);
+  }, [targetMultiplier, calcBetSize, selectedPreset, runEvaluation, lastCrash]);
+
+  useEffect(() => {
+    if (rounds.length > 0) {
+      setLocalStats(computeStats(rounds, rtp));
+    }
+  }, [rounds, rtp]);
+
   const triggerReconnect = useCallback(() => {
     setConnectionStatus('connecting');
     lastMessageTimeRef.current = Date.now();
@@ -228,12 +263,20 @@ export default function Dashboard() {
       setLang(savedLang as LanguageCode);
     }
 
+    // Fetch default game config
+    supabase.from('game_config').select('rtp, house_edge').eq('provider', 'default').maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setRtp(Number(data.rtp));
+          setHouseEdge(Number(data.house_edge));
+        }
+      });
+
     supabase.from('crash_rounds').select('*').order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => {
         if (data?.length) {
           setRounds(data);
           setLastCrash(data[0]);
-          setLocalStats(computeStats(data));
         }
       });
     fetchWinRate();
@@ -1084,275 +1127,289 @@ export default function Dashboard() {
                 {/* ─── LEFT COLUMN ─── */}
                 <div className={`left-col2 ${dashTab === 'signals' ? 'mobile-visible' : 'mobile-hidden'}`}>
 
-                  {/* Bet Signal Hero Card */}
-                  {prediction && stratMeta ? (
-                    <div className="hero-banner-3d" style={{ borderColor: stratMeta.color + '60' }} ref={heroRef}>
-                      <div className="hero-grid-overlay" />
-                      <div className="hero-banner-content">
-                        <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px' }}>{stratMeta.icon}</div>
-                        <div style={{ flex: 1 }}>
-                          <div className="hero-banner-title" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
-                          <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
-                            {prediction.strategy_reason || prediction.skip_reason || (lang === 'si' ? 'AI උපායමාර්ගය ක්‍රියාත්මකයි.' : lang === 'ta' ? 'AI உத்தி செயலில் உள்ளது.' : 'AI strategy active.')}
-                          </div>
-                          <div className="hc2-vol-row" style={{ marginTop: '12px' }}>
-                            <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`}>
-                              {stats?.volatility?.toUpperCase() ?? 'NORMAL'} VOL
-                            </span>
-                            <span className="hc2-trend">
-                              {stats?.trend === 'rising' ? <TrendingUp size={14} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={14} color="#ff3366" /> : <Minus size={14} color="#888" />}
-                              {stats?.trend?.toUpperCase() ?? 'FLAT'}
-                            </span>
-                          </div>
+                  {/* Bet Signal / Preset Target Card */}
+                  <div className="hero-banner-3d" style={{ borderColor: '#a78bfa60' }} ref={heroRef}>
+                    <div className="hero-grid-overlay" />
+                    <div className="hero-banner-content">
+                      <div style={{ color: '#a78bfa', transform: 'scale(1.8)', marginLeft: '10px' }}><Target size={18} /></div>
+                      <div style={{ flex: 1 }}>
+                        <div className="hero-banner-title" style={{ color: '#a78bfa' }}>
+                          {selectedPreset === 'safe' ? t.presetSafe : selectedPreset === 'balanced' ? t.presetBalanced : selectedPreset === 'high_risk' ? t.presetHighRisk : t.presetCustom}
                         </div>
-                        <div className="hero-banner-target-container">
-                          <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>{lang === 'si' ? 'ඉලක්කය' : lang === 'ta' ? 'இலக்கு' : 'Target'}</div>
-                          {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
-                            <div className="hero-banner-target" style={{ color: stratMeta.color }}>
-                              {Number(prediction.cashout_target).toFixed(2)}x
-                            </div>
+                        <div style={{ fontSize: '12px', color: '#aaa', marginTop: '6px' }}>
+                          {evalResults?.cold_streak ? (
+                            <span style={{ color: '#ff3366', fontWeight: 'bold' }}>{t.warningColdStreak}</span>
+                          ) : evalResults?.high_volatility ? (
+                            <span style={{ color: '#ffd000', fontWeight: 'bold' }}>{t.warningHighVolatility}</span>
                           ) : (
-                            <div style={{ color: '#ff3366', fontSize: '32px', fontWeight: '900', marginTop: '8px' }}>{lang === 'si' ? 'රැඳී සිටින්න' : lang === 'ta' ? 'காத்திருக்கவும்' : 'WAIT'}</div>
+                            lang === 'si' ? 'ගණිතමය සම්භාවිතාව සහ අවදානම් ගණකය ක්‍රියාත්මකයි.' : lang === 'ta' ? 'கணித நிகழ்தகவு மற்றும் அபாய கால்குலேட்டர் செயலில் உள்ளது.' : 'Mathematical probability and risk calculator active.'
                           )}
                         </div>
+                        <div className="hc2-vol-row" style={{ marginTop: '12px' }}>
+                          <span className={`vol-badge vol-${localStats?.volatility ?? 'normal'}`}>
+                            {localStats?.volatility?.toUpperCase() ?? 'NORMAL'} VOL
+                          </span>
+                          <span className="hc2-trend">
+                            {localStats?.trend === 'rising' ? <TrendingUp size={14} color="#00e5a0" /> : localStats?.trend === 'falling' ? <TrendingDown size={14} color="#ff3366" /> : <Minus size={14} color="#888" />}
+                            {localStats?.trend?.toUpperCase() ?? 'FLAT'}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="hero-banner-3d" ref={heroRef} style={{ minHeight: '120px', display: 'flex', alignItems: 'center' }}>
-                      <div className="hero-grid-overlay" />
-                      <div className="hero-banner-content" style={{ width: '100%' }}>
-                        <div className="spin" style={{ color: '#00ffd5', flexShrink: 0 }}><Orbit size={28} /></div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ color: '#00ffd5', letterSpacing: '3px', fontWeight: '800', fontSize: '13px', textTransform: 'uppercase', marginBottom: '6px' }}>⚡ {t.neuralEngineLoading}</div>
-                          <div style={{ fontSize: '12px', color: '#6b7fa3', lineHeight: '1.6' }}>
-                            {rounds.length > 0 ? f(t.neuralEngineProcessing, { count: rounds.length }) : t.neuralEngineLiveStream}
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                            {[lang === 'si' ? 'රටා විශ්ලේෂණය' : lang === 'ta' ? 'வடிவ பகுப்பாய்வு' : 'Pattern Analysis', lang === 'si' ? 'අනුක්‍රමික පරිලෝකනය' : lang === 'ta' ? 'வரிசை ஸ்கேன்' : 'Sequence Scan', lang === 'si' ? 'අවදානම් ලකුණු කිරීම' : lang === 'ta' ? 'அபாய மதிப்பீடு' : 'Risk Scoring'].map((label, i) => (
-                              <span key={i} style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '20px', background: 'rgba(0,255,213,0.07)', color: '#00ffd5', border: '1px solid rgba(0,255,213,0.2)', letterSpacing: '0.5px' }}>{label}</span>
-                            ))}
-                          </div>
+                      <div className="hero-banner-target-container">
+                        <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>{t.targetMultiplier}</div>
+                        <div className="hero-banner-target" style={{ color: '#00ffd5' }}>
+                          {targetMultiplier.toFixed(2)}x
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* AI Prediction Panel */}
-                  <div className={`glass-card pred-card2 ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
-                    <div className="pc2-header responsive-header">
+                  {/* Provably Fair Risk & Strategy Calculator Card */}
+                  <div className="glass-card pred-card2">
+                    <div className="pc2-header responsive-header" style={{ marginBottom: '14px' }}>
                       <div className="pc2-title">
-                        <Bot size={16} color="#a78bfa" style={{ flexShrink: 0 }} />
-                        <span className="pc2-title-text">{t.aiCoachTitle}</span>
+                        <Scale size={16} color="#a78bfa" style={{ flexShrink: 0 }} />
+                        <span className="pc2-title-text">{t.calculatorTitle}</span>
                       </div>
-                      <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
-                        {predStatus === 'predicting' ? <><RefreshCw size={11} className="spin" /> {t.analyzingDot}</> : predStatus === 'done' ? <><CheckCircle2 size={11} /> {t.ready}</> : t.waiting}
+                      <span className="pred-status done" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                        {isEvaluating ? <><RefreshCw size={11} className="spin" /> {t.analyzingDot}</> : <><CheckCircle2 size={11} /> {t.ready}</>}
                       </span>
                     </div>
 
-                    {prediction?.ai_model_used && predStatus === 'done' && (
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                        <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>
-                          {prediction.risk === 'HIGH' ? <AlertTriangle size={12} /> : prediction.risk === 'MEDIUM' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
-                          {prediction.risk === 'HIGH' ? t.riskHigh : prediction.risk === 'MEDIUM' ? t.riskMedium : t.riskLow}
-                        </span>
-                        <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
-                          <Bot size={12} /> {t.aiCoachBadge}
-                        </span>
-                        {prediction.volatility_phase && (
-                          <span className="badge-pill" style={{
-                            color: prediction.volatility_phase === 'CALM' ? '#00e5a0' : prediction.volatility_phase === 'VOLATILE' ? '#ff3366' : '#ffd000',
-                            background: prediction.volatility_phase === 'CALM' ? 'rgba(0,229,160,0.1)' : prediction.volatility_phase === 'VOLATILE' ? 'rgba(255,51,102,0.1)' : 'rgba(255,208,0,0.1)',
-                            fontWeight: '600', fontFamily: "'Rajdhani', sans-serif"
-                          }}>
-                            <BarChart3 size={12} /> {
-                              lang === 'si' ? (prediction.volatility_phase === 'CALM' ? 'නිශ්චල' : prediction.volatility_phase === 'VOLATILE' ? 'අස්ථාවර' : 'සාමාන්‍ය') :
-                              lang === 'ta' ? (prediction.volatility_phase === 'CALM' ? 'அமைதி' : prediction.volatility_phase === 'VOLATILE' ? 'ஏற்ற இறக்கம்' : 'சாதாரண') :
-                              prediction.volatility_phase
+                    {/* Presets Row */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                      {['safe', 'balanced', 'high_risk', 'custom'].map(presetKey => {
+                        const label = presetKey === 'safe' ? t.presetSafe : presetKey === 'balanced' ? t.presetBalanced : presetKey === 'high_risk' ? t.presetHighRisk : t.presetCustom;
+                        const isSelected = selectedPreset === presetKey;
+                        return (
+                          <button
+                            key={presetKey}
+                            onClick={() => {
+                              setSelectedPreset(presetKey);
+                              if (presetKey !== 'custom') {
+                                const defaultMult = presetKey === 'safe' ? 1.35 : presetKey === 'balanced' ? 2.00 : 5.00;
+                                setTargetMultiplier(defaultMult);
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '8px 10px',
+                              borderRadius: '8px',
+                              background: isSelected ? 'rgba(167, 139, 250, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                              border: isSelected ? '1px solid #a78bfa' : '1px solid rgba(255, 255, 255, 0.08)',
+                              color: isSelected ? '#a78bfa' : '#ccc',
+                              fontSize: '11px',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              fontFamily: "'Rajdhani', sans-serif",
+                              letterSpacing: '0.5px',
+                              textTransform: 'uppercase',
+                              minWidth: '75px'
+                            }}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Target Multiplier Slider & Bet Size Input */}
+                    <div style={{ display: 'flex', gap: '16px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                        <label style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
+                          {t.targetMultiplier}
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <input
+                            type="range"
+                            min="1.01"
+                            max="10.00"
+                            step="0.01"
+                            value={targetMultiplier}
+                            onChange={(e) => {
+                              setTargetMultiplier(parseFloat(e.target.value));
+                              setSelectedPreset('custom');
+                            }}
+                            style={{ flex: 1, accentColor: '#a78bfa', cursor: 'pointer' }}
+                          />
+                          <input
+                            type="number"
+                            min="1.01"
+                            max="100.00"
+                            step="0.01"
+                            value={targetMultiplier}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val) && val >= 1.01) {
+                                setTargetMultiplier(val);
+                                setSelectedPreset('custom');
+                              }
+                            }}
+                            style={{
+                              width: '65px',
+                              background: 'rgba(255, 255, 255, 0.04)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '6px',
+                              padding: '4px 6px',
+                              color: '#fff',
+                              fontFamily: 'monospace',
+                              fontSize: '13px',
+                              textAlign: 'right'
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ width: '120px' }}>
+                        <label style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', display: 'block', marginBottom: '6px', textTransform: 'uppercase' }}>
+                          {t.betSizeLabel}
+                        </label>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.1"
+                          value={calcBetSize}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val > 0) {
+                              setCalcBetSize(val);
                             }
-                          </span>
-                        )}
-                        {prediction.should_bet && prediction.recommended_stake_pct && (
-                          <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
-                            <Target size={12} /> {f(t.betPercent, { pct: prediction.recommended_stake_pct })}
-                          </span>
-                        )}
+                          }}
+                          style={{
+                            width: '100%',
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            color: '#fff',
+                            fontFamily: 'monospace',
+                            fontSize: '13px'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Warning Banners */}
+                    {evalResults?.cold_streak && (
+                      <div style={{ background: 'rgba(255, 51, 102, 0.12)', border: '1px solid rgba(255, 51, 102, 0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ShieldAlert size={16} color="#ff3366" style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: '11px', color: '#ff8ba4', fontWeight: '500', lineHeight: '1.4' }}>{t.warningColdStreak}</span>
+                      </div>
+                    )}
+                    {evalResults?.high_volatility && (
+                      <div style={{ background: 'rgba(255, 208, 0, 0.12)', border: '1px solid rgba(255, 208, 0, 0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <AlertTriangle size={16} color="#ffd000" style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: '11px', color: '#ffe785', fontWeight: '500', lineHeight: '1.4' }}>{t.warningHighVolatility}</span>
                       </div>
                     )}
 
-                    {predStatus === 'predicting' && (
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '10px', padding: '8px 12px', background: 'rgba(167,139,250,0.08)', borderRadius: '8px', border: '1px solid rgba(167,139,250,0.15)' }}>
-                        <RefreshCw size={14} className="spin" style={{ color: '#a78bfa' }} />
-                        <span style={{ color: '#a78bfa', fontSize: '11px', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>{t.analyzingCap}</span>
-                      </div>
-                    )}
-
-                    {prediction && stats ? (
-                      <>
-                        {!timeData?.isLKSleep && (
-                          <div className="risk-conf-row">
-                            <div className="conf-bar-wrap">
-                              <div className="conf-bar-track">
-                                <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
-                              </div>
-                              <span className="conf-label">{f(t.confidence, { pct: prediction.confidence })}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {timeData && (
-                          <div className="time-sync-card">
-                            <Clock size={16} color="#6c63ff" style={{ flexShrink: 0 }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div className="time-sync-title">
-                                {lang === 'si' ? 'කොළඹ වේලාව සමමුහුර්තකරණය' : lang === 'ta' ? 'கொழும்பு நேர ஒத்திசைவு' : 'Colombo Time Sync'}
-                                <span style={{ fontSize: '9px', background: timeData.isLKPrime ? 'rgba(0,229,160,0.12)' : 'rgba(108,99,255,0.12)', color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                                  {timeData.lkPhase} {lang === 'si' ? 'අවධිය' : lang === 'ta' ? 'கட்டம்' : 'PHASE'}
-                                </span>
-                              </div>
-                              <div className="time-sync-subtext">
-                                {lang === 'si' ? 'දේශීය' : lang === 'ta' ? 'உள்ளூர்' : 'Local'}: {timeData.currentLKTimeStr} · {timeData.lkNote}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
-                          {prediction.summary}
+                    {/* Detailed Math outputs */}
+                    <div style={{ display: 'flex', gap: '16px', marginBottom: '18px', flexWrap: 'wrap' }}>
+                      {/* Theoretical Math */}
+                      <div style={{ flex: 1, minWidth: '200px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '10px', padding: '14px' }}>
+                        <div style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 'bold', marginBottom: '12px', borderBottom: '1px solid rgba(167, 139, 250, 0.2)', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          📈 {t.provablyFairTitle}
                         </div>
-
-                        {prediction.strategy === 'SKIP' || !prediction.should_bet ? (
-                          timeData?.isLKSleep ? (
-                            <div style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <ShieldAlert size={18} color="#00ffd5" style={{ flexShrink: 0 }} />
-                              <div>
-                                <div style={{ color: '#00ffd5', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{t.sleepPhaseTitle}</div>
-                                <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
-                                  {t.sleepPhaseDesc}
-                                </div>
-                              </div>
+                        {evalResults ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '11px', color: '#888' }}>{t.probWinTheoretical}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#00e5a0' }}>
+                                {(evalResults.prob_win_theoretical * 100).toFixed(1)}%
+                              </span>
                             </div>
-                          ) : (
-                            <div style={{ background: 'rgba(255,51,102,0.08)', border: '1px solid rgba(255,51,102,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <ShieldAlert size={18} color="#ff3366" style={{ flexShrink: 0 }} />
-                              <div>
-                                <div style={{ color: '#ff3366', fontWeight: '800', fontSize: '11px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>{t.skipSignalActive}</div>
-                                <div style={{ color: '#888', fontSize: '11px', marginTop: '2px' }}>
-                                  {prediction.skip_reason || prediction.strategy_reason || (lang === 'si' ? 'සැසිය ඉහළ අවදානම් රටා පෙන්නුම් කරයි.' : lang === 'ta' ? 'அமர்வு அதிக ஆபத்துள்ள வடிவங்களை வெளிப்படுத்துகிறது.' : 'Session is exhibiting high-risk patterns.')}
-                                </div>
-                              </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '11px', color: '#888' }}>{t.probLossTheoretical}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff3366' }}>
+                                {((1 - evalResults.prob_win_theoretical) * 100).toFixed(1)}%
+                              </span>
                             </div>
-                          )
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '11px', color: '#888' }}>{t.evTheoreticalLabel}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: evalResults.ev_theoretical >= 0 ? '#00e5a0' : '#ff3366' }}>
+                                {evalResults.ev_theoretical >= 0 ? `+${evalResults.ev_theoretical.toFixed(3)}` : evalResults.ev_theoretical.toFixed(3)}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', marginTop: '2px' }}>
+                              <span style={{ fontSize: '11px', color: '#aaa', fontWeight: '600' }}>
+                                {evalResults.ev_theoretical >= 0 ? t.expectedProfitUnits.replace('{val}', '') : t.expectedLossUnits.replace('{val}', '')}
+                              </span>
+                              <span style={{ fontSize: '12px', fontWeight: '800', color: evalResults.ev_theoretical >= 0 ? '#00e5a0' : '#ff3366' }}>
+                                {Math.abs(evalResults.ev_theoretical * calcBetSize).toFixed(2)} u
+                              </span>
+                            </div>
+                          </div>
                         ) : (
-                          <>
-                            <div className={`cashout-targets ${prediction.swing_target ? '' : 'single'}`}>
-                              {(() => {
-                                const targetVal = prediction.cashout_target || (stats ? stats.conservativeCashout : 1.10);
-                                const tStats = getTargetStats(targetVal);
-                                const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
-                                const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
-                                return (
-                                  <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0,229,160,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
-                                    <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><ShieldCheck size={12} color="#00e5a0" /> {t.safeAutoCashout}</div>
-                                    <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
-                                      {targetVal.toFixed(2)}x
-                                    </div>
-                                    <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                      <span>{f(t.chance, { pct: tStats.hitRate })}</span>
-                                      <span style={{ color: evColor, fontWeight: '600' }}>{f(t.expectedProfit, { ev: evStr })}</span>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-                              {prediction.swing_target && (() => {
-                                const tStats = getTargetStats(prediction.swing_target);
-                                const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
-                                const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
-                                return (
-                                  <div className="cashout-target risk" style={{ borderLeftColor: '#ffd000', background: 'rgba(255,208,0,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
-                                    <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><Scale size={12} color="#ffd000" /> {t.optionalSwing}</div>
-                                    <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#ffd000', margin: '4px 0' }}>
-                                      {prediction.swing_target.toFixed(2)}x
-                                    </div>
-                                    <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                      <span>{f(t.chance, { pct: tStats.hitRate })}</span>
-                                      <span style={{ color: evColor, fontWeight: '600' }}>{f(t.expectedProfit, { ev: evStr })}</span>
-                                    </div>
-                                  </div>
-                                );
-                              })()}
+                          <div style={{ color: '#555', fontSize: '12px', fontStyle: 'italic', textAlign: 'center', padding: '10px' }}>Loading...</div>
+                        )}
+                      </div>
+
+                      {/* Historical Math */}
+                      <div style={{ flex: 1, minWidth: '200px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '10px', padding: '14px' }}>
+                        <div style={{ fontSize: '11px', color: '#00ffd5', fontWeight: 'bold', marginBottom: '12px', borderBottom: '1px solid rgba(0, 255, 213, 0.2)', paddingBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          📊 {t.navHistory}
+                        </div>
+                        {evalResults ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '11px', color: '#888' }}>{t.probWinHistorical}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#00ffd5' }}>
+                                {(evalResults.prob_win_historical * 100).toFixed(1)}%
+                              </span>
                             </div>
-
-                            {stats?.pInstantCrash !== undefined && (
-                              <div style={{ background: 'rgba(255,51,102,0.06)', border: '1px solid rgba(255,51,102,0.15)', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', marginBottom: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                                <AlertTriangle size={14} color="#ff3366" style={{ flexShrink: 0, marginTop: '2px' }} />
-                                <div style={{ fontSize: '10px', color: '#c7d2fe', lineHeight: '1.4' }}>
-                                  <span style={{ color: '#ff3366', fontWeight: '800', textTransform: 'uppercase', marginRight: '4px' }}>{t.instantCrashFloor}</span>
-                                  {f(t.instantCrashDesc, { pct: stats.pInstantCrash.toFixed(1) })}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (
-                          <div className="ai-ceiling-forecast" style={{ background: 'rgba(0,229,160,0.1)', borderColor: '#00e5a0', marginTop: '12px' }}>
-                            <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Target size={12} color="#00e5a0" /> {t.statisticalCeiling}
-                            </span>
-                            <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
-                          </div>
-                        )}
-
-                        {prediction.long_targets && (
-                          <div className="ai-long-forecast" style={{ marginBottom: '12px' }}>
-                            <div className="long-targets-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                              {[
-                                { label: `${lang === 'si' ? 'ගණිතමය' : lang === 'ta' ? 'கணிதம்' : 'Math'}: 19.4%`, val: prediction.long_targets.x5 },
-                                { label: `${lang === 'si' ? 'ගණිතමය' : lang === 'ta' ? 'கணிதம்' : 'Math'}: 9.7%`, val: prediction.long_targets.x10 },
-                                { label: `${lang === 'si' ? 'ගණිතමය' : lang === 'ta' ? 'கணிதம்' : 'Math'}: 4.8%`, val: prediction.long_targets.x20 },
-                              ].map(lt => (
-                                <div key={lt.label} style={{ flex: 1, textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '6px' }}>
-                                  <span style={{ display: 'block', fontSize: '14px', fontWeight: 'bold' }}>{lt.val}%</span>
-                                  <span style={{ display: 'block', fontSize: '9px', color: '#666' }}>{lt.label}</span>
-                                </div>
-                              ))}
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '11px', color: '#888' }}>{t.under2xHighRisk}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ff3366' }}>
+                                {((1 - evalResults.prob_win_historical) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ fontSize: '11px', color: '#888' }}>{t.evHistoricalLabel}</span>
+                              <span style={{ fontSize: '12px', fontWeight: 'bold', color: evalResults.ev_historical >= 0 ? '#00e5a0' : '#ff3366' }}>
+                                {evalResults.ev_historical >= 0 ? `+${evalResults.ev_historical.toFixed(3)}` : evalResults.ev_historical.toFixed(3)}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', marginTop: '2px' }}>
+                              <span style={{ fontSize: '11px', color: '#aaa', fontWeight: '600' }}>
+                                {evalResults.ev_historical >= 0 ? t.expectedProfitUnits.replace('{val}', '') : t.expectedLossUnits.replace('{val}', '')}
+                              </span>
+                              <span style={{ fontSize: '12px', fontWeight: '800', color: evalResults.ev_historical >= 0 ? '#00ffd5' : '#ff3366' }}>
+                                {Math.abs(evalResults.ev_historical * calcBetSize).toFixed(2)} u
+                              </span>
                             </div>
                           </div>
+                        ) : (
+                          <div style={{ color: '#555', fontSize: '12px', fontStyle: 'italic', textAlign: 'center', padding: '10px' }}>Loading...</div>
                         )}
+                      </div>
+                    </div>
 
-                        <div className="pred-bars">
-                          {[
-                            { label: t.under2x, pct: stats.pUnder2, cls: 'red' },
-                            { label: t.between2and5, pct: stats.p2to5, cls: 'yellow' },
-                            { label: t.over5x, pct: stats.pOver5, cls: 'green' },
-                          ].map(b => (
-                            <div className="pred-bar-row" key={b.label}>
-                              <span className="pred-bar-label">{b.label}</span>
-                              <div className="pred-bar-track">
-                                <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${b.pct}%` }} />
-                              </div>
-                              <span className={`pred-bar-pct ${b.cls}`}>{b.pct}%</span>
-                            </div>
-                          ))}
+                    {/* AI Commentary & Volatility Analysis card */}
+                    {prediction && (
+                      <div style={{ background: 'rgba(167, 139, 250, 0.04)', border: '1px solid rgba(167, 139, 250, 0.15)', borderRadius: '10px', padding: '14px', marginBottom: '18px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold', color: '#a78bfa', marginBottom: '8px' }}>
+                          <Bot size={15} />
+                          {t.aiCommentaryTitle}
                         </div>
-
-                        <div className="pred-meta">
-                          <span>{f(t.ema, { val: stats.ema })}</span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {stats.currentLowStreak > 0 ? f(t.streakLow, { val: stats.currentLowStreak }) : f(t.streakHigh, { val: stats.currentHighStreak })}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {lang === 'si' ? 'ප්‍රවණතාවය' : lang === 'ta' ? 'போக்கு' : 'Trend'}: {stats.trend === 'rising' ? t.trendRising : stats.trend === 'falling' ? t.trendFalling : t.trendFlat}
-                          </span>
-                          <span>{f(t.riskScoreLabel, { val: stats.riskScore })}</span>
+                        <div style={{ fontSize: '12px', color: '#b4c6ef', fontStyle: 'italic', lineHeight: '1.6' }}>
+                          "{prediction.summary}"
                         </div>
-                      </>
-                    ) : (
-                      <div className="pred-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '28px 0' }}>
-                        {isPredicting ? <RefreshCw className="spin" size={22} /> : <Orbit size={22} />}
-                        {isPredicting ? t.runningAIAnalysis : t.startCaptureForPred}
                       </div>
                     )}
+
+                    {/* Provably Fair Explanation & Honest Disclaimer */}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(255, 255, 255, 0.04)', borderRadius: '8px', padding: '12px 14px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#ddd', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        💡 {t.provablyFairTitle} (RTP: {rtp}%)
+                      </div>
+                      <p style={{ fontSize: '11px', color: '#7788a8', lineHeight: '1.5', margin: '0 0 10px' }}>
+                        {t.provablyFairExplanation}
+                      </p>
+                      <div style={{ borderTop: '1px dashed rgba(255,255,255,0.06)', paddingTop: '8px', fontSize: '10px', color: '#688cbf', fontStyle: 'italic', lineHeight: '1.4' }}>
+                        {t.honestDisclaimer}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
