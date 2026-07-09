@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@polar-sh/sdk": "^0.48.1",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
     "lucide-react": "^1.23.0",
@@ -18,11 +19,15 @@
     "recharts": "^3.9.2"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.5.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "postcss": "^8.5.16",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5"
   }
 }

@@ -1,39 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800;900&family=Noto+Sans+Tamil:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
 /* =====================================================
-   Crash Tracker — Casino Modern Dark UI (Screenshot Clone)
+   Crash Tracker — Global Styles
    ===================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800;900&family=Noto+Sans+Tamil:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap');
-
 :root {
-  --bg:       #080c18;
-  --bg2:      #0c1120;
-  --surface:  rgba(255, 255, 255, 0.03);
-  --surface2: rgba(255, 255, 255, 0.055);
-  --border:   rgba(255, 255, 255, 0.055);
-  --border2:  rgba(255, 255, 255, 0.1);
-  --text:     #f0f4ff;
-  --text-dim: #5a6a8a;
+  --bg:         #080c18;
+  --bg2:        #0c1120;
+  --surface:    rgba(255, 255, 255, 0.03);
+  --surface2:   rgba(255, 255, 255, 0.055);
+  --border:     rgba(255, 255, 255, 0.055);
+  --border2:    rgba(255, 255, 255, 0.1);
+  --text:       #f0f4ff;
+  --text-dim:   #5a6a8a;
   --text-muted: #3a4560;
-  --accent:   #00d4ff;
-  --green:    #00e5a0;
-  --yellow:   #ffd000;
-  --red:      #ff3366;
-  --purple:   #a78bfa;
-  --radius:   16px;
-  --radius-sm: 10px;
-  --sidebar-w: 210px;
+  --accent:     #00d4ff;
+  --green:      #00e5a0;
+  --yellow:     #ffd000;
+  --red:        #ff3366;
+  --purple:     #a78bfa;
+  --radius:     16px;
+  --radius-sm:  10px;
+  --sidebar-w:  210px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* Base font smoothing only — no hard resets that break Tailwind */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-html, body {
-  height: 100%;
+/* ─── DASH SHELL: scoped resets for app dashboard only ─── */
+/* All margin/padding/font/background resets are scoped here so
+   they do NOT override Tailwind utility classes on other pages */
+.dash-shell, .dash-shell * {
+  box-sizing: border-box;
+}
+.dash-shell {
   font-family: 'Inter', 'Noto Sans Sinhala', 'Noto Sans Tamil', -apple-system, sans-serif;
-  background: var(--bg);
-  color: var(--text);
   font-size: 14px;
   line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+  color: var(--text);
 }
 
 /* ── SHELL ── */
