@@ -108,8 +108,11 @@ export interface CrashStats {
   detectedPatterns: PatternMatch[];
   timePattern?: TimePatternMatch;
   sequenceMatch?: SequenceMatch;
+  instant_crash_risk?: number;
+  instant_crash_warning?: string;
   recentOutcomes: number[];
 }
+
 
 export function computeStats(rawRounds: { crash_point: number, created_at: string }[]): CrashStats {
   if (rawRounds.length === 0) return emptyStats();
@@ -448,6 +451,36 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
     }
   }
 
+  // ── Compute Instant Crash Risk (probability of crash < 1.10x) ──
+  const lastCrashVal = values.length > 0 ? values[0] : 1.0;
+  const recent6Vals = values.slice(0, 6);
+  const clusterCountVal = recent6Vals.filter(v => v < 1.15).length;
+  const baseRiskVal = values.length > 0 
+    ? (values.slice(0, 50).filter(v => v < 1.10).length / Math.min(values.length, 50)) * 100 
+    : 10;
+
+  let instantRiskVal = Math.round(baseRiskVal);
+  let warningReasonsVal: string[] = [];
+
+  if (lastCrashVal >= 10.0) {
+    const fatigueBoostVal = lastCrashVal >= 25.0 ? 55 : 35;
+    instantRiskVal += fatigueBoostVal;
+    warningReasonsVal.push(`Post-Moonshot Fatigue (Last crash: ${lastCrashVal.toFixed(2)}x)`);
+  }
+
+  if (clusterCountVal >= 2) {
+    instantRiskVal += 20;
+    warningReasonsVal.push(`Instant Crash Clustering (${clusterCountVal} in last 6 rounds)`);
+  }
+
+  if (sequenceMatch && sequenceMatch.pInstantNext >= 25) {
+    instantRiskVal = Math.max(instantRiskVal, sequenceMatch.pInstantNext + 10);
+    warningReasonsVal.push(`N-Gram Sequence Match (${sequenceMatch.pInstantNext}% historical probability)`);
+  }
+
+  instantRiskVal = Math.min(95, Math.max(5, instantRiskVal));
+  const instantWarningVal = warningReasonsVal.length > 0 ? warningReasonsVal.join(' | ') : 'Normal Volatility';
+
   return {
     count: n, mean: +mean.toFixed(2), median: +median.toFixed(2),
     stdDev: +stdDev.toFixed(2), min: +min.toFixed(2), max: +max.toFixed(2),
@@ -459,6 +492,8 @@ export function computeStats(rawRounds: { crash_point: number, created_at: strin
     suggestedCashout, suggestedCashoutWinRate,
     conservativeCashout, aggressiveCashout,
     riskScore, riskLabel, confidence, volatility, volatilityPct, q3, detectedPatterns, timePattern, sequenceMatch,
+    instant_crash_risk: instantRiskVal,
+    instant_crash_warning: instantWarningVal,
     recentOutcomes: values.slice(0, 10)
   };
 }
@@ -481,6 +516,8 @@ function emptyStats(): CrashStats {
     suggestedCashout: 1.5, suggestedCashoutWinRate: 0,
     conservativeCashout: 1.2, aggressiveCashout: 2.0,
     riskScore: 50, riskLabel: 'MEDIUM', confidence: 0, volatility: 'normal', volatilityPct: 0, q3: 0, detectedPatterns: [],
+    instant_crash_risk: 10,
+    instant_crash_warning: 'Normal Volatility',
     recentOutcomes: []
   };
 }

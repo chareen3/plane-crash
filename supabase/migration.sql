@@ -79,6 +79,8 @@ ALTER TABLE public.predictions
   ADD COLUMN IF NOT EXISTS tier_moon NUMERIC DEFAULT 8.0,
   ADD COLUMN IF NOT EXISTS skip_round BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS context_window JSONB,
+  ADD COLUMN IF NOT EXISTS instant_crash_risk INTEGER DEFAULT 10,
+  ADD COLUMN IF NOT EXISTS instant_crash_warning TEXT DEFAULT 'Normal Volatility',
   ADD COLUMN IF NOT EXISTS lookback_window_rounds INTEGER DEFAULT 20;
 
 -- View for AI context: last N rounds stats for prompt injection

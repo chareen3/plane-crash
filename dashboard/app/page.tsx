@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
 import { computeStats, type CrashStats } from "../lib/stats";
 import { translations, type LanguageCode, LANGUAGE_NAMES, type Translations } from "../lib/locales";
@@ -44,6 +44,8 @@ type Prediction = {
   swing_target?: number | null;
   volatility_phase?: 'CALM' | 'NORMAL' | 'VOLATILE';
   recommended_stake_pct?: number;
+  instant_crash_risk?: number;
+  instant_crash_warning?: string;
 };
 type WinRate = {
   total: number;
@@ -1197,6 +1199,79 @@ export default function Dashboard() {
                               <span className="conf-label">{f(t.confidence, { pct: prediction.confidence })}</span>
                             </div>
                           </div>
+                        )}
+
+                        {prediction.instant_crash_risk !== undefined && prediction.instant_crash_risk >= 30 && (
+                          <>
+                            <style>{`
+                              @keyframes pulse-border {
+                                0% { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 0 10px rgba(239, 68, 68, 0.05); }
+                                100% { border-color: rgba(239, 68, 68, 0.85); box-shadow: 0 0 20px rgba(239, 68, 68, 0.25); }
+                              }
+                              @keyframes pulse-scale {
+                                0% { transform: scale(1); }
+                                100% { transform: scale(1.15); }
+                              }
+                              @keyframes shake-skull {
+                                0% { transform: rotate(-8deg); }
+                                100% { transform: rotate(8deg); }
+                              }
+                            `}</style>
+                            <div className="instant-crash-alert-card" style={{
+                              background: 'rgba(239, 68, 68, 0.09)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              borderRadius: '10px',
+                              padding: '12px 14px',
+                              marginBottom: '14px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              animation: 'pulse-border 2s infinite alternate'
+                            }}>
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(239, 68, 68, 0.18)',
+                                borderRadius: '50%',
+                                width: '36px',
+                                height: '36px',
+                                flexShrink: 0,
+                                animation: 'pulse-scale 1.5s infinite alternate'
+                              }}>
+                                <Skull size={18} color="#ef4444" style={{ animation: 'shake-skull 0.3s infinite alternate' }} />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{
+                                  color: '#ef4444',
+                                  fontWeight: '800',
+                                  fontSize: '11px',
+                                  letterSpacing: '0.7px',
+                                  textTransform: 'uppercase',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontFamily: "'Rajdhani', sans-serif"
+                                }}>
+                                  💀 {lang === 'si' ? 'ක්ෂණික බිඳවැටීමේ අවදානම' : lang === 'ta' ? 'உடனடி விபத்து எச்சரிக்கை' : 'INSTANT CRASH WARNING'}
+                                  <span style={{
+                                    background: '#ef4444',
+                                    color: '#fff',
+                                    fontSize: '9px',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    fontWeight: '900',
+                                    marginLeft: 'auto'
+                                  }}>
+                                    {prediction.instant_crash_risk}% RISK
+                                  </span>
+                                </div>
+                                <div style={{ color: '#ccc', fontSize: '11px', marginTop: '3px', lineHeight: '1.4', fontFamily: "'Rajdhani', sans-serif" }}>
+                                  {prediction.instant_crash_warning}
+                                </div>
+                              </div>
+                            </div>
+                          </>
                         )}
 
                         {timeData && (

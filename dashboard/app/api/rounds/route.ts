@@ -268,6 +268,8 @@ Now give me the 3-tier prediction JSON.
         cold_streak:          aiColdStreak,
         skip_round:           skipRound,
         context_window:       contextVal,
+        instant_crash_risk:   stats.instant_crash_risk,
+        instant_crash_warning: stats.instant_crash_warning,
       }, { onConflict: 'round_number', ignoreDuplicates: false })
       .select()
       .maybeSingle();
@@ -305,6 +307,8 @@ Now give me the 3-tier prediction JSON.
         cold_streak: aiColdStreak,
         skip_round: skipRound,
         context_window: contextVal,
+        instant_crash_risk: stats.instant_crash_risk,
+        instant_crash_warning: stats.instant_crash_warning,
       },
       timeData,
     });
