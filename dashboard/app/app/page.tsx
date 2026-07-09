@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull, Settings, User } from "lucide-react";
+import Link from 'next/link';
 import { createClient } from "@/utils/supabase/client";
 import { computeStats, type CrashStats } from "@/lib/stats";
 import { translations, type LanguageCode, LANGUAGE_NAMES, type Translations } from "@/lib/locales";
@@ -436,6 +437,10 @@ export default function Dashboard() {
               <span>{item.label}</span>
             </button>
           ))}
+          <Link href="/app/settings" className="sidebar-nav-item" style={{ marginTop: 'auto', paddingTop: 20 }}>
+            <Settings size={18} />
+            <span>Profile & Settings</span>
+          </Link>
         </nav>
 
         <div className="sidebar-bottom">
