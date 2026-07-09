@@ -136,6 +136,7 @@ export default function Dashboard() {
   const heroRef = useRef<HTMLDivElement>(null);
   const lastPredictedRoundRef = useRef<number>(-1);
   const [lang, setLang] = useState<LanguageCode>('en');
+  const [isAdmin, setIsAdmin] = useState(false);
   const t = translations[lang] || translations.en;
 
   const f = (str: string, values: Record<string, string | number>) => {
@@ -280,6 +281,14 @@ export default function Dashboard() {
     if (savedLang && (savedLang === 'en' || savedLang === 'si' || savedLang === 'ta')) {
       setLang(savedLang as LanguageCode);
     }
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        supabase.from('profiles').select('is_admin').eq('id', user.id).single().then(({ data }) => {
+          if (data?.is_admin) setIsAdmin(true);
+        })
+      }
+    });
 
     supabase.from('crash_rounds').select('*').order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => {
@@ -492,6 +501,12 @@ export default function Dashboard() {
               <span>{item.label}</span>
             </button>
           ))}
+          {isAdmin && (
+            <Link href="/admin" className="sidebar-nav-item" style={{ color: '#a78bfa' }}>
+              <ShieldCheck size={18} />
+              <span>Admin Panel</span>
+            </Link>
+          )}
           <Link href="/app/settings" className="sidebar-nav-item" style={{ marginTop: 'auto', paddingTop: 20 }}>
             <Settings size={18} />
             <span>Profile & Settings</span>

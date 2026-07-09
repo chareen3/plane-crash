@@ -3,6 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 import { computeStats, computeBetSignal, buildHumanSummary } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
+import fs from 'fs';
+import path from 'path';
+
+function getSettings() {
+  try {
+    const file = path.join(process.cwd(), 'data', 'settings.json');
+    if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (e) {}
+  return { maintenanceMode: false };
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,6 +40,21 @@ async function fetchRecentRounds() {
 // ─── Main handler ──────────────────────────────────────────────────────────
 export async function GET(request: Request) {
   try {
+    const settings = getSettings();
+    if (settings.maintenanceMode) {
+      return NextResponse.json({
+        risk: 'HIGH',
+        predicted_risk: 'HIGH',
+        confidence: 0,
+        summary: "System is under maintenance. Predictions and signals are paused.",
+        should_bet: false,
+        strategy: 'SKIP',
+        skip_reason: "MAINTENANCE MODE ACTIVE",
+        cashout_target: 0,
+        timeData: getLKTimeData(),
+      });
+    }
+
     const rounds = await fetchRecentRounds();
     if (rounds.length < 3)
       return NextResponse.json({ error: 'Need 3+ rounds.' });

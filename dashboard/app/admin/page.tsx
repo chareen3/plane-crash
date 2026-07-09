@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
-import { Orbit, Landmark, Check, Loader2, AlertCircle, ShieldAlert, ArrowLeft, RefreshCw, Trash2, Database } from 'lucide-react'
+import { Orbit, Landmark, Check, Loader2, AlertCircle, ShieldAlert, ArrowLeft, RefreshCw, Trash2, Database, Users, Settings as SettingsIcon, Power } from 'lucide-react'
 
 interface PendingPayment {
   id: string
@@ -24,6 +24,12 @@ export default function AdminPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [payments, setPayments] = useState<PendingPayment[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
+
+  const [users, setUsers] = useState<any[]>([])
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  
+  const [settings, setSettings] = useState({ maintenanceMode: false })
+  const [savingSettings, setSavingSettings] = useState(false)
 
   // Confirm action states
   const [confirmingId, setConfirmingId] = useState<string | null>(null)
@@ -98,6 +104,33 @@ export default function AdminPage() {
     }
   }, [supabase])
 
+  const fetchUsers = useCallback(async () => {
+    setLoadingUsers(true)
+    try {
+      const res = await fetch('/api/admin/users')
+      const data = await res.json()
+      if (res.ok && data.users) {
+        setUsers(data.users)
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }, [])
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings')
+      const data = await res.json()
+      if (res.ok) {
+        setSettings(data)
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err)
+    }
+  }, [])
+
   useEffect(() => {
     async function init() {
       await verifyAdmin()
@@ -108,8 +141,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdmin) {
       fetchPendingPayments()
+      fetchUsers()
+      fetchSettings()
     }
-  }, [isAdmin, fetchPendingPayments])
+  }, [isAdmin, fetchPendingPayments, fetchUsers, fetchSettings])
 
   const handleConfirmPayment = async (paymentId: string) => {
     setConfirmingId(paymentId)
@@ -155,6 +190,53 @@ export default function AdminPage() {
       setConfirmError(err.message)
     } finally {
       setResettingTable(null)
+    }
+  }
+
+  const handleToggleAdmin = async (userId: string, currentStatus: boolean) => {
+    if (!confirm(`Are you sure you want to ${currentStatus ? 'revoke' : 'grant'} admin rights for this user?`)) return;
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUserId: userId, is_admin: !currentStatus })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you ABSOLUTELY sure you want to delete this user? This cannot be undone.')) return;
+    try {
+      const res = await fetch(`/api/admin/users?id=${userId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await fetchUsers();
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
+  const handleToggleMaintenance = async () => {
+    setSavingSettings(true);
+    try {
+      const newVal = !settings.maintenanceMode;
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maintenanceMode: newVal })
+      });
+      const data = await res.json();
+      if (res.ok) setSettings(data.settings);
+      else throw new Error(data.error);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setSavingSettings(false);
     }
   }
 
@@ -293,6 +375,97 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Global Settings Section */}
+        <div className="mt-12 pt-12 border-t border-white/[0.05]">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg border border-cyan-500/20 bg-cyan-500/10 flex items-center justify-center text-cyan-400">
+              <SettingsIcon size={16} />
+            </div>
+            <h2 className="text-xl font-black uppercase tracking-tight text-cyan-400">Global Settings</h2>
+          </div>
+          
+          <div className="p-6 rounded-2xl border border-white/[0.05] bg-[#0c1120] flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sm mb-1 text-white">Maintenance Mode</h3>
+              <p className="text-xs text-[#5a6a8a]">When active, prevents normal users from placing bets or seeing predictions.</p>
+            </div>
+            <button
+              onClick={handleToggleMaintenance}
+              disabled={savingSettings}
+              className={`px-4 py-2.5 font-bold uppercase text-[10px] tracking-wider rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 ${
+                settings?.maintenanceMode 
+                  ? 'bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20' 
+                  : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+              }`}
+            >
+              {savingSettings ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />}
+              {settings?.maintenanceMode ? 'Disable Maintenance' : 'Enable Maintenance'}
+            </button>
+          </div>
+        </div>
+
+        {/* User Management Section */}
+        <div className="mt-12 pt-12 border-t border-white/[0.05]">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg border border-purple-500/20 bg-purple-500/10 flex items-center justify-center text-purple-400">
+              <Users size={16} />
+            </div>
+            <h2 className="text-xl font-black uppercase tracking-tight text-purple-400">User Management</h2>
+          </div>
+          
+          {loadingUsers ? (
+            <div className="py-10 flex items-center justify-center text-[#5a6a8a] text-xs gap-2">
+              <Loader2 className="animate-spin text-purple-400" size={16} /> Loading users...
+            </div>
+          ) : (
+            <div className="border border-white/[0.05] rounded-2xl bg-[#0c1120] overflow-hidden shadow-xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/[0.05] bg-[#080c18]/50 text-[#5a6a8a] uppercase tracking-wider font-extrabold">
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Joined Date</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.03]">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-white/[0.01] transition-colors">
+                        <td className="p-4 font-bold text-white">{u.email}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                            u.is_admin ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-[#080c18] border border-white/[0.05] text-[#5a6a8a]'
+                          }`}>
+                            {u.is_admin ? 'ADMIN' : 'USER'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-[#5a6a8a]">
+                          {formatDateTime(u.created_at)}
+                        </td>
+                        <td className="p-4 text-right flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleToggleAdmin(u.id, u.is_admin)}
+                            className="px-3 py-1.5 bg-[#080c18] hover:bg-white/[0.05] border border-white/[0.05] text-[#5a6a8a] hover:text-white font-bold uppercase text-[9px] tracking-wider rounded-lg transition-colors"
+                          >
+                            {u.is_admin ? 'Revoke Admin' : 'Make Admin'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 font-bold uppercase text-[9px] tracking-wider rounded-lg transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Database Management Section */}
         <div className="mt-12 pt-12 border-t border-white/[0.05]">
