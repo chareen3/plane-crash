@@ -88,8 +88,8 @@ function AuthForm() {
         <Link href="/" className="flex items-center gap-2 mb-4 text-[#5a6a8a] hover:text-cyan-400 text-xs font-semibold self-start transition-colors">
           <ArrowLeft size={14} /> Back to home
         </Link>
-        <div className="text-cyan-400 mb-2">
-          <Orbit className="animate-spin-slow" size={36} />
+        <div className="mb-2">
+          <img src="/logo.png" alt="CrashTracker" className="w-9 h-9 rounded-lg object-cover" />
         </div>
         <h2 className="text-xl font-black tracking-tight">CRASH TRACKER ACCESS</h2>
         <p className="text-xs text-[#5a6a8a] mt-1">Authenticate to synchronize and view predictions.</p>

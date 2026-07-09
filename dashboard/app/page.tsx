@@ -31,9 +31,7 @@ export default async function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Orbit size={16} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="CrashTracker" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-black text-lg tracking-tight bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent">
               CrashTracker
             </span>
@@ -690,9 +688,7 @@ export default async function LandingPage() {
             {/* Brand */}
             <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
-                  <Orbit size={15} className="text-white" />
-                </div>
+                <img src="/logo.png" alt="CrashTracker" className="w-8 h-8 rounded-lg object-cover" />
                 <span className="font-black text-lg bg-gradient-to-r from-cyan-300 to-blue-400 bg-clip-text text-transparent">
                   CrashTracker
                 </span>

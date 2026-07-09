@@ -477,8 +477,8 @@ export default function Dashboard() {
       {/* ─── DESKTOP SIDEBAR ─── */}
       <aside className="sidebar desktop-sidebar">
         <div className="sidebar-logo">
-          <Orbit size={22} color="#00ffd5" />
-          <span className="sidebar-logo-text">CrashAI</span>
+          <img src="/logo.png" alt="CrashTracker" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'cover' }} />
+          <span className="sidebar-logo-text">CrashTracker</span>
         </div>
 
         <nav className="sidebar-nav">
@@ -538,8 +538,8 @@ export default function Dashboard() {
       <div className={`mobile-drawer ${mobileDrawerOpen ? 'open' : ''}`}>
         <div className="drawer-header">
           <div className="sidebar-logo">
-            <Orbit size={22} color="#00ffd5" />
-            <span className="sidebar-logo-text">CrashAI</span>
+            <img src="/logo.png" alt="CrashTracker" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'cover' }} />
+            <span className="sidebar-logo-text">CrashTracker</span>
           </div>
           <button className="drawer-close" onClick={() => setMobileDrawerOpen(false)}>
             <X size={20} />
@@ -750,7 +750,7 @@ export default function Dashboard() {
               <Menu size={22} color="#fff" />
             </button>
             <div className="dash-topbar-title">
-              <Orbit size={20} color="#00ffd5" />
+              <img src="/logo.png" alt="CrashTracker" style={{ width: '20px', height: '20px', borderRadius: '5px', objectFit: 'cover' }} />
               <span className="sidebar-logo-text">{t.appName}</span>
             </div>
           </div>

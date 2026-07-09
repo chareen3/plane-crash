@@ -17,7 +17,7 @@ export const si: Translations = {
   telemetryStandby: "ටෙලිමෙට්‍රි සූදානම්ව පවතී",
 
   // Topbar / Header
-  appName: "CrashAI",
+  appName: "CrashTracker",
   appSub: "නියුරල් ක්‍රෑෂ් පුරෝකථන එන්ජිම",
   synced: "සමමුහුර්තයි",
   connecting: "සම්බන්ධ වෙමින්...",

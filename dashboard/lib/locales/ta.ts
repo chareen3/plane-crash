@@ -17,7 +17,7 @@ export const ta: Translations = {
   telemetryStandby: "டெலிமெட்ரி காத்திருப்பு",
 
   // Topbar / Header
-  appName: "CrashAI",
+  appName: "CrashTracker",
   appSub: "நியூரல் கிராஷ் கணிப்பு இயந்திரம்",
   synced: "ஒத்திசைக்கப்பட்டது",
   connecting: "இணைக்கிறது...",

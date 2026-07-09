@@ -15,7 +15,7 @@ export const en = {
   telemetryStandby: "Telemetry standby",
 
   // Topbar / Header
-  appName: "CrashAI",
+  appName: "CrashTracker",
   appSub: "Neural crash prediction engine",
   synced: "SYNCED",
   connecting: "CONNECTING...",
