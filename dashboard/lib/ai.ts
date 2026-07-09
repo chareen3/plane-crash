@@ -19,11 +19,11 @@ export const PEAK_HOURS_UTC = [
   { hour: 16, label: '16:00 UTC', score: 95, tag: 'PEAK', note: 'LK 9:30 PM (🔥 PRIME)' },
   { hour: 17, label: '17:00 UTC', score: 85, tag: 'HOT', note: 'LK 10:30 PM (Prime winding down)' },
   { hour: 18, label: '18:00 UTC', score: 70, tag: 'WARM', note: 'LK 11:30 PM (Late night)' },
-  { hour: 19, label: '19:00 UTC', score: 40, tag: 'COLD', note: 'LK 12:30 AM (Sleep phase)' },
-  { hour: 20, label: '20:00 UTC', score: 30, tag: 'COLD', note: 'LK 1:30 AM (Sleep phase)' },
-  { hour: 21, label: '21:00 UTC', score: 25, tag: 'COLD', note: 'LK 2:30 AM (Sleep phase)' },
-  { hour: 22, label: '22:00 UTC', score: 20, tag: 'COLD', note: 'LK 3:30 AM (Sleep phase)' },
-  { hour: 23, label: '23:00 UTC', score: 25, tag: 'COLD', note: 'LK 4:30 AM (Sleep phase)' },
+  { hour: 19, label: '19:00 UTC', score: 40, tag: 'NORM', note: 'LK 12:30 AM (Late night)' },
+  { hour: 20, label: '20:00 UTC', score: 40, tag: 'NORM', note: 'LK 1:30 AM (Late night)' },
+  { hour: 21, label: '21:00 UTC', score: 40, tag: 'NORM', note: 'LK 2:30 AM (Late night)' },
+  { hour: 22, label: '22:00 UTC', score: 40, tag: 'NORM', note: 'LK 3:30 AM (Late night)' },
+  { hour: 23, label: '23:00 UTC', score: 40, tag: 'NORM', note: 'LK 4:30 AM (Late night)' },
 ];
 
 const AI_MODELS = [
@@ -36,12 +36,12 @@ const AI_MODELS = [
 // Game: 1xBet Crash — lk.1xbet.com — Sri Lanka players ONLY
 // Running on local Sri Lanka machine → new Date().getHours() = real LK time. No conversion needed.
 export const LK_PHASE_TABLE: Record<number, { phase: string; rule: string; playerCount: string; note: string }> = {
-  0:  { phase: 'SLEEP',   rule: 'SKIP',       playerCount: '<15',     note: '12AM. Near-random RNG. Skip all bets.' },
-  1:  { phase: 'SLEEP',   rule: 'SKIP',       playerCount: '<10',     note: '1AM. Patterns unreliable.' },
-  2:  { phase: 'SLEEP',   rule: 'SKIP',       playerCount: '<10',     note: '2AM. Near-zero activity.' },
-  3:  { phase: 'SLEEP',   rule: 'SKIP',       playerCount: '<10',     note: '3AM. SKIP.' },
-  4:  { phase: 'SLEEP',   rule: 'SKIP',       playerCount: '<10',     note: '4AM. SKIP.' },
-  5:  { phase: 'SLEEP',   rule: 'SKIP',       playerCount: '10-15',   note: '5AM. Very early. Max 1.15x only.' },
+  0:  { phase: 'LATE_NIGHT', rule: 'BET_NORMAL', playerCount: '<15',     note: '12AM. Late night session.' },
+  1:  { phase: 'LATE_NIGHT', rule: 'BET_NORMAL', playerCount: '<10',     note: '1AM. Late night session.' },
+  2:  { phase: 'LATE_NIGHT', rule: 'BET_NORMAL', playerCount: '<10',     note: '2AM. Late night session.' },
+  3:  { phase: 'LATE_NIGHT', rule: 'BET_NORMAL', playerCount: '<10',     note: '3AM. Late night session.' },
+  4:  { phase: 'LATE_NIGHT', rule: 'BET_NORMAL', playerCount: '<10',     note: '4AM. Late night session.' },
+  5:  { phase: 'EARLY_MORNING', rule: 'BET_NORMAL', playerCount: '10-15', note: '5AM. Early morning session.' },
   6:  { phase: 'MORNING', rule: 'CAUTION',    playerCount: '15-30',   note: '6AM. Light traffic. Max 1.2x.' },
   7:  { phase: 'MORNING', rule: 'CAUTION',    playerCount: '30-50',   note: '7AM. Low-moderate. Caution.' },
   8:  { phase: 'DAY',     rule: 'BET_NORMAL', playerCount: '50-100',  note: '8AM. Day session. Standard strategy.' },
