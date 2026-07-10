@@ -269,6 +269,16 @@ export default function Dashboard() {
     router.refresh();
   };
 
+  // ── Heartbeat: track user activity every 60 seconds ─────────────────────
+  useEffect(() => {
+    const sendHeartbeat = () => {
+      fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+    };
+    sendHeartbeat(); // fire immediately on mount
+    const hbInterval = setInterval(sendHeartbeat, 60000);
+    return () => clearInterval(hbInterval);
+  }, []);
+
   useEffect(() => {
     // Lightweight cache cleanup on initialization
     try {

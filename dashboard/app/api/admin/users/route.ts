@@ -33,13 +33,34 @@ export async function GET(request: Request) {
 
     if (subsError) throw subsError;
 
+    // Fetch all user activity
+    const { data: activities } = await supabaseAdmin
+      .from('user_activity')
+      .select('*');
+
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+
     // Combine them
     const subsMap = new Map(subscriptions.map(s => [s.user_id, s]));
-    
-    const result = profiles.map(p => ({
-      ...p,
-      subscription: subsMap.get(p.id) || null
-    }));
+    const activityMap = new Map((activities || []).map(a => [a.user_id, a]));
+
+    const result = profiles.map(p => {
+      const activity = activityMap.get(p.id) || null;
+      const isOnline = activity
+        ? new Date(activity.last_seen_at) > fiveMinutesAgo
+        : false;
+      return {
+        ...p,
+        subscription: subsMap.get(p.id) || null,
+        activity: activity
+          ? {
+              last_seen_at: activity.last_seen_at,
+              total_seconds_spent: activity.total_seconds_spent,
+              is_online: isOnline,
+            }
+          : null,
+      };
+    });
 
     return NextResponse.json({ users: result });
   } catch (err: any) {
