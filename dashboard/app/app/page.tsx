@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull, Settings, User, LogOut } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull, Settings, User, LogOut, Moon, Sun, Sunset, Star as StarIcon, Gauge, Sparkles } from "lucide-react";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from "@/utils/supabase/client";
@@ -143,6 +143,183 @@ function filterByTimeRange(rounds: Round[], range: TimeRange): Round[] {
   const ranges: Record<string, number> = { '1h': 3600000, '6h': 21600000, '24h': 86400000, '7d': 604800000 };
   const cutoff = now - (ranges[range] || 0);
   return rounds.filter(r => new Date(r.created_at).getTime() >= cutoff);
+}
+
+const PHASE_ICONS: Record<string, { icon: any; color: string; glow: string; label: string; bg: string }> = {
+  SLEEP: {
+    icon: <Moon size={18} />,
+    color: '#6366f1',
+    glow: 'rgba(99,102,241,0.3)',
+    label: 'SLEEP',
+    bg: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(99,102,241,0.03))'
+  },
+  MORNING: {
+    icon: <Sun size={18} />,
+    color: '#f59e0b',
+    glow: 'rgba(245,158,11,0.3)',
+    label: 'MORNING',
+    bg: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.03))'
+  },
+  DAY: {
+    icon: <Sun size={18} />,
+    color: '#38bdf8',
+    glow: 'rgba(56,189,248,0.3)',
+    label: 'DAY',
+    bg: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.03))'
+  },
+  EVENING: {
+    icon: <Sunset size={18} />,
+    color: '#f97316',
+    glow: 'rgba(249,115,22,0.3)',
+    label: 'EVENING',
+    bg: 'linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))'
+  },
+  PRIME: {
+    icon: <Sparkles size={18} />,
+    color: '#00e5a0',
+    glow: 'rgba(0,229,160,0.4)',
+    label: 'PRIME',
+    bg: 'linear-gradient(135deg, rgba(0,229,160,0.15), rgba(0,229,160,0.04))'
+  },
+  LATE: {
+    icon: <StarIcon size={18} />,
+    color: '#a78bfa',
+    glow: 'rgba(167,139,250,0.3)',
+    label: 'LATE',
+    bg: 'linear-gradient(135deg, rgba(167,139,250,0.12), rgba(167,139,250,0.03))'
+  }
+};
+
+function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode }) {
+  const phase = timeData?.lkPhase ?? 'DAY';
+  const meta = PHASE_ICONS[phase] || PHASE_ICONS.DAY;
+  const isPrime = phase === 'PRIME';
+  const isSleep = phase === 'SLEEP';
+
+  return (
+    <div className={`time-sync-card ${phase.toLowerCase()}`} style={{
+      background: meta.bg,
+      border: `1px solid ${meta.color}25`,
+      borderRadius: '14px',
+      padding: '14px 16px',
+      marginTop: '12px',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Animated gradient glow */}
+      <div className="ts-glow" style={{
+        position: 'absolute',
+        top: '-50%',
+        left: '-25%',
+        width: '150%',
+        height: '200%',
+        background: `radial-gradient(circle at 30% 40%, ${meta.glow}, transparent 60%)`,
+        pointerEvents: 'none',
+        animation: 'ts-glow-drift 6s ease-in-out infinite',
+      }} />
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 1 }}>
+        {/* Animated icon container */}
+        <div className={`ts-icon-wrap ${phase.toLowerCase()}`} style={{
+          background: `${meta.color}15`,
+          border: `1px solid ${meta.color}30`,
+          borderRadius: '12px',
+          width: '40px',
+          height: '40px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: meta.color,
+          flexShrink: 0,
+          position: 'relative'
+        }}>
+          <div className="ts-icon" style={{ position: 'relative', zIndex: 1 }}>{meta.icon}</div>
+          <div className="ts-icon-ring" style={{
+            position: 'absolute',
+            inset: '-4px',
+            borderRadius: '14px',
+            border: `2px solid ${meta.color}20`,
+            animation: 'ts-ring-pulse 3s ease-in-out infinite',
+          }} />
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="ts-title" style={{
+              fontSize: '11px',
+              fontWeight: '800',
+              color: '#f8fafc',
+              letterSpacing: '1px',
+              fontFamily: "'Rajdhani', sans-serif",
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <Gauge size={11} color={meta.color} />
+              PEAK HOURS
+            </span>
+            <span className="ts-badge" style={{
+              fontSize: '9px',
+              background: `${meta.color}18`,
+              color: meta.color,
+              padding: '3px 10px',
+              borderRadius: '20px',
+              textTransform: 'uppercase',
+              fontWeight: '900',
+              fontFamily: "'Rajdhani', sans-serif",
+              letterSpacing: '0.5px',
+              border: `1px solid ${meta.color}25`,
+            }}>
+              {isPrime ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Sparkles size={10} className="ts-sparkle" />
+                  PRIME
+                </span>
+              ) : isSleep ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Moon size={10} /> SLEEP
+                </span>
+              ) : meta.label}
+            </span>
+          </div>
+          <div style={{
+            fontSize: '11px',
+            color: '#94a3b8',
+            marginTop: '4px',
+            lineHeight: '1.4',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            flexWrap: 'wrap'
+          }}>
+            <strong style={{ color: '#ffffff', fontFamily: 'monospace' }}>{timeData.currentLKTimeStr}</strong>
+            <span style={{ opacity: 0.5 }}>·</span>
+            <span>{timeData.lkNote}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Activity bar */}
+      {!isSleep && (
+        <div className="ts-activity" style={{
+          marginTop: '10px',
+          height: '3px',
+          borderRadius: '2px',
+          background: 'rgba(255,255,255,0.05)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div className="ts-bar" style={{
+            height: '100%',
+            borderRadius: '2px',
+            background: `linear-gradient(90deg, ${meta.color}, ${meta.color}80)`,
+            width: isPrime ? '85%' : phase === 'EVENING' ? '60%' : phase === 'MORNING' ? '35%' : phase === 'DAY' ? '50%' : '25%',
+            animation: 'ts-bar-pulse 2s ease-in-out infinite',
+          }} />
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Function AnimatedCrashMultiplier removed per user request to drop animations
@@ -2009,104 +2186,7 @@ export default function Dashboard() {
                         )}
 
                         {timeData && (
-                          <>
-                            <div className="time-sync-card" style={{
-                              background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%)',
-                              border: '1px solid rgba(108, 99, 255, 0.15)',
-                              borderRadius: '12px',
-                              padding: '12px 16px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '12px',
-                              marginTop: '12px',
-                              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                              backdropFilter: 'blur(10px)'
-                            }}>
-                              <div style={{
-                                background: timeData.isLKPrime ? 'rgba(0, 229, 160, 0.1)' : 'rgba(108, 99, 255, 0.1)',
-                                border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.25)' : 'rgba(108, 99, 255, 0.25)'}`,
-                                borderRadius: '50%',
-                                width: '32px',
-                                height: '32px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: timeData.isLKPrime ? '#00e5a0' : '#6c63ff',
-                                flexShrink: 0
-                              }}>
-                                <Clock size={16} />
-                              </div>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#f8fafc', letterSpacing: '0.5px', fontFamily: "'Rajdhani', sans-serif" }}>
-                                    COLOMBO TIME ZONE
-                                  </span>
-                                  <span style={{
-                                    fontSize: '9px',
-                                    background: timeData.isLKPrime ? 'rgba(0,229,160,0.15)' : 'rgba(108,99,255,0.15)',
-                                    color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa',
-                                    padding: '2px 8px',
-                                    borderRadius: '20px',
-                                    textTransform: 'uppercase',
-                                    fontWeight: '900',
-                                    fontFamily: "'Rajdhani', sans-serif",
-                                    letterSpacing: '0.5px',
-                                    border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.2)' : 'rgba(108, 99, 255, 0.2)'}`
-                                  }}>
-                                    {timeData.lkPhase} SEASON
-                                  </span>
-                                </div>
-                                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px', lineHeight: '1.4' }}>
-                                  {lang === 'si' ? 'දේශීය' : lang === 'ta' ? 'உள்ளூர்' : 'Local'}: <strong style={{ color: '#ffffff' }}>{timeData.currentLKTimeStr}</strong> · {timeData.lkNote}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Peak Hours Card */}
-                            <div className="peak-hours-card" style={{
-                              background: 'linear-gradient(135deg, rgba(255, 208, 0, 0.05) 0%, rgba(255, 107, 53, 0.05) 100%)',
-                              border: '1px solid rgba(255, 208, 0, 0.15)',
-                              borderRadius: '12px',
-                              padding: '14px',
-                              marginTop: '10px'
-                            }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                                <div className="peak-icon-wrapper">
-                                  <div className="peak-icon-ring" />
-                                  <div className="peak-icon-core">
-                                    <Flame size={14} color="#ffd000" />
-                                  </div>
-                                </div>
-                                <span style={{ fontSize: '11px', fontWeight: '800', color: '#ffd000', letterSpacing: '0.5px', fontFamily: "'Rajdhani', sans-serif" }}>
-                                  LOCAL PEAK HOURS
-                                </span>
-                                <span className="peak-live-badge">
-                                  <span className="peak-live-dot" />
-                                  LIVE
-                                </span>
-                              </div>
-                              <div className="peak-hours-grid">
-                                {[
-                                  { time: '6AM-9AM', label: 'Morning', activity: 'low', icon: '🌅' },
-                                  { time: '12PM-2PM', label: 'Lunch', activity: 'med', icon: '☀️' },
-                                  { time: '7PM-11PM', label: 'Prime', activity: 'high', icon: '🔥' },
-                                  { time: '11PM-2AM', label: 'Night', activity: 'med', icon: '🌙' },
-                                ].map((slot, i) => (
-                                  <div key={i} className={`peak-slot peak-${slot.activity}`}>
-                                    <span className="peak-slot-icon">{slot.icon}</span>
-                                    <span className="peak-slot-time">{slot.time}</span>
-                                    <span className="peak-slot-label">{slot.label}</span>
-                                    <div className="peak-slot-bar">
-                                      <div className={`peak-slot-fill peak-fill-${slot.activity}`} />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '10px', lineHeight: '1.4' }}>
-                                {lang === 'si' ? 'ශ්‍රී ලංකා කාලය මත පදනම්ව' : lang === 'ta' ? 'இலங்கை நேரம் அடிப்படையில்' : 'Based on Sri Lanka time'} · {timeData.currentLKTimeStr}
-                              </div>
-                            </div>
-                          </>
+                          <TimeSyncCard timeData={timeData} lang={lang} />
                         )}
 
                         <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>

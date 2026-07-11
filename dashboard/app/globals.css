@@ -1754,15 +1754,53 @@ html {
   display: inline;
 }
 
+/* ── PEAK HOURS / TIME SYNC ── */
 .time-sync-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: rgba(108, 99, 255, 0.06);
-  border: 1px solid rgba(108, 99, 255, 0.15);
-  border-radius: 10px;
-  margin: 4px 0 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes ts-glow-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(5%, -5%) scale(1.05); }
+  66% { transform: translate(-5%, 5%) scale(0.95); }
+}
+
+@keyframes ts-ring-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.1); opacity: 0.6; }
+}
+
+@keyframes ts-bar-pulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+@keyframes ts-sparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.6; }
+  50% { transform: scale(1.3) rotate(20deg); opacity: 1; }
+}
+
+.ts-sparkle {
+  animation: ts-sparkle 1.5s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* Phase-specific icon animations */
+.ts-icon-wrap.prime .ts-icon {
+  animation: ts-sparkle 2s ease-in-out infinite;
+}
+
+.ts-icon-wrap.sleep .ts-icon {
+  animation: ts-glow-drift 4s ease-in-out infinite;
+}
+
+.ts-icon-wrap.morning .ts-icon {
+  animation: ts-glow-drift 3s ease-in-out infinite;
+}
+
+.ts-icon-wrap.evening .ts-icon {
+  animation: ts-glow-drift 3.5s ease-in-out infinite;
 }
 
 .cashout-targets {
@@ -3017,217 +3055,6 @@ html {
   .submit-btn {
     padding: 16px;
     font-size: 12px;
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   PEAK HOURS - ANIMATED ICONS
-   ═══════════════════════════════════════════════════════════════ */
-
-.peak-icon-wrapper {
-  position: relative;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.peak-icon-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 208, 0, 0.3);
-  animation: peak-ring-pulse 2s ease-in-out infinite;
-}
-
-@keyframes peak-ring-pulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.3);
-    opacity: 0.3;
-  }
-}
-
-.peak-icon-core {
-  position: relative;
-  width: 24px;
-  height: 24px;
-  background: rgba(255, 208, 0, 0.15);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: peak-icon-glow 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes peak-icon-glow {
-  0% {
-    box-shadow: 0 0 8px rgba(255, 208, 0, 0.3);
-    background: rgba(255, 208, 0, 0.1);
-  }
-  100% {
-    box-shadow: 0 0 16px rgba(255, 208, 0, 0.5);
-    background: rgba(255, 208, 0, 0.2);
-  }
-}
-
-.peak-live-badge {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 9px;
-  font-weight: 800;
-  color: #00e5a0;
-  background: rgba(0, 229, 160, 0.1);
-  border: 1px solid rgba(0, 229, 160, 0.25);
-  padding: 2px 8px;
-  border-radius: 10px;
-  margin-left: auto;
-}
-
-.peak-live-dot {
-  width: 6px;
-  height: 6px;
-  background: #00e5a0;
-  border-radius: 50%;
-  animation: peak-dot-blink 1s ease-in-out infinite;
-}
-
-@keyframes peak-dot-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.peak-hours-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-
-.peak-slot {
-  text-align: center;
-  padding: 10px 6px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.peak-slot:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.peak-slot-icon {
-  display: block;
-  font-size: 16px;
-  margin-bottom: 4px;
-  animation: peak-icon-float 3s ease-in-out infinite;
-}
-
-.peak-slot:nth-child(1) .peak-slot-icon { animation-delay: 0s; }
-.peak-slot:nth-child(2) .peak-slot-icon { animation-delay: 0.5s; }
-.peak-slot:nth-child(3) .peak-slot-icon { animation-delay: 1s; }
-.peak-slot:nth-child(4) .peak-slot-icon { animation-delay: 1.5s; }
-
-@keyframes peak-icon-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-
-.peak-slot-time {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  color: #f0f4ff;
-  font-family: monospace;
-  margin-bottom: 2px;
-}
-
-.peak-slot-label {
-  display: block;
-  font-size: 9px;
-  color: #5a6a8a;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
-}
-
-.peak-slot-bar {
-  height: 3px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.peak-slot-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.5s ease;
-}
-
-.peak-fill-low {
-  width: 30%;
-  background: linear-gradient(90deg, #3a4560, #5a6a8a);
-}
-
-.peak-fill-med {
-  width: 65%;
-  background: linear-gradient(90deg, #ffd000, #ff9500);
-  animation: peak-bar-pulse 2s ease-in-out infinite;
-}
-
-.peak-fill-high {
-  width: 100%;
-  background: linear-gradient(90deg, #ff3366, #ff6b8a);
-  animation: peak-bar-glow 1.5s ease-in-out infinite;
-}
-
-@keyframes peak-bar-pulse {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
-}
-
-@keyframes peak-bar-glow {
-  0%, 100% {
-    box-shadow: 0 0 4px rgba(255, 51, 102, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 8px rgba(255, 51, 102, 0.6);
-  }
-}
-
-/* Peak Activity States */
-.peak-high {
-  border-color: rgba(255, 51, 102, 0.2);
-  background: rgba(255, 51, 102, 0.03);
-}
-
-.peak-med {
-  border-color: rgba(255, 208, 0, 0.15);
-  background: rgba(255, 208, 0, 0.02);
-}
-
-.peak-low {
-  border-color: rgba(255, 255, 255, 0.04);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .peak-hours-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .peak-slot-icon {
-    font-size: 14px;
-  }
-  
-  .peak-slot-time {
-    font-size: 9px;
   }
 }
 
