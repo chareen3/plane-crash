@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats, gradePrediction, computeBetSignal, buildHumanSummary } from '../../../lib/stats';
+import { computeStats, gradePrediction, computeBetSignal, buildHumanSummary, analyzeStability } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
@@ -9,6 +9,22 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+async function fetchHistoricalHourRounds(sriLankaHour: number) {
+  // Query 90 days (last 3 months) of history for accurate timezone/season pattern mapping
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('crash_rounds')
+    .select('round_number, crash_point, created_at, hour_sl')
+    .eq('hour_sl', sriLankaHour)
+    .gte('created_at', ninetyDaysAgo)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Error fetching historical hour rounds:', error);
+    return [];
+  }
+  return data || [];
+}
 
 
 
@@ -142,10 +158,24 @@ export async function POST(request: Request) {
     // Time context
     const timeData = getLKTimeData();
 
-    // Compute complete stats for recommendations across the entire dataset (no slice!)
     const gameType = body.gameType || '1xbet';
     const stats = computeStats(values);
+
+    const currentLKHour = timeData.currentLKHour;
+    const histHourRounds = await fetchHistoricalHourRounds(currentLKHour);
+    const stabilityAnalysis = analyzeStability(values, histHourRounds);
+
     const betSignal = computeBetSignal(stats, gameType, timeData);
+
+    const finalStabilityAnalysis = {
+      ...stabilityAnalysis,
+      holdScore: betSignal.holdScore,
+      holdReasons: betSignal.holdReasons,
+      holdSignal: betSignal.holdSignal,
+    };
+
+    stats.stabilityAnalysis = finalStabilityAnalysis;
+
     const nextRoundNumber = roundNumber + 1;
 
     let aiRisk = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
@@ -187,7 +217,7 @@ export async function POST(request: Request) {
     // tier_safe = the actual CONSERVATIVE exit target from computeBetSignal (never less than 1.10x).
     // This is the primary grading target — what the user should cash out at to win.
     // tier_swing = moonshot optional target, NOT used for win/loss grading.
-    let tierSafe   = finalCashout > 0 ? Math.min(finalCashout, 1.40) : 1.10;
+    let tierSafe   = finalCashout > 0 ? finalCashout : 1.10;
     if (tierSafe < 1.10) tierSafe = 1.10; // floor
     let tierSwing  = swingTarget || 3.5;
     let tierMoon   = aiLongTargets.x10 || 8.0;
@@ -280,6 +310,7 @@ export async function POST(request: Request) {
         context_window:       contextVal,
         instant_crash_risk:   stats.instant_crash_risk,
         instant_crash_warning: stats.instant_crash_warning,
+        stability_analysis:   finalStabilityAnalysis,
       }, { onConflict: 'round_number', ignoreDuplicates: false })
       .select()
       .maybeSingle();
@@ -319,6 +350,7 @@ export async function POST(request: Request) {
         context_window: contextVal,
         instant_crash_risk: stats.instant_crash_risk,
         instant_crash_warning: stats.instant_crash_warning,
+        stability_analysis: finalStabilityAnalysis,
       },
       timeData,
     });

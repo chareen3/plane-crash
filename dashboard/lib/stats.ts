@@ -94,6 +94,7 @@ export interface CrashStats {
 
   currentLowStreak: number;
   currentHighStreak: number;
+  currentHighStreak250: number;
   longestLowStreak: number;
 
   recentMean: number;
@@ -146,6 +147,9 @@ export interface CrashStats {
     status: 'STABLE' | 'CAUTION' | 'VOLATILE' | 'INSUFFICIENT_DATA';
     matched_patterns_count: number;
     historical_win_rate_1_5x: number;
+    holdScore?: number;
+    holdReasons?: string[];
+    holdSignal?: boolean;
   };
 }
 
@@ -165,6 +169,9 @@ export interface BetSignal {
   volatility_phase: 'CALM' | 'NORMAL' | 'VOLATILE';
   recommended_stake_pct: number;
   strategy_reason?: string;
+  holdScore: number;
+  holdReasons: string[];
+  holdSignal: boolean;
 }
 
 interface NormalizedRound {
@@ -490,6 +497,7 @@ export function computeStats(
 
   const currentLowStreak  = countLeading(values, v => v < 2);
   const currentHighStreak = countLeading(values, v => v >= 2);
+  const currentHighStreak250 = countLeading(values, v => v >= 2.50);
   const currentInstantStreak = countLeading(values, v => tierOf(v) === 'INSTANT');
   const longestLowStreak  = longestRun(values, v => v < 2);
 
@@ -584,17 +592,24 @@ export function computeStats(
     suggestedCashout = 1.50;
     cashoutReasons.push(`selected 1.50x (normal variance protection: Markov MED+HIGH ${favorableMarkov.toFixed(0)}%)`);
   } else {
-    // Under low risk conditions, cycle/select high payouts dynamically
-    const hash = (n * 17 + new Date().getMinutes()) % 100;
-    if (hash < 33) {
-      suggestedCashout = 2.50;
-      cashoutReasons.push(`selected 2.50x (optimal conditions: low risk ${riskScore})`);
-    } else if (hash < 66) {
-      suggestedCashout = 2.40;
-      cashoutReasons.push(`selected 2.40x (optimal conditions: low risk ${riskScore})`);
+    // Under low risk conditions (riskScore < 45), dynamically scale the target between 2.00x and 2.50x
+    const targets = [2.00, 2.03, 2.05, 2.08, 2.10, 2.12, 2.15, 2.18, 2.20, 2.23, 2.25, 2.29, 2.30, 2.32, 2.35, 2.38, 2.40, 2.42, 2.45, 2.48, 2.50];
+    
+    if (riskScore < 20) {
+      // Prime conditions: target higher range 2.35x - 2.50x (indices 14 to 20)
+      const targetIdx = 14 + (n % 7);
+      suggestedCashout = targets[targetIdx];
+      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (prime safe conditions: riskScore ${riskScore})`);
+    } else if (riskScore < 30) {
+      // Stable conditions: target mid range 2.18x - 2.32x (indices 7 to 13)
+      const targetIdx = 7 + (n % 7);
+      suggestedCashout = targets[targetIdx];
+      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (stable conditions: riskScore ${riskScore})`);
     } else {
-      suggestedCashout = 2.00;
-      cashoutReasons.push(`selected 2.00x (optimal conditions: base target)`);
+      // Low risk baseline: target 2.00x - 2.15x (indices 0 to 6)
+      const targetIdx = n % 7;
+      suggestedCashout = targets[targetIdx];
+      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (base low-risk conditions: riskScore ${riskScore})`);
     }
   }
 
@@ -621,7 +636,7 @@ export function computeStats(
     p99SafeCashout, p95SafeCashout, p90SafeCashout,
     p80SafeCashout, p70SafeCashout, p60SafeCashout, p50SafeCashout,
     ema,
-    currentLowStreak, currentHighStreak, longestLowStreak,
+    currentLowStreak, currentHighStreak, currentHighStreak250, longestLowStreak,
     recentMean: round2(recentMean),
     olderMean:  round2(olderMean),
     trend,
@@ -666,7 +681,7 @@ function emptyStats(): CrashStats {
     p99SafeCashout: 1.05, p95SafeCashout: 1.05, p90SafeCashout: 1.10,
     p80SafeCashout: 1.20, p70SafeCashout: 1.50, p60SafeCashout: 1.80, p50SafeCashout: 2.00,
     ema: 0,
-    currentLowStreak: 0, currentHighStreak: 0, longestLowStreak: 0,
+    currentLowStreak: 0, currentHighStreak: 0, currentHighStreak250: 0, longestLowStreak: 0,
     recentMean: 0, olderMean: 0, trend: 'flat',
     suggestedCashout: 1.05, suggestedCashoutWinRate: 0,
     conservativeCashout: 1.10, aggressiveCashout: 1.50,
@@ -705,6 +720,38 @@ export function computeBetSignal(
   if (stats.stdDev < 1.5) volatility_phase = 'CALM';
   else if (stats.stdDev > 3.5) volatility_phase = 'VOLATILE';
 
+  // ─── Hold Score Calculation ───────────────────────────────────────────────
+  let holdScore = 0;
+  const holdReasons: string[] = [];
+  const outcomes = stats.recentOutcomes || [];
+
+  // 1. High Streak Cooldown: 5+ consecutive rounds >= 2.50x (+35 points)
+  if (stats.currentHighStreak250 >= 5) {
+    holdScore += 35;
+    holdReasons.push(`High streak cooldown (+35): ${stats.currentHighStreak250} consecutive rounds >= 2.50x`);
+  }
+
+  // 2. Mega Round Cooldown: previous round >= 10x (+25 points)
+  if (outcomes.length >= 1 && outcomes[0] >= 10.0) {
+    holdScore += 25;
+    holdReasons.push(`Mega round cooldown (+25): previous round crashed at ${outcomes[0]}x`);
+  }
+
+  // 3. Consecutive Low Crashes: last two rounds below 1.80x (+20 points)
+  if (outcomes.length >= 2 && outcomes[0] < 1.80 && outcomes[1] < 1.80) {
+    holdScore += 20;
+    holdReasons.push(`Consecutive low crashes (+20): last two rounds below 1.80x (${outcomes[0]}x, ${outcomes[1]}x)`);
+  }
+
+  // 4. Instant Crash Follow-up: prev round < 1.15x and riskScore >= 45 (+20 points)
+  if (outcomes.length >= 1 && outcomes[0] < 1.15 && stats.riskScore >= 45) {
+    holdScore += 20;
+    holdReasons.push(`Instant crash follow-up (+20): prev round ${outcomes[0]}x under elevated risk (${stats.riskScore})`);
+  }
+
+  holdScore = Math.min(100, Math.max(0, holdScore));
+  const holdSignal = holdScore >= 50;
+
   const skipReasons: string[] = [];
 
   // Sleep phase lock
@@ -712,19 +759,14 @@ export function computeBetSignal(
     skipReasons.push(`Colombo sleep phase (${timeData.currentLKTimeStr || ''})`);
   }
 
-  // Master signal locks - only skip on severe ABORT condition
-  if (stats.masterSignal === 'ABORT') {
-    skipReasons.push('Market volatility: ABORT (Critical Trend Decline)');
+  // Master signal locks - only skip on severe ABORT or DANGER
+  if (stats.masterSignal === 'ABORT' || stats.masterSignal === 'DANGER') {
+    skipReasons.push(`Market volatility: ${stats.masterSignal}`);
   }
 
-  // Session Momentum & Streak Locks - only skip on extremely long cold streak
-  if (stats.currentLowStreak >= 4) {
-    skipReasons.push(`Severe cold streak active (${stats.currentLowStreak} rounds below 2.0x)`);
-  }
-
-  // Instant-cluster lock - relaxed limit to 65% for normal working
-  if (stats.instantClusterRisk > 65) {
-    skipReasons.push(`Extreme instant-crash cluster risk (${stats.instantClusterRisk}%)`);
+  // Hold score lock
+  if (holdSignal) {
+    skipReasons.push(`Pattern Risk threshold reached (${holdScore}/100): ${holdReasons.join('; ')}`);
   }
 
   // ─── Partner & Season behavioral adaptivity ───────────────────────────────
@@ -752,13 +794,16 @@ export function computeBetSignal(
       volatility_phase,
       recommended_stake_pct: 0,
       strategy_reason: stats.cashoutReason,
+      holdScore,
+      holdReasons,
+      holdSignal,
     };
   }
 
   // ─── Phase caps (stable, max 3x) ──────────────────────────────────────────
   const phase = timeData?.lkPhase ?? 'DAY';
   const phaseMax: Record<string, number> = {
-    SLEEP:   1.10,  // should never reach here (blocked above)
+    SLEEP:   1.10,
     MORNING: 2.50,
     DAY:     2.50,
     EVENING: 3.00,
@@ -767,16 +812,12 @@ export function computeBetSignal(
   };
   const maxByPhase = (phaseMax[phase] ?? 2.50) * partnerModifier;
 
-  // Start from suggestedCashout adjusted for partner modifiers
   let cashoutTarget = clamp(stats.suggestedCashout * partnerModifier, 1.10, maxByPhase);
-
-  // Hard cap: never exceed SIGNAL_MAX_CASHOUT regardless of phase
   cashoutTarget = round2(clamp(cashoutTarget, 1.10, SIGNAL_MAX_CASHOUT));
 
   const aggressive = stats.masterSignal === 'STRONG_BUY';
   const stake = aggressive ? 3 : stats.masterSignal === 'BUY' ? 2 : 1;
 
-  // Swing target: only during hot sessions and capped at phase max
   const swingTarget = (sessionHotAndStrong(stats) && maxByPhase >= 2.0)
     ? round2(Math.min(stats.aggressiveCashout, maxByPhase, SIGNAL_MAX_CASHOUT))
     : null;
@@ -791,6 +832,9 @@ export function computeBetSignal(
     volatility_phase,
     recommended_stake_pct: volatility_phase === 'VOLATILE' ? Math.min(1, stake) : stake,
     strategy_reason: `${stats.masterSignal} at ${stats.signalConfidence}% confidence. ${stats.cashoutReason}`,
+    holdScore,
+    holdReasons,
+    holdSignal,
   };
 }
 
@@ -800,11 +844,101 @@ function sessionHotAndStrong(stats: CrashStats): boolean {
 
 export function buildHumanSummary(
   stats: CrashStats,
-  betSignal: ReturnType<typeof computeBetSignal>,
+  betSignal: BetSignal,
 ): string {
   if (!betSignal.should_bet) {
     return `${stats.masterSignal}: ${betSignal.skip_reason ?? 'risk controls blocked entry'}. ${stats.instantCrashWarning}`;
   }
   const favorableMarkov = round1(stats.markovNext.MED + stats.markovNext.HIGH);
   return `${stats.masterSignal} (${stats.signalConfidence}% confidence): ${stats.sessionMomentum} momentum, risk ${stats.riskScore}/100, Markov MED+HIGH=${favorableMarkov}%. Target ${betSignal.cashout_target.toFixed(2)}x. Stake ${betSignal.recommended_stake_pct}% bankroll.`;
+}
+
+export function analyzeStability(
+  currentRounds: { crash_point: number }[],
+  historicalRounds: { crash_point: number }[]
+) {
+  if (currentRounds.length < 5 || historicalRounds.length < 10) {
+    return {
+      similarity_score: 0,
+      stability_index: 0,
+      status: 'INSUFFICIENT_DATA' as const,
+      matched_patterns_count: 0,
+      historical_win_rate_1_5x: 0,
+      sample_size: historicalRounds.length
+    };
+  }
+
+  // Local helper to match routes logic
+  const getLocalTier = (v: number) => {
+    if (v < 1.15) return 'INSTANT';
+    if (v < 2.00) return 'LOW';
+    if (v < 5.00) return 'MED';
+    return 'HIGH';
+  };
+
+  const activePattern = currentRounds.slice(0, 5).reverse().map(r => getLocalTier(Number(r.crash_point)));
+  const histChron = [...historicalRounds].reverse().map(r => ({
+    crash_point: Number(r.crash_point)
+  }));
+
+  let matchedSegments = 0;
+  let stableFollowCount = 0;
+  let instantFollowCount = 0;
+  const bestMatches: number[] = [];
+
+  for (let i = 0; i <= histChron.length - 6; i++) {
+    const segment = histChron.slice(i, i + 5).map(r => getLocalTier(r.crash_point));
+    let matchingElements = 0;
+    for (let j = 0; j < 5; j++) {
+      if (segment[j] === activePattern[j]) {
+        matchingElements++;
+      }
+    }
+    const windowSim = (matchingElements / 5) * 100;
+    bestMatches.push(windowSim);
+
+    if (matchingElements >= 3) {
+      matchedSegments++;
+      const nextRound = histChron[i + 5];
+      if (nextRound) {
+        if (nextRound.crash_point >= 1.50) stableFollowCount++;
+        if (nextRound.crash_point < 1.15) instantFollowCount++;
+      }
+    }
+  }
+
+  bestMatches.sort((a, b) => b - a);
+  const topMatches = bestMatches.slice(0, 5);
+  const avgSimilarity = topMatches.length > 0
+    ? Math.round(topMatches.reduce((s, v) => s + v, 0) / topMatches.length)
+    : 0;
+
+  const historical_win_rate_1_5x = matchedSegments > 0
+    ? Math.round((stableFollowCount / matchedSegments) * 100)
+    : 0;
+  const historical_instant_rate = matchedSegments > 0
+    ? Math.round((instantFollowCount / matchedSegments) * 100)
+    : 0;
+
+  const stability_index = matchedSegments > 0
+    ? Math.max(0, Math.min(100, Math.round(historical_win_rate_1_5x - (historical_instant_rate * 1.5))))
+    : 50;
+
+  let status: 'STABLE' | 'CAUTION' | 'VOLATILE' | 'INSUFFICIENT_DATA' = 'CAUTION';
+  if (matchedSegments < 3) {
+    status = 'INSUFFICIENT_DATA';
+  } else if (stability_index >= 70) {
+    status = 'STABLE';
+  } else if (stability_index < 45) {
+    status = 'VOLATILE';
+  }
+
+  return {
+    similarity_score: avgSimilarity,
+    stability_index: stability_index,
+    status,
+    matched_patterns_count: matchedSegments,
+    historical_win_rate_1_5x: historical_win_rate_1_5x,
+    sample_size: historicalRounds.length
+  };
 }

@@ -58,6 +58,9 @@ type Prediction = {
     stability_index: number;
     matched_patterns_count: number;
     historical_win_rate_1_5x: number;
+    holdScore?: number;
+    holdReasons?: string[];
+    holdSignal?: boolean;
   };
 };
 type WinRateWindow = {
@@ -1774,73 +1777,78 @@ export default function Dashboard() {
                         </div>
 
                         {/* Compact SNAP Score™ Gauge directly on the right, before the target */}
-                        {prediction.stability_analysis && (
-                          <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'flex-start',
-                            width: '100px',
-                            flexShrink: 0,
-                            padding: '6px 8px',
-                            background: 'rgba(255, 255, 255, 0.03)',
-                            borderRadius: '8px',
-                            border: '1px solid rgba(255, 255, 255, 0.05)',
-                            position: 'relative'
-                          }}>
-                            <div style={{
-                              fontSize: '8px',
-                              fontWeight: '900',
-                              color: '#94a3b8',
-                              fontFamily: "'Rajdhani', sans-serif",
-                              letterSpacing: '0.5px',
-                              marginBottom: '8px',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              width: '100%'
-                            }}>
-                              <span>SNAP SCORE™</span>
-                              <span style={{ color: '#00ffd5', fontWeight: '900' }}>{prediction.stability_analysis.stability_index}%</span>
-                            </div>
-                            <div style={{ position: 'relative', width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px' }}>
-                              <div style={{
-                                position: 'absolute',
-                                left: 0,
-                                top: 0,
-                                bottom: 0,
-                                width: `${prediction.stability_analysis.stability_index}%`,
-                                background: 'linear-gradient(90deg, #ff3366 0%, #ffd000 50%, #00e575 100%)',
-                                borderRadius: '3px',
-                                transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
-                              }} />
-                              <div style={{
-                                position: 'absolute',
-                                left: `${prediction.stability_analysis.stability_index}%`,
-                                top: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                backgroundColor: '#ffffff',
-                                border: '1.5px solid #a78bfa',
-                                boxShadow: '0 0 4px #a78bfa',
-                                transition: 'left 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
-                              }} />
-                            </div>
+                        {prediction.stability_analysis && (() => {
+                          const displayStabilityIndex = prediction.stability_analysis.holdScore !== undefined
+                            ? (100 - prediction.stability_analysis.holdScore)
+                            : (prediction.stability_analysis.stability_index ?? 50);
+                          return (
                             <div style={{
                               display: 'flex',
-                              justifyContent: 'space-between',
-                              width: '100%',
-                              fontSize: '7px',
-                              color: '#64748b',
-                              fontWeight: '700',
-                              marginTop: '3px',
-                              fontFamily: "'Rajdhani', sans-serif"
+                              flexDirection: 'column',
+                              alignItems: 'flex-start',
+                              width: '100px',
+                              flexShrink: 0,
+                              padding: '6px 8px',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(255, 255, 255, 0.05)',
+                              position: 'relative'
                             }}>
-                              <span>VOLATILE</span>
-                              <span>STABLE</span>
+                              <div style={{
+                                fontSize: '8px',
+                                fontWeight: '900',
+                                color: '#94a3b8',
+                                fontFamily: "'Rajdhani', sans-serif",
+                                letterSpacing: '0.5px',
+                                marginBottom: '8px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                width: '100%'
+                              }}>
+                                <span>STABILITY</span>
+                                <span style={{ color: '#00ffd5', fontWeight: '900' }}>{displayStabilityIndex}%</span>
+                              </div>
+                              <div style={{ position: 'relative', width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px' }}>
+                                <div style={{
+                                  position: 'absolute',
+                                  left: 0,
+                                  top: 0,
+                                  bottom: 0,
+                                  width: `${displayStabilityIndex}%`,
+                                  background: 'linear-gradient(90deg, #ff3366 0%, #ffd000 50%, #00e575 100%)',
+                                  borderRadius: '3px',
+                                  transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                                }} />
+                                <div style={{
+                                  position: 'absolute',
+                                  left: `${displayStabilityIndex}%`,
+                                  top: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                                  width: '8px',
+                                  height: '8px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#ffffff',
+                                  border: '1.5px solid #a78bfa',
+                                  boxShadow: '0 0 4px #a78bfa',
+                                  transition: 'left 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                                }} />
+                              </div>
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                width: '100%',
+                                fontSize: '7px',
+                                color: '#64748b',
+                                fontWeight: '700',
+                                marginTop: '3px',
+                                fontFamily: "'Rajdhani', sans-serif"
+                              }}>
+                                <span>VOLATILE</span>
+                                <span>STABLE</span>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         <div className="hero-banner-target-container" style={{ flexShrink: 0 }}>
                           <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>{lang === 'si' ? 'ඉලක්කය' : lang === 'ta' ? 'இலக்கு' : 'Target'}</div>

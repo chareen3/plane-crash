@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats, computeBetSignal, buildHumanSummary } from '../../../lib/stats';
+import { computeStats, computeBetSignal, buildHumanSummary, analyzeStability } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 import fs from 'fs';
@@ -60,84 +60,7 @@ async function fetchHistoricalHourRounds(sriLankaHour: number) {
   return data || [];
 }
 
-function analyzeStability(currentRounds: { crash_point: number }[], historicalRounds: any[]) {
-  if (currentRounds.length < 5 || historicalRounds.length < 10) {
-    return {
-      similarity_score: 0,
-      stability_index: 0,
-      status: 'INSUFFICIENT_DATA' as const,
-      matched_patterns_count: 0,
-      historical_win_rate_1_5x: 0,
-      sample_size: historicalRounds.length
-    };
-  }
 
-  const activePattern = currentRounds.slice(0, 5).reverse().map(r => getTier(Number(r.crash_point)));
-  const histChron = [...historicalRounds].reverse().map(r => ({
-    crash_point: Number(r.crash_point)
-  }));
-
-  let matchedSegments = 0;
-  let stableFollowCount = 0;
-  let instantFollowCount = 0;
-  const bestMatches: number[] = [];
-
-  for (let i = 0; i <= histChron.length - 6; i++) {
-    const segment = histChron.slice(i, i + 5).map(r => getTier(r.crash_point));
-    let matchingElements = 0;
-    for (let j = 0; j < 5; j++) {
-      if (segment[j] === activePattern[j]) {
-        matchingElements++;
-      }
-    }
-    const windowSim = (matchingElements / 5) * 100;
-    bestMatches.push(windowSim);
-
-    if (matchingElements >= 3) {
-      matchedSegments++;
-      const nextRound = histChron[i + 5];
-      if (nextRound) {
-        if (nextRound.crash_point >= 1.50) stableFollowCount++;
-        if (nextRound.crash_point < 1.15) instantFollowCount++;
-      }
-    }
-  }
-
-  bestMatches.sort((a, b) => b - a);
-  const topMatches = bestMatches.slice(0, 5);
-  const avgSimilarity = topMatches.length > 0
-    ? Math.round(topMatches.reduce((s, v) => s + v, 0) / topMatches.length)
-    : 0;
-
-  const historical_win_rate_1_5x = matchedSegments > 0
-    ? Math.round((stableFollowCount / matchedSegments) * 100)
-    : 0;
-  const historical_instant_rate = matchedSegments > 0
-    ? Math.round((instantFollowCount / matchedSegments) * 100)
-    : 0;
-
-  const stability_index = matchedSegments > 0
-    ? Math.max(0, Math.min(100, Math.round(historical_win_rate_1_5x - (historical_instant_rate * 1.5))))
-    : 50;
-
-  let status: 'STABLE' | 'CAUTION' | 'VOLATILE' | 'INSUFFICIENT_DATA' = 'CAUTION';
-  if (matchedSegments < 3) {
-    status = 'INSUFFICIENT_DATA';
-  } else if (stability_index >= 70) {
-    status = 'STABLE';
-  } else if (stability_index < 45) {
-    status = 'VOLATILE';
-  }
-
-  return {
-    similarity_score: avgSimilarity,
-    stability_index: stability_index,
-    status,
-    matched_patterns_count: matchedSegments,
-    historical_win_rate_1_5x: historical_win_rate_1_5x,
-    sample_size: historicalRounds.length
-  };
-}
 
 
 // ─── Main handler ──────────────────────────────────────────────────────────
@@ -197,6 +120,15 @@ export async function GET(request: Request) {
 
     const betSignal = computeBetSignal(stats, gameType, timeData);
 
+    const finalStabilityAnalysis = {
+      ...stabilityAnalysis,
+      holdScore: betSignal.holdScore,
+      holdReasons: betSignal.holdReasons,
+      holdSignal: betSignal.holdSignal,
+    };
+
+    stats.stabilityAnalysis = finalStabilityAnalysis;
+
     // If Sleep phase and strategy is SKIP, do not call AI or cache to DB
     if (timeData.isLKSleep && betSignal.strategy === 'SKIP') {
       const summary = buildHumanSummary(stats, betSignal);
@@ -216,7 +148,7 @@ export async function GET(request: Request) {
         stats,
         skip_reason: betSignal.skip_reason,
         ai_failed: false,
-        stability_analysis: stabilityAnalysis,
+        stability_analysis: finalStabilityAnalysis,
       };
       return NextResponse.json(prediction);
     }
@@ -244,7 +176,7 @@ export async function GET(request: Request) {
         timeData,
         ai_failed: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only',
         ai_fallback_reason: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
-        stability_analysis: existingPred.stability_analysis || stabilityAnalysis,
+        stability_analysis: existingPred.stability_analysis || finalStabilityAnalysis,
       });
     }
 
@@ -378,7 +310,7 @@ export async function GET(request: Request) {
       instant_crash_risk:   stats.instant_crash_risk,
       instant_crash_warning: stats.instant_crash_warning,
       hot_hour:             hot_hour,
-      stability_analysis:   stabilityAnalysis,
+      stability_analysis:   finalStabilityAnalysis,
     };
 
     await supabase.from('predictions').insert(aiPrediction);
@@ -391,7 +323,7 @@ export async function GET(request: Request) {
       timeData,
       ai_failed: aiModelUsed === 'stats-only',
       ai_fallback_reason: aiModelUsed === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
-      stability_analysis: stabilityAnalysis,
+      stability_analysis: finalStabilityAnalysis,
     });
 
   } catch (err: any) {
