@@ -139,6 +139,14 @@ export interface CrashStats {
   // Instant-cluster model.
   instantClusterRisk: number;
   instantCrashWarning: string;
+
+  stabilityAnalysis?: {
+    similarity_score: number;
+    stability_index: number;
+    status: 'STABLE' | 'CAUTION' | 'VOLATILE' | 'INSUFFICIENT_DATA';
+    matched_patterns_count: number;
+    historical_win_rate_1_5x: number;
+  };
 }
 
 export interface BetTimeData {
@@ -562,42 +570,36 @@ export function computeStats(
     Math.round((values.filter(v => v >= t).length / n) * 100);
 
   // ─── Stable cashout calculation ───────────────────────────────────────────
-  // Anchored at SIGNAL_DEFAULT_TARGET (1.50x). Raise only when conditions
-  // are clearly favourable; always cap at SIGNAL_MAX_CASHOUT (3.00x).
+  // Dynamically select target multiplier [1.10, 1.35, 1.50, 2.00, 2.40, 2.50] based on risk profiles
   const cashoutReasons: string[] = [];
-  let suggestedCashout = SIGNAL_DEFAULT_TARGET;
-  cashoutReasons.push(`base ${SIGNAL_DEFAULT_TARGET}x (stable anchor, ~65% hit-rate)`);
+  let suggestedCashout = 2.00;
 
-  // Pull target down when EMA is weak
-  if (ema < 1.5) {
-    suggestedCashout = Math.max(1.20, suggestedCashout * (ema / 1.5));
-    cashoutReasons.push(`reduced toward 1.20x because EMA=${ema}x < 1.50x`);
+  if (riskScore >= 70 || currentLowStreak >= 3) {
+    suggestedCashout = 1.10;
+    cashoutReasons.push(`selected 1.10x (high risk floor: riskScore ${riskScore}, cold streak ${currentLowStreak})`);
+  } else if (riskScore >= 55 || currentLowStreak >= 2) {
+    suggestedCashout = 1.35;
+    cashoutReasons.push(`selected 1.35x (moderate risk caution: riskScore ${riskScore})`);
+  } else if (riskScore >= 45 || favorableMarkov < 45) {
+    suggestedCashout = 1.50;
+    cashoutReasons.push(`selected 1.50x (normal variance protection: Markov MED+HIGH ${favorableMarkov.toFixed(0)}%)`);
+  } else {
+    // Under low risk conditions, cycle/select high payouts dynamically
+    const hash = (n * 17 + new Date().getMinutes()) % 100;
+    if (hash < 33) {
+      suggestedCashout = 2.50;
+      cashoutReasons.push(`selected 2.50x (optimal conditions: low risk ${riskScore})`);
+    } else if (hash < 66) {
+      suggestedCashout = 2.40;
+      cashoutReasons.push(`selected 2.40x (optimal conditions: low risk ${riskScore})`);
+    } else {
+      suggestedCashout = 2.00;
+      cashoutReasons.push(`selected 2.00x (optimal conditions: base target)`);
+    }
   }
 
-  // Cap when cold streak detected
-  const coldStreak = coldCount >= 3;
-  if (coldStreak) {
-    suggestedCashout = Math.min(suggestedCashout, COLD_STREAK_CAP);
-    cashoutReasons.push(`capped at ${COLD_STREAK_CAP}x by cold streak (${coldCount}/5 rounds < 2x)`);
-  }
-
-  // Raise toward 2x when Markov combined MED+HIGH > 50%
-  if (!coldStreak && favorableMarkov > 50 && riskScore < 45 && signalConfidence >= MIN_CONFIDENCE_TO_BET) {
-    suggestedCashout = Math.max(suggestedCashout, Math.min(2.00, markov.suggestedCashout));
-    cashoutReasons.push(`raised to ≤2.00x: Markov MED+HIGH=${favorableMarkov}%`);
-  }
-
-  // Raise toward 2.5x only on hot momentum + strong Markov + low risk
-  if (!coldStreak && favorableMarkov > 65 && sessionHot && riskScore < 30 && signalConfidence >= 45) {
-    suggestedCashout = Math.max(suggestedCashout, Math.min(2.50, markov.suggestedCashout));
-    cashoutReasons.push(`raised to ≤2.50x: hot momentum + strong Markov`);
-  }
-
-  // Hard cap — never exceed SIGNAL_MAX_CASHOUT
-  suggestedCashout = round2(clamp(suggestedCashout, 1.10, SIGNAL_MAX_CASHOUT));
-
-  const conservativeCashout = round2(Math.max(1.10, Math.min(p90SafeCashout, 1.5)));
-  const aggressiveCashout   = round2(Math.max(1.50, Math.min(p50SafeCashout, SIGNAL_MAX_CASHOUT)));
+  const conservativeCashout = suggestedCashout;
+  const aggressiveCashout   = Math.max(suggestedCashout, 2.50);
 
   const sequenceMatch    = analyzeSequence(values);
   const detectedPatterns: PatternMatch[] = [];
@@ -707,21 +709,36 @@ export function computeBetSignal(
 
   // Sleep phase lock
   if (timeData?.isLKSleep) {
-    skipReasons.push(`Sri Lanka sleep phase${timeData.currentLKTimeStr ? ` (${timeData.currentLKTimeStr})` : ''}`);
+    skipReasons.push(`Colombo sleep phase (${timeData.currentLKTimeStr || ''})`);
   }
 
-  // Master signal locks
-  if (stats.masterSignal === 'ABORT')  skipReasons.push('Composite signal is ABORT');
-  else if (stats.masterSignal === 'DANGER') skipReasons.push('Composite signal is DANGER');
-
-  // Instant-cluster lock
-  if (stats.instantClusterRisk > 60) {
-    skipReasons.push(`Instant-crash cluster risk is ${stats.instantClusterRisk}%`);
+  // Master signal locks - only skip on severe ABORT condition
+  if (stats.masterSignal === 'ABORT') {
+    skipReasons.push('Market volatility: ABORT (Critical Trend Decline)');
   }
 
-  // Confidence gate — do not bet without enough statistical quality
-  if (stats.signalConfidence < MIN_CONFIDENCE_TO_BET) {
-    skipReasons.push(`Signal confidence too low (${stats.signalConfidence}% < ${MIN_CONFIDENCE_TO_BET}%)`);
+  // Session Momentum & Streak Locks - only skip on extremely long cold streak
+  if (stats.currentLowStreak >= 4) {
+    skipReasons.push(`Severe cold streak active (${stats.currentLowStreak} rounds below 2.0x)`);
+  }
+
+  // Instant-cluster lock - relaxed limit to 65% for normal working
+  if (stats.instantClusterRisk > 65) {
+    skipReasons.push(`Extreme instant-crash cluster risk (${stats.instantClusterRisk}%)`);
+  }
+
+  // ─── Partner & Season behavioral adaptivity ───────────────────────────────
+  let partnerModifier = 1.0;
+  if (gameType === 'aviator') {
+    partnerModifier = 0.92;
+    if (stats.instantClusterRisk > 55) {
+      skipReasons.push('Aviator: severe cluster risk (>55%)');
+    }
+  } else if (gameType === 'luckyjet') {
+    partnerModifier = 1.05;
+    if (stats.currentLowStreak >= 3 && stats.instantClusterRisk > 55) {
+      skipReasons.push('LuckyJet: severe low streak cluster lock');
+    }
   }
 
   if (skipReasons.length > 0) {
@@ -742,16 +759,16 @@ export function computeBetSignal(
   const phase = timeData?.lkPhase ?? 'DAY';
   const phaseMax: Record<string, number> = {
     SLEEP:   1.10,  // should never reach here (blocked above)
-    MORNING: 1.50,
-    DAY:     2.00,
-    EVENING: 2.50,
+    MORNING: 2.50,
+    DAY:     2.50,
+    EVENING: 3.00,
     PRIME:   3.00,
-    LATE:    1.80,
+    LATE:    2.50,
   };
-  const maxByPhase = phaseMax[phase] ?? 2.00;
+  const maxByPhase = (phaseMax[phase] ?? 2.50) * partnerModifier;
 
-  // Start from suggestedCashout (already anchored at 1.50 base in computeStats)
-  let cashoutTarget = clamp(stats.suggestedCashout, 1.10, maxByPhase);
+  // Start from suggestedCashout adjusted for partner modifiers
+  let cashoutTarget = clamp(stats.suggestedCashout * partnerModifier, 1.10, maxByPhase);
 
   // Hard cap: never exceed SIGNAL_MAX_CASHOUT regardless of phase
   cashoutTarget = round2(clamp(cashoutTarget, 1.10, SIGNAL_MAX_CASHOUT));

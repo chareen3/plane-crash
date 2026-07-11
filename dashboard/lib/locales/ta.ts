@@ -150,4 +150,15 @@ export const ta: Translations = {
   safe: "பாதுகாப்பானது",
   risk: "அபாயம்",
   swing: "ஸ்விங்",
+
+  // Stability Tracker
+  stabilityTitle: "AI முறை நிலைத்தன்மை மற்றும் ஒற்றுமை",
+  stabilityMatching: "வரலாற்று வடிவங்களை ஒப்பிடுதல்...",
+  stabilityMatchScore: "வடிவ ஒற்றுமை",
+  stabilityIndexScore: "AI நிலைத்தன்மை குறியீடு",
+  stabilityStatusStable: "நிலையான சுழற்சி",
+  stabilityStatusCaution: "எச்சரிக்கை சுழற்சி",
+  stabilityStatusVolatile: "அசாதாரண சுழற்சி",
+  stabilityStatusNoData: "போதிய வரலாற்று தரவு இல்லை",
+  stabilityDesc: "அல்காரிதம் நிலைத்தன்மையை சரிபார்க்க கடந்த 14 நாட்களில் இதே நேரத்தில் நடந்த ஒத்த 5-சுற்று வரிசைகளை பகுப்பாய்வு செய்கிறது.",
 };

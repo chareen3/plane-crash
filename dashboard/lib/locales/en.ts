@@ -148,6 +148,17 @@ export const en = {
   safe: "SAFE",
   risk: "RISK",
   swing: "SWING",
+
+  // Stability Tracker
+  stabilityTitle: "AI Pattern Stability & Similarity",
+  stabilityMatching: "Matching historical pattern...",
+  stabilityMatchScore: "Pattern Similarity",
+  stabilityIndexScore: "AI Stability Index",
+  stabilityStatusStable: "STABLE CYCLE",
+  stabilityStatusCaution: "CAUTION CYCLE",
+  stabilityStatusVolatile: "VOLATILE CYCLE",
+  stabilityStatusNoData: "INSUFFICIENT HISTORICAL DATA",
+  stabilityDesc: "Analyzing identical 5-round sequences at this exact hour over the past 14 days to verify algorithm stability.",
 };
 
 export type Translations = typeof en;

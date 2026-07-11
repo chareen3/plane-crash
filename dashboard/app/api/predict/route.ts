@@ -37,6 +37,109 @@ async function fetchRecentRounds() {
 }
 
 
+function getTier(v: number): 'INSTANT' | 'LOW' | 'MED' | 'HIGH' {
+  if (v < 1.15) return 'INSTANT';
+  if (v < 2.00) return 'LOW';
+  if (v < 5.00) return 'MED';
+  return 'HIGH';
+}
+
+async function fetchHistoricalHourRounds(sriLankaHour: number) {
+  // Query 90 days (last 3 months) of history for accurate timezone/season pattern mapping
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('crash_rounds')
+    .select('round_number, crash_point, created_at, hour_sl')
+    .eq('hour_sl', sriLankaHour)
+    .gte('created_at', ninetyDaysAgo)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Error fetching historical hour rounds:', error);
+    return [];
+  }
+  return data || [];
+}
+
+function analyzeStability(currentRounds: { crash_point: number }[], historicalRounds: any[]) {
+  if (currentRounds.length < 5 || historicalRounds.length < 10) {
+    return {
+      similarity_score: 0,
+      stability_index: 0,
+      status: 'INSUFFICIENT_DATA' as const,
+      matched_patterns_count: 0,
+      historical_win_rate_1_5x: 0,
+      sample_size: historicalRounds.length
+    };
+  }
+
+  const activePattern = currentRounds.slice(0, 5).reverse().map(r => getTier(Number(r.crash_point)));
+  const histChron = [...historicalRounds].reverse().map(r => ({
+    crash_point: Number(r.crash_point)
+  }));
+
+  let matchedSegments = 0;
+  let stableFollowCount = 0;
+  let instantFollowCount = 0;
+  const bestMatches: number[] = [];
+
+  for (let i = 0; i <= histChron.length - 6; i++) {
+    const segment = histChron.slice(i, i + 5).map(r => getTier(r.crash_point));
+    let matchingElements = 0;
+    for (let j = 0; j < 5; j++) {
+      if (segment[j] === activePattern[j]) {
+        matchingElements++;
+      }
+    }
+    const windowSim = (matchingElements / 5) * 100;
+    bestMatches.push(windowSim);
+
+    if (matchingElements >= 3) {
+      matchedSegments++;
+      const nextRound = histChron[i + 5];
+      if (nextRound) {
+        if (nextRound.crash_point >= 1.50) stableFollowCount++;
+        if (nextRound.crash_point < 1.15) instantFollowCount++;
+      }
+    }
+  }
+
+  bestMatches.sort((a, b) => b - a);
+  const topMatches = bestMatches.slice(0, 5);
+  const avgSimilarity = topMatches.length > 0
+    ? Math.round(topMatches.reduce((s, v) => s + v, 0) / topMatches.length)
+    : 0;
+
+  const historical_win_rate_1_5x = matchedSegments > 0
+    ? Math.round((stableFollowCount / matchedSegments) * 100)
+    : 0;
+  const historical_instant_rate = matchedSegments > 0
+    ? Math.round((instantFollowCount / matchedSegments) * 100)
+    : 0;
+
+  const stability_index = matchedSegments > 0
+    ? Math.max(0, Math.min(100, Math.round(historical_win_rate_1_5x - (historical_instant_rate * 1.5))))
+    : 50;
+
+  let status: 'STABLE' | 'CAUTION' | 'VOLATILE' | 'INSUFFICIENT_DATA' = 'CAUTION';
+  if (matchedSegments < 3) {
+    status = 'INSUFFICIENT_DATA';
+  } else if (stability_index >= 70) {
+    status = 'STABLE';
+  } else if (stability_index < 45) {
+    status = 'VOLATILE';
+  }
+
+  return {
+    similarity_score: avgSimilarity,
+    stability_index: stability_index,
+    status,
+    matched_patterns_count: matchedSegments,
+    historical_win_rate_1_5x: historical_win_rate_1_5x,
+    sample_size: historicalRounds.length
+  };
+}
+
+
 // ─── Main handler ──────────────────────────────────────────────────────────
 export async function GET(request: Request) {
   try {
@@ -84,6 +187,14 @@ export async function GET(request: Request) {
     // ── Compute stats immediately ──
     const stats = computeStats(values);
     const timeData = getLKTimeData();
+
+    // ── Compute AI stability/similarity analyzer ──
+    const currentLKHour = timeData.currentLKHour;
+    const histHourRounds = await fetchHistoricalHourRounds(currentLKHour);
+    const stabilityAnalysis = analyzeStability(values, histHourRounds);
+
+    stats.stabilityAnalysis = stabilityAnalysis;
+
     const betSignal = computeBetSignal(stats, gameType, timeData);
 
     // If Sleep phase and strategy is SKIP, do not call AI or cache to DB
@@ -105,6 +216,7 @@ export async function GET(request: Request) {
         stats,
         skip_reason: betSignal.skip_reason,
         ai_failed: false,
+        stability_analysis: stabilityAnalysis,
       };
       return NextResponse.json(prediction);
     }
@@ -132,6 +244,7 @@ export async function GET(request: Request) {
         timeData,
         ai_failed: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only',
         ai_fallback_reason: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
+        stability_analysis: existingPred.stability_analysis || stabilityAnalysis,
       });
     }
 
@@ -165,15 +278,7 @@ export async function GET(request: Request) {
       above_10x_count: 0
     };
 
-    const userMessage = `
-Current UTC hour: ${contextVal.current_hour_utc}
-Last 50 rounds avg: ${contextVal.avg_crash}
-Last 50 rounds median: ${contextVal.median_crash}  
-Rounds above 5x in last 50: ${contextVal.above_5x_count}
-Rounds above 10x in last 50: ${contextVal.above_10x_count}
-
-Now give me the 3-tier prediction JSON.
-`;
+    const userMessage = buildPrompt(stats, betSignal, timeData);
 
     let swingTarget = betSignal.swing_target;
     let volatilityPhase = betSignal.volatility_phase;
@@ -186,7 +291,7 @@ Now give me the 3-tier prediction JSON.
     let aiColdStreak = cold_streak;
 
     try {
-      const aiResponse = await callAI(systemPrompt, userMessage);
+      const aiResponse = await callAI(systemPrompt, userMessage, { stats, betSignal, timeData });
       if (aiResponse) {
         const { result: ai, model } = aiResponse;
         aiModelUsed = model;
@@ -273,6 +378,7 @@ Now give me the 3-tier prediction JSON.
       instant_crash_risk:   stats.instant_crash_risk,
       instant_crash_warning: stats.instant_crash_warning,
       hot_hour:             hot_hour,
+      stability_analysis:   stabilityAnalysis,
     };
 
     await supabase.from('predictions').insert(aiPrediction);
@@ -285,6 +391,7 @@ Now give me the 3-tier prediction JSON.
       timeData,
       ai_failed: aiModelUsed === 'stats-only',
       ai_fallback_reason: aiModelUsed === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
+      stability_analysis: stabilityAnalysis,
     });
 
   } catch (err: any) {

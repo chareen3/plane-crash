@@ -21,7 +21,8 @@ ALTER TABLE public.predictions
   ADD COLUMN IF NOT EXISTS markov_next JSONB,
   ADD COLUMN IF NOT EXISTS markov_suggested_cashout NUMERIC,
   ADD COLUMN IF NOT EXISTS instant_cluster_risk INTEGER,
-  ADD COLUMN IF NOT EXISTS weighted_risk_score INTEGER;
+  ADD COLUMN IF NOT EXISTS weighted_risk_score INTEGER,
+  ADD COLUMN IF NOT EXISTS stability_analysis JSONB;
 
 -- 3. Security Issues (from Supabase Advisor)
 

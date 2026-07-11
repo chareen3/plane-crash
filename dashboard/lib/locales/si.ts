@@ -150,4 +150,15 @@ export const si: Translations = {
   safe: "ආරක්ෂිතයි",
   risk: "අවදානම",
   swing: "ස්විං",
+
+  // Stability Tracker
+  stabilityTitle: "AI රටා ස්ථායීතාවය සහ සමානතාවය",
+  stabilityMatching: "පෙර රටා ගැලපීම...",
+  stabilityMatchScore: "රටා සමානතාවය",
+  stabilityIndexScore: "AI ස්ථායීතා දර්ශකය",
+  stabilityStatusStable: "ස්ථායී චක්‍රය",
+  stabilityStatusCaution: "අවධානම් චක්‍රය",
+  stabilityStatusVolatile: "අස්ථාවර චක්‍රය",
+  stabilityStatusNoData: "ප්‍රමාණවත් නොවන දත්ත",
+  stabilityDesc: "ඇල්ගොරිතම ස්ථායීතාවය තහවුරු කිරීම සඳහා පසුගිය දින 14 තුළ මෙම පැයට අදාළ සමාන වට 5 රටා විශ්ලේෂණය කරයි.",
 };

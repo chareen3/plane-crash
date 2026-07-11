@@ -52,6 +52,13 @@ type Prediction = {
   recommended_stake_pct?: number;
   instant_crash_risk?: number;
   instant_crash_warning?: string;
+  stability_analysis?: {
+    status: 'STABLE' | 'CAUTION' | 'VOLATILE' | 'INSUFFICIENT_DATA';
+    similarity_score: number;
+    stability_index: number;
+    matched_patterns_count: number;
+    historical_win_rate_1_5x: number;
+  };
 };
 type WinRateWindow = {
   total: number;
@@ -1746,37 +1753,107 @@ export default function Dashboard() {
 
                   {/* Bet Signal Hero Card */}
                   {prediction && stratMeta ? (
-                    <div className="hero-banner-3d" style={{ borderColor: stratMeta.color + '60' }} ref={heroRef}>
+                    <div className="hero-banner-3d" style={{ borderColor: stratMeta.color + '60', display: 'flex', flexDirection: 'column' }} ref={heroRef}>
                       <div className="hero-grid-overlay" />
-                      <div className="hero-banner-content">
-                        <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px' }}>{stratMeta.icon}</div>
-                        <div style={{ flex: 1 }}>
-                          <div className="hero-banner-title" style={{ color: stratMeta.color }}>{stratMeta.label}</div>
-                          <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
+                      <div className="hero-banner-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '16px' }}>
+                        <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px', flexShrink: 0 }}>{stratMeta.icon}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="hero-banner-title" style={{ color: stratMeta.color, fontSize: '16px' }}>{stratMeta.label}</div>
+                          <div style={{ fontSize: '11px', color: '#888', marginTop: '4px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                             {prediction.strategy_reason || prediction.skip_reason || (lang === 'si' ? 'AI උපායමාර්ගය ක්‍රියාත්මකයි.' : lang === 'ta' ? 'AI உத்தி செயலில் உள்ளது.' : 'AI strategy active.')}
                           </div>
-                          <div className="hc2-vol-row" style={{ marginTop: '12px' }}>
-                            <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`}>
+                          <div className="hc2-vol-row" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
                               {stats?.volatility?.toUpperCase() ?? 'NORMAL'} VOL
                             </span>
-                            <span className="hc2-trend">
-                              {stats?.trend === 'rising' ? <TrendingUp size={14} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={14} color="#ff3366" /> : <Minus size={14} color="#888" />}
+                            <span className="hc2-trend" style={{ fontSize: '9px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              {stats?.trend === 'rising' ? <TrendingUp size={12} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={12} color="#ff3366" /> : <Minus size={12} color="#888" />}
                               {stats?.trend?.toUpperCase() ?? 'FLAT'}
                             </span>
                           </div>
                         </div>
-                        <div className="hero-banner-target-container">
-                          <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>{lang === 'si' ? 'ඉලක්කය' : lang === 'ta' ? 'இலக்கு' : 'Target'}</div>
+
+                        {/* Compact SNAP Score™ Gauge directly on the right, before the target */}
+                        {prediction.stability_analysis && (
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-start',
+                            width: '100px',
+                            flexShrink: 0,
+                            padding: '6px 8px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            position: 'relative'
+                          }}>
+                            <div style={{
+                              fontSize: '8px',
+                              fontWeight: '900',
+                              color: '#94a3b8',
+                              fontFamily: "'Rajdhani', sans-serif",
+                              letterSpacing: '0.5px',
+                              marginBottom: '8px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              width: '100%'
+                            }}>
+                              <span>SNAP SCORE™</span>
+                              <span style={{ color: '#00ffd5', fontWeight: '900' }}>{prediction.stability_analysis.stability_index}%</span>
+                            </div>
+                            <div style={{ position: 'relative', width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px' }}>
+                              <div style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: `${prediction.stability_analysis.stability_index}%`,
+                                background: 'linear-gradient(90deg, #ff3366 0%, #ffd000 50%, #00e575 100%)',
+                                borderRadius: '3px',
+                                transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                              }} />
+                              <div style={{
+                                position: 'absolute',
+                                left: `${prediction.stability_analysis.stability_index}%`,
+                                top: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: '#ffffff',
+                                border: '1.5px solid #a78bfa',
+                                boxShadow: '0 0 4px #a78bfa',
+                                transition: 'left 1.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                              }} />
+                            </div>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              width: '100%',
+                              fontSize: '7px',
+                              color: '#64748b',
+                              fontWeight: '700',
+                              marginTop: '3px',
+                              fontFamily: "'Rajdhani', sans-serif"
+                            }}>
+                              <span>VOLATILE</span>
+                              <span>STABLE</span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="hero-banner-target-container" style={{ flexShrink: 0 }}>
+                          <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>{lang === 'si' ? 'ඉලක්කය' : lang === 'ta' ? 'இலக்கு' : 'Target'}</div>
                           {prediction.should_bet && prediction.cashout_target && prediction.cashout_target > 0 ? (
-                            <div className="hero-banner-target" style={{ color: stratMeta.color }}>
+                            <div className="hero-banner-target" style={{ color: stratMeta.color, fontSize: '32px' }}>
                               {Number(prediction.cashout_target).toFixed(2)}x
                             </div>
                           ) : (
-                            <div style={{ color: '#ff3366', fontSize: '32px', fontWeight: '900', marginTop: '8px' }}>{lang === 'si' ? 'රැඳී සිටින්න' : lang === 'ta' ? 'காத்திருக்கவும்' : 'WAIT'}</div>
+                            <div style={{ color: '#ff3366', fontSize: '26px', fontWeight: '900', marginTop: '4px' }}>{lang === 'si' ? 'රැඳී සිටින්න' : lang === 'ta' ? 'காத்திருக்கவும்' : 'WAIT'}</div>
                           )}
                         </div>
                       </div>
-                    </div>
+                      </div>
                   ) : (
                     <div className="hero-banner-3d" ref={heroRef} style={{ minHeight: '120px', display: 'flex', alignItems: 'center' }}>
                       <div className="hero-grid-overlay" />
@@ -1848,16 +1925,7 @@ export default function Dashboard() {
 
                     {prediction && stats ? (
                       <>
-                        {!timeData?.isLKSleep && (
-                          <div className="risk-conf-row">
-                            <div className="conf-bar-wrap">
-                              <div className="conf-bar-track">
-                                <div className="conf-bar-fill" style={{ width: `${prediction.confidence}%` }} />
-                              </div>
-                              <span className="conf-label">{f(t.confidence, { pct: prediction.confidence })}</span>
-                            </div>
-                          </div>
-                        )}
+                        {/* Confidence bar removed per request */}
 
                         {prediction.instant_crash_risk !== undefined && prediction.instant_crash_risk >= 30 && (
                           <>
@@ -1933,17 +2001,54 @@ export default function Dashboard() {
                         )}
 
                         {timeData && (
-                          <div className="time-sync-card">
-                            <Clock size={16} color="#6c63ff" style={{ flexShrink: 0 }} />
+                          <div className="time-sync-card" style={{
+                            background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%)',
+                            border: '1px solid rgba(108, 99, 255, 0.15)',
+                            borderRadius: '12px',
+                            padding: '12px 16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            marginTop: '12px',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                            backdropFilter: 'blur(10px)'
+                          }}>
+                            <div style={{
+                              background: timeData.isLKPrime ? 'rgba(0, 229, 160, 0.1)' : 'rgba(108, 99, 255, 0.1)',
+                              border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.25)' : 'rgba(108, 99, 255, 0.25)'}`,
+                              borderRadius: '50%',
+                              width: '32px',
+                              height: '32px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: timeData.isLKPrime ? '#00e5a0' : '#6c63ff',
+                              flexShrink: 0
+                            }}>
+                              <Clock size={16} />
+                            </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div className="time-sync-title">
-                                {lang === 'si' ? 'කොළඹ වේලාව සමමුහුර්තකරණය' : lang === 'ta' ? 'கொழும்பு நேர ஒத்திசைவு' : 'Colombo Time Sync'}
-                                <span style={{ fontSize: '9px', background: timeData.isLKPrime ? 'rgba(0,229,160,0.12)' : 'rgba(108,99,255,0.12)', color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                                  {timeData.lkPhase} {lang === 'si' ? 'අවධිය' : lang === 'ta' ? 'கட்டம்' : 'PHASE'}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '11px', fontWeight: '800', color: '#f8fafc', letterSpacing: '0.5px', fontFamily: "'Rajdhani', sans-serif" }}>
+                                  COLOMBO TIME ZONE
+                                </span>
+                                <span style={{
+                                  fontSize: '9px',
+                                  background: timeData.isLKPrime ? 'rgba(0,229,160,0.15)' : 'rgba(108,99,255,0.15)',
+                                  color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa',
+                                  padding: '2px 8px',
+                                  borderRadius: '20px',
+                                  textTransform: 'uppercase',
+                                  fontWeight: '900',
+                                  fontFamily: "'Rajdhani', sans-serif",
+                                  letterSpacing: '0.5px',
+                                  border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.2)' : 'rgba(108, 99, 255, 0.2)'}`
+                                }}>
+                                  {timeData.lkPhase} SEASON
                                 </span>
                               </div>
-                              <div className="time-sync-subtext">
-                                {lang === 'si' ? 'දේශීය' : lang === 'ta' ? 'உள்ளூர்' : 'Local'}: {timeData.currentLKTimeStr} · {timeData.lkNote}
+                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px', lineHeight: '1.4' }}>
+                                {lang === 'si' ? 'දේශීය' : lang === 'ta' ? 'உள்ளூர்' : 'Local'}: <strong style={{ color: '#ffffff' }}>{timeData.currentLKTimeStr}</strong> · {timeData.lkNote}
                               </div>
                             </div>
                           </div>

@@ -177,15 +177,7 @@ export async function POST(request: Request) {
       above_10x_count: 0
     };
 
-    const userMessage = `
-Current UTC hour: ${contextVal.current_hour_utc}
-Last 50 rounds avg: ${contextVal.avg_crash}
-Last 50 rounds median: ${contextVal.median_crash}  
-Rounds above 5x in last 50: ${contextVal.above_5x_count}
-Rounds above 10x in last 50: ${contextVal.above_10x_count}
-
-Now give me the 3-tier prediction JSON.
-`;
+    const userMessage = buildPrompt(stats, betSignal, timeData);
 
     const cold_streak = values.length >= 5 ? values.slice(0, 5).every(v => v.crash_point < 1.5) : false;
     let swingTarget = betSignal.swing_target;
@@ -202,7 +194,7 @@ Now give me the 3-tier prediction JSON.
     let skipRound  = strategyLabel === 'SKIP';
     let aiColdStreak = cold_streak;
 
-    const aiCallPromise = callAI(systemPrompt, userMessage);
+    const aiCallPromise = callAI(systemPrompt, userMessage, { stats, betSignal, timeData });
     const aiResponse = await Promise.race([
       aiCallPromise,
       new Promise<null>(resolve => setTimeout(() => resolve(null), 4000)),
