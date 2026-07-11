@@ -2362,6 +2362,34 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
+
+                  {/* Target Hit Rates */}
+                  <div className="glass-card" style={{ marginBottom: '16px' }}>
+                    <div className="panel-title" style={{ marginBottom: '10px' }}>{f(t.targetHitRatesTitle, { count: rounds.length })}</div>
+                    {stats && stats.count > 0 ? (
+                      <div className="target-table">
+                        <div className="target-table-head">
+                          <span>{t.thTarget}</span><span>{t.thMath}</span><span>{t.thHitRate}</span><span>{t.thRecent}</span><span>{t.thLast}</span><span>{t.thSignal}</span>
+                        </div>
+                        {stats.targets.map(tRow => (
+                          <div key={tRow.target} className={`target-row signal-${tRow.signal.toLowerCase()}`}>
+                            <span className="target-mult">{tRow.target.toFixed(1)}x</span>
+                            <span className="target-math">{(tRow.mathProb ?? 0).toFixed(1)}%</span>
+                            <div className="target-bar-wrap">
+                              <div className="target-bar-bg"><div className="target-bar-fill" style={{ width: `${tRow.hitRate}%` }} /></div>
+                              <span className="target-pct">{tRow.hitRate}%</span>
+                            </div>
+                            <span className={`target-recent ${tRow.recentHitRate >= tRow.hitRate ? 'up' : 'down'}`}>{tRow.recentHitRate}%{tRow.recentHitRate >= tRow.hitRate ? ' ↑' : ' ↓'}</span>
+                            <span className="target-last">{tRow.lastHitAgo === 0 ? t.now : tRow.lastHitAgo === -1 ? t.never : `${tRow.lastHitAgo}${t.rAgo}`}</span>
+                            <span className={`target-signal ${tRow.signal.toLowerCase()}`}>{tRow.signal}</span>
+                          </div>
+                        ))}
+                        <div className="target-footer">{t.targetFooter}</div>
+                      </div>
+                    ) : (
+                      <div className="feed-empty">{t.captureRoundsToSeeTarget}</div>
+                    )}
+                  </div>
                 </div>
 
                 {/* ─── RIGHT COLUMN ─── */}
@@ -2469,34 +2497,6 @@ export default function Dashboard() {
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* Target Hit Rates */}
-                  <div className="glass-card">
-                    <div className="panel-title" style={{ marginBottom: '10px' }}>{f(t.targetHitRatesTitle, { count: rounds.length })}</div>
-                    {stats && stats.count > 0 ? (
-                      <div className="target-table">
-                        <div className="target-table-head">
-                          <span>{t.thTarget}</span><span>{t.thMath}</span><span>{t.thHitRate}</span><span>{t.thRecent}</span><span>{t.thLast}</span><span>{t.thSignal}</span>
-                        </div>
-                        {stats.targets.map(tRow => (
-                          <div key={tRow.target} className={`target-row signal-${tRow.signal.toLowerCase()}`}>
-                            <span className="target-mult">{tRow.target.toFixed(1)}x</span>
-                            <span className="target-math">{(tRow.mathProb ?? 0).toFixed(1)}%</span>
-                            <div className="target-bar-wrap">
-                              <div className="target-bar-bg"><div className="target-bar-fill" style={{ width: `${tRow.hitRate}%` }} /></div>
-                              <span className="target-pct">{tRow.hitRate}%</span>
-                            </div>
-                            <span className={`target-recent ${tRow.recentHitRate >= tRow.hitRate ? 'up' : 'down'}`}>{tRow.recentHitRate}%{tRow.recentHitRate >= tRow.hitRate ? ' ↑' : ' ↓'}</span>
-                            <span className="target-last">{tRow.lastHitAgo === 0 ? t.now : tRow.lastHitAgo === -1 ? t.never : `${tRow.lastHitAgo}${t.rAgo}`}</span>
-                            <span className={`target-signal ${tRow.signal.toLowerCase()}`}>{tRow.signal}</span>
-                          </div>
-                        ))}
-                        <div className="target-footer">{t.targetFooter}</div>
-                      </div>
-                    ) : (
-                      <div className="feed-empty">{t.captureRoundsToSeeTarget}</div>
-                    )}
                   </div>
 
                   {/* Live Feed */}
