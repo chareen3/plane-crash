@@ -364,7 +364,7 @@ function computeInstantClusterRisk(values: readonly number[]): number {
   const recentPressure = clamp((recentInstantCount / 2) * 100, 0, 100);
 
   let risk = historicalRate * 0.7 + recentPressure * 0.3;
-  if (tierOf(values[0]) === 'INSTANT') risk *= 2;
+  if (tierOf(values[0]) === 'INSTANT') risk += 25;
   return Math.round(clamp(risk, 0, 100));
 }
 
@@ -651,18 +651,18 @@ export function computeStats(
   const winRateAt = (target: number): number =>
     Math.round((values.filter((value) => value >= target).length / n) * 100);
 
-  let suggestedCashout = p70SafeCashout;
-  const cashoutReasons = [`${round2(p70SafeCashout)}x base from the 70% historical cashout percentile`];
+  let suggestedCashout = p80SafeCashout;
+  const cashoutReasons = [`${round2(p80SafeCashout)}x base from the 80% historical cashout percentile`];
   const markovLeader = TIERS.reduce((best, tier) =>
     markov.next[tier] > markov.next[best] ? tier : best,
   );
 
-  if (sessionHot && markovLeader === 'MED') {
+  if (sessionMomentum !== 'cold' && (markovLeader === 'MED' || markovLeader === 'HIGH')) {
     suggestedCashout = Math.max(
       suggestedCashout,
-      Math.min(markov.suggestedCashout, suggestedCashout * 1.15),
+      Math.min(markov.suggestedCashout, suggestedCashout * 1.25),
     );
-    cashoutReasons.push('raised for hot momentum and a MED Markov lead');
+    cashoutReasons.push('raised for favorable momentum and Markov lead');
   }
   if (sessionDanger || riskScore > 60) {
     suggestedCashout = Math.min(suggestedCashout, p80SafeCashout);
@@ -845,6 +845,9 @@ export function computeBetSignal(
   if (stats.instantClusterRisk > 60) {
     skipReasons.push(`Instant-crash cluster risk is ${stats.instantClusterRisk}%`);
   }
+  if (stats.signalConfidence < 40) {
+    skipReasons.push(`Confidence too low (${stats.signalConfidence}% < 40%)`);
+  }
 
   if (skipReasons.length > 0) {
     return {
@@ -873,11 +876,11 @@ export function computeBetSignal(
   const phase = timeData?.lkPhase ?? 'DAY';
   const phaseMax: Record<string, number> = {
     SLEEP: 1.2,
-    MORNING: 1.5,
-    DAY: 2.5,      // was capped at 1.2 — now allows mid-range targets
-    EVENING: 3.0,
+    MORNING: 2.0,
+    DAY: 5.0,      // was capped at 1.2 — now allows mid-range targets
+    EVENING: 5.0,
     PRIME: 10.0,   // full range during prime hours
-    LATE: 2.0,
+    LATE: 2.5,
   };
   const maxByPhase = phaseMax[phase] ?? 2.5;
   cashoutTarget = Math.min(cashoutTarget, maxByPhase);
