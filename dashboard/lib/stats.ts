@@ -860,14 +860,35 @@ export function computeBetSignal(
     };
   }
 
+  // ✅ FIX: Raise game limits so HIGH sessions can target 5x-10x
   const limits: Record<'1xbet' | 'aviator' | 'luckyjet', { min: number; max: number }> = {
-    '1xbet': { min: 1.1, max: 3 },
-    aviator: { min: 1.15, max: 2.5 },
-    luckyjet: { min: 1.08, max: 2.75 },
+    '1xbet': { min: 1.1, max: 10 },   // was 3 — raised for HIGH rounds
+    aviator: { min: 1.15, max: 8 },
+    luckyjet: { min: 1.08, max: 8 },
   };
   const limit = limits[gameType];
   let cashoutTarget = clamp(stats.suggestedCashout, limit.min, limit.max);
-  if (timeData?.lkPhase !== 'PRIME') cashoutTarget = Math.min(cashoutTarget, 1.2);
+
+  // ✅ FIX: Remove the hard 1.2x non-PRIME cap — use tiered caps instead
+  const phase = timeData?.lkPhase ?? 'DAY';
+  const phaseMax: Record<string, number> = {
+    SLEEP: 1.2,
+    MORNING: 1.5,
+    DAY: 2.5,      // was capped at 1.2 — now allows mid-range targets
+    EVENING: 3.0,
+    PRIME: 10.0,   // full range during prime hours
+    LATE: 2.0,
+  };
+  const maxByPhase = phaseMax[phase] ?? 2.5;
+  cashoutTarget = Math.min(cashoutTarget, maxByPhase);
+
+  // ✅ FIX: During HOT momentum + HIGH volatility, use aggressiveCashout instead
+  const isHotSession = stats.sessionMomentum === 'hot' && stats.trend === 'rising';
+  const isHighVolatility = stats.volatility === 'high';
+  if (isHotSession && isHighVolatility && stats.masterSignal !== 'WAIT') {
+    cashoutTarget = clamp(stats.aggressiveCashout, limit.min, maxByPhase);
+  }
+
   cashoutTarget = round2(cashoutTarget);
 
   const aggressive = stats.masterSignal === 'STRONG_BUY';
@@ -879,7 +900,7 @@ export function computeBetSignal(
     strategy: aggressive ? 'AGGRESSIVE' : 'CONSERVATIVE',
     cashout_target: cashoutTarget,
     recommended_bet_units: aggressive ? 1.5 : 1,
-    swing_target: aggressive ? round2(Math.min(stats.aggressiveCashout, limit.max)) : null,
+    swing_target: aggressive ? round2(Math.min(stats.aggressiveCashout, maxByPhase)) : null,
     volatility_phase,
     recommended_stake_pct: volatility_phase === 'VOLATILE' ? Math.min(1, stake) : stake,
     strategy_reason: `${stats.masterSignal} at ${stats.signalConfidence}% confidence. ${stats.cashoutReason}`,

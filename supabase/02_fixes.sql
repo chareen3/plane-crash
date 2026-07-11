@@ -45,34 +45,37 @@ FROM (SELECT crash_point, created_at FROM public.crash_rounds ORDER BY created_a
 DO $$ 
 BEGIN
   -- crash_rounds
+  DROP POLICY IF EXISTS "Allow anonymous inserts via API key" ON public.crash_rounds;
   DROP POLICY IF EXISTS "Allow anonymous inserts" ON public.crash_rounds;
-  CREATE POLICY "Allow anonymous inserts via API key" ON public.crash_rounds
-    FOR INSERT TO anon
-    WITH CHECK (current_setting('request.headers', true)::json->>'x-extension-api-key' IS NOT NULL);
+  CREATE POLICY "Allow anonymous inserts" ON public.crash_rounds
+    FOR INSERT TO anon WITH CHECK (true);
 
   -- predictions
+  DROP POLICY IF EXISTS "Allow service insert via API key" ON public.predictions;
   DROP POLICY IF EXISTS "Allow service insert" ON public.predictions;
-  CREATE POLICY "Allow service insert via API key" ON public.predictions
-    FOR INSERT TO anon
-    WITH CHECK (current_setting('request.headers', true)::json->>'x-extension-api-key' IS NOT NULL);
+  CREATE POLICY "Allow service insert" ON public.predictions
+    FOR INSERT TO anon WITH CHECK (true);
 
   -- Handle optional tables if they exist
   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'round_summaries') THEN
+    DROP POLICY IF EXISTS "Allow anonymous inserts via API key" ON public.round_summaries;
     DROP POLICY IF EXISTS "Allow anonymous inserts" ON public.round_summaries;
-    CREATE POLICY "Allow anonymous inserts via API key" ON public.round_summaries
-      FOR INSERT TO anon WITH CHECK (current_setting('request.headers', true)::json->>'x-extension-api-key' IS NOT NULL);
+    CREATE POLICY "Allow anonymous inserts" ON public.round_summaries
+      FOR INSERT TO anon WITH CHECK (true);
   END IF;
 
   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'game_config') THEN
+    DROP POLICY IF EXISTS "Allow anonymous inserts via API key" ON public.game_config;
     DROP POLICY IF EXISTS "Allow anonymous inserts" ON public.game_config;
-    CREATE POLICY "Allow anonymous inserts via API key" ON public.game_config
-      FOR INSERT TO anon WITH CHECK (current_setting('request.headers', true)::json->>'x-extension-api-key' IS NOT NULL);
+    CREATE POLICY "Allow anonymous inserts" ON public.game_config
+      FOR INSERT TO anon WITH CHECK (true);
   END IF;
 
   IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'strategy_eval') THEN
+    DROP POLICY IF EXISTS "Allow anonymous inserts via API key" ON public.strategy_eval;
     DROP POLICY IF EXISTS "Allow anonymous inserts" ON public.strategy_eval;
-    CREATE POLICY "Allow anonymous inserts via API key" ON public.strategy_eval
-      FOR INSERT TO anon WITH CHECK (current_setting('request.headers', true)::json->>'x-extension-api-key' IS NOT NULL);
+    CREATE POLICY "Allow anonymous inserts" ON public.strategy_eval
+      FOR INSERT TO anon WITH CHECK (true);
   END IF;
 END $$;
 
