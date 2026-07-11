@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     // Accuracy: when we predicted swing target X, did crash happen ABOVE it?
     const { data: predictions, error: predictionsError } = await supabase
       .from('predictions')
-      .select('round_number, cashout_target, tier_swing, swing_target, should_bet, confidence')
+      .select('round_number, cashout_target, tier_swing, swing_target, predicted_multiplier, should_bet, confidence')
       .limit(500)
       .order('round_number', { ascending: false });
       
@@ -74,12 +74,14 @@ export async function GET(request: Request) {
           // A prediction for round X is checked against actual round X
           const actual = actuals.find(r => r.round_number === p.round_number);
           if (!actual) return null;
-          const target = Number(p.tier_swing || p.swing_target || 3.5);
+          const target = p.tier_swing || p.swing_target
+            ? Number(p.tier_swing || p.swing_target)
+            : Number(p.cashout_target || p.predicted_multiplier || 1.10);
           return {
             predicted: target,
             actual: actual.crash_point,
             hit: Number(actual.crash_point) >= target, // did it stay above our target?
-            shouldBet: p.should_bet
+            shouldBet: p.should_bet !== false
           };
         }).filter(Boolean) as any[];
       

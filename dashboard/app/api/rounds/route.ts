@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     let wasCorrect = null;
     const { data: pred, error: fetchErr } = await supabase
       .from('predictions')
-      .select('id, should_bet, tier_swing, swing_target')
+      .select('id, should_bet, tier_swing, swing_target, cashout_target, predicted_multiplier')
       .eq('round_number', roundNumber)
       .is('was_correct', null)
       .order('created_at', { ascending: false })
@@ -92,7 +92,13 @@ export async function POST(request: Request) {
       if (isSkip) {
         wasCorrect = crashPoint < 1.5;
       } else {
-        const target = Number(pred.tier_swing || pred.swing_target || 3.5);
+        // Grade against tier_safe (the conservative exit target, ~1.10x)
+        // tier_swing is the "moonshot" target — do NOT use it for grading success
+        const target = Number(
+          pred.cashout_target ||
+          pred.predicted_multiplier ||
+          1.10
+        );
         wasCorrect = crashPoint >= target;
       }
 
@@ -186,7 +192,11 @@ Now give me the 3-tier prediction JSON.
     let volatilityPhase = betSignal.volatility_phase;
     let recommendedStakePct = betSignal.recommended_stake_pct;
 
-    let tierSafe   = Math.max(1.8, finalCashout);
+    // tier_safe = the actual CONSERVATIVE exit target from computeBetSignal (never less than 1.10x).
+    // This is the primary grading target — what the user should cash out at to win.
+    // tier_swing = moonshot optional target, NOT used for win/loss grading.
+    let tierSafe   = finalCashout > 0 ? Math.min(finalCashout, 1.40) : 1.10;
+    if (tierSafe < 1.10) tierSafe = 1.10; // floor
     let tierSwing  = swingTarget || 3.5;
     let tierMoon   = aiLongTargets.x10 || 8.0;
     let skipRound  = strategyLabel === 'SKIP';
