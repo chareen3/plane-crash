@@ -2009,57 +2009,104 @@ export default function Dashboard() {
                         )}
 
                         {timeData && (
-                          <div className="time-sync-card" style={{
-                            background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%)',
-                            border: '1px solid rgba(108, 99, 255, 0.15)',
-                            borderRadius: '12px',
-                            padding: '12px 16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            marginTop: '12px',
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                            backdropFilter: 'blur(10px)'
-                          }}>
-                            <div style={{
-                              background: timeData.isLKPrime ? 'rgba(0, 229, 160, 0.1)' : 'rgba(108, 99, 255, 0.1)',
-                              border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.25)' : 'rgba(108, 99, 255, 0.25)'}`,
-                              borderRadius: '50%',
-                              width: '32px',
-                              height: '32px',
+                          <>
+                            <div className="time-sync-card" style={{
+                              background: 'linear-gradient(135deg, rgba(108, 99, 255, 0.05) 0%, rgba(0, 212, 255, 0.05) 100%)',
+                              border: '1px solid rgba(108, 99, 255, 0.15)',
+                              borderRadius: '12px',
+                              padding: '12px 16px',
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: 'center',
-                              color: timeData.isLKPrime ? '#00e5a0' : '#6c63ff',
-                              flexShrink: 0
+                              gap: '12px',
+                              marginTop: '12px',
+                              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                              backdropFilter: 'blur(10px)'
                             }}>
-                              <Clock size={16} />
+                              <div style={{
+                                background: timeData.isLKPrime ? 'rgba(0, 229, 160, 0.1)' : 'rgba(108, 99, 255, 0.1)',
+                                border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.25)' : 'rgba(108, 99, 255, 0.25)'}`,
+                                borderRadius: '50%',
+                                width: '32px',
+                                height: '32px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: timeData.isLKPrime ? '#00e5a0' : '#6c63ff',
+                                flexShrink: 0
+                              }}>
+                                <Clock size={16} />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#f8fafc', letterSpacing: '0.5px', fontFamily: "'Rajdhani', sans-serif" }}>
+                                    COLOMBO TIME ZONE
+                                  </span>
+                                  <span style={{
+                                    fontSize: '9px',
+                                    background: timeData.isLKPrime ? 'rgba(0,229,160,0.15)' : 'rgba(108,99,255,0.15)',
+                                    color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa',
+                                    padding: '2px 8px',
+                                    borderRadius: '20px',
+                                    textTransform: 'uppercase',
+                                    fontWeight: '900',
+                                    fontFamily: "'Rajdhani', sans-serif",
+                                    letterSpacing: '0.5px',
+                                    border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.2)' : 'rgba(108, 99, 255, 0.2)'}`
+                                  }}>
+                                    {timeData.lkPhase} SEASON
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px', lineHeight: '1.4' }}>
+                                  {lang === 'si' ? 'දේශීය' : lang === 'ta' ? 'உள்ளூர்' : 'Local'}: <strong style={{ color: '#ffffff' }}>{timeData.currentLKTimeStr}</strong> · {timeData.lkNote}
+                                </div>
+                              </div>
                             </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: '11px', fontWeight: '800', color: '#f8fafc', letterSpacing: '0.5px', fontFamily: "'Rajdhani', sans-serif" }}>
-                                  COLOMBO TIME ZONE
+
+                            {/* Peak Hours Card */}
+                            <div className="peak-hours-card" style={{
+                              background: 'linear-gradient(135deg, rgba(255, 208, 0, 0.05) 0%, rgba(255, 107, 53, 0.05) 100%)',
+                              border: '1px solid rgba(255, 208, 0, 0.15)',
+                              borderRadius: '12px',
+                              padding: '14px',
+                              marginTop: '10px'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                                <div className="peak-icon-wrapper">
+                                  <div className="peak-icon-ring" />
+                                  <div className="peak-icon-core">
+                                    <Flame size={14} color="#ffd000" />
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '11px', fontWeight: '800', color: '#ffd000', letterSpacing: '0.5px', fontFamily: "'Rajdhani', sans-serif" }}>
+                                  LOCAL PEAK HOURS
                                 </span>
-                                <span style={{
-                                  fontSize: '9px',
-                                  background: timeData.isLKPrime ? 'rgba(0,229,160,0.15)' : 'rgba(108,99,255,0.15)',
-                                  color: timeData.isLKPrime ? '#00e5a0' : '#a78bfa',
-                                  padding: '2px 8px',
-                                  borderRadius: '20px',
-                                  textTransform: 'uppercase',
-                                  fontWeight: '900',
-                                  fontFamily: "'Rajdhani', sans-serif",
-                                  letterSpacing: '0.5px',
-                                  border: `1px solid ${timeData.isLKPrime ? 'rgba(0, 229, 160, 0.2)' : 'rgba(108, 99, 255, 0.2)'}`
-                                }}>
-                                  {timeData.lkPhase} SEASON
+                                <span className="peak-live-badge">
+                                  <span className="peak-live-dot" />
+                                  LIVE
                                 </span>
                               </div>
-                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px', lineHeight: '1.4' }}>
-                                {lang === 'si' ? 'දේශීය' : lang === 'ta' ? 'உள்ளூர்' : 'Local'}: <strong style={{ color: '#ffffff' }}>{timeData.currentLKTimeStr}</strong> · {timeData.lkNote}
+                              <div className="peak-hours-grid">
+                                {[
+                                  { time: '6AM-9AM', label: 'Morning', activity: 'low', icon: '🌅' },
+                                  { time: '12PM-2PM', label: 'Lunch', activity: 'med', icon: '☀️' },
+                                  { time: '7PM-11PM', label: 'Prime', activity: 'high', icon: '🔥' },
+                                  { time: '11PM-2AM', label: 'Night', activity: 'med', icon: '🌙' },
+                                ].map((slot, i) => (
+                                  <div key={i} className={`peak-slot peak-${slot.activity}`}>
+                                    <span className="peak-slot-icon">{slot.icon}</span>
+                                    <span className="peak-slot-time">{slot.time}</span>
+                                    <span className="peak-slot-label">{slot.label}</span>
+                                    <div className="peak-slot-bar">
+                                      <div className={`peak-slot-fill peak-fill-${slot.activity}`} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '10px', lineHeight: '1.4' }}>
+                                {lang === 'si' ? 'ශ්‍රී ලංකා කාලය මත පදනම්ව' : lang === 'ta' ? 'இலங்கை நேரம் அடிப்படையில்' : 'Based on Sri Lanka time'} · {timeData.currentLKTimeStr}
                               </div>
                             </div>
-                          </div>
+                          </>
                         )}
 
                         <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
