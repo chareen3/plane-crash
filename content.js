@@ -85,6 +85,7 @@ const SELECTORS = {
 
   // Countdown / round timer display
   TIMER: [
+    '.crash-timer__counter',
     '[class*="timer"]',
     '[class*="countdown"]',
     '[class*="waiting"]',
