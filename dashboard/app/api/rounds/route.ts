@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     // Fetch last 30 rounds for telemetry calculations
     const { data: lastRounds, error: lastRoundsErr } = await supabase
       .from('crash_rounds')
-      .select('crash_point, created_at, duration_ms')
+      .select('round_number, crash_point, created_at, duration_ms, player_count, total_bet_volume')
       .order('created_at', { ascending: false })
       .limit(30);
 

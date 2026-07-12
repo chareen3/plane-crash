@@ -308,6 +308,8 @@ async function saveToSupabase(events) {
         duration_ms: summary ? summary.duration_ms : null,
         source: e.source || 'extension',
         round_hash: e.roundHash || null,
+        player_count: summary ? summary.player_count : null,
+        total_bet_volume: summary ? summary.total_bet_volume : null,
       };
     });
 
@@ -365,6 +367,18 @@ function compileRoundSummary(roundIndex, events) {
     )
   );
 
+  let maxPlayerCount = null;
+  let maxBetVolume = null;
+
+  roundEvents.forEach(e => {
+    if (e.playerCount !== null && e.playerCount !== undefined) {
+      if (maxPlayerCount === null || e.playerCount > maxPlayerCount) maxPlayerCount = e.playerCount;
+    }
+    if (e.betVolume !== null && e.betVolume !== undefined) {
+      if (maxBetVolume === null || e.betVolume > maxBetVolume) maxBetVolume = e.betVolume;
+    }
+  });
+
   const startedAt = first.capturedAt;
   const endedAt = last.capturedAt;
   const durationMs = endedAt && startedAt
@@ -380,6 +394,8 @@ function compileRoundSummary(roundIndex, events) {
     duration_ms: durationMs,
     event_count: roundEvents.length,
     history_snapshot: historySnapshot,
+    player_count: maxPlayerCount,
+    total_bet_volume: maxBetVolume,
     notes: resultEv ? 'round_result captured' : 'inferred from events'
   };
 }
@@ -479,6 +495,8 @@ function ingestEvent(rawEvent) {
     fingerprint: null,
     roundSummary: rawEvent.roundSummary || null,
     roundHash: rawEvent.roundHash || null,
+    playerCount: rawEvent.playerCount ?? null,
+    betVolume: rawEvent.betVolume ?? null,
   };
 
   // Build fingerprint and dedup

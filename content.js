@@ -115,6 +115,24 @@ const SELECTORS = {
     '.bet-input',
   ],
 
+  // Player count / total bets (before round starts)
+  PLAYER_COUNT: [
+    '.crash-total__value--players',
+    '.players-count',
+    '[class*="players-count"]',
+    '.c-crash-game__players',
+    '[class*="users-online"]',
+    '.crash-game__players-count',
+  ],
+
+  BET_VOLUME: [
+    '.crash-total__value--bets',
+    '.total-bets-amount',
+    '[class*="total-bets"]',
+    '.c-crash-game__total-bet',
+    '.crash-game__total-bet',
+  ],
+
   // Cashout / auto-cashout text
   CASHOUT: [
     '[class*="cashout"]',
@@ -167,6 +185,8 @@ const cState = {
   roundIndex:     0,
   seenHistory:    new Set(),
   crashFired:     false,
+  lastPlayerCount: null,
+  lastBetVolume:   null,
 };
 
 // ---------------------------------------------------------------------------
@@ -303,6 +323,8 @@ function makeBaseEvent(overrides = {}) {
     rawPayload:      null,
     domPath:         null,
     roundHash:       null,
+    playerCount:     cState.lastPlayerCount,
+    betVolume:       cState.lastBetVolume,
     ...overrides,
   };
 }
@@ -461,6 +483,20 @@ function captureBetInfo() {
   const cashEl   = queryFirst(SELECTORS.CASHOUT);
   const betText  = betEl ? (betEl.value || betEl.textContent || '').trim() : null;
   const cashText = cashEl ? (cashEl.textContent || '').trim() : null;
+
+  const pText = readText(SELECTORS.PLAYER_COUNT);
+  const vText = readText(SELECTORS.BET_VOLUME);
+  
+  if (pText) {
+    const m = pText.match(/(\d+)/);
+    if (m) cState.lastPlayerCount = parseInt(m[1], 10);
+  }
+  
+  if (vText) {
+    const clean = vText.replace(/[^\d.]/g, '');
+    if (clean) cState.lastBetVolume = parseFloat(clean);
+  }
+
   return { betAmountText: betText, cashoutText: cashText };
 }
 

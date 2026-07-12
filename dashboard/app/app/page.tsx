@@ -32,7 +32,7 @@ const supabase = createClient({
   realtime: { params: { eventsPerSecond: 20 } }
 });
 
-type Round = { id?: string; round_number: number; crash_point: number; created_at: string; _optimistic?: boolean };
+type Round = { id?: string; round_number: number; crash_point: number; created_at: string; _optimistic?: boolean; player_count?: number; total_bet_volume?: number };
 type Prediction = {
   risk: 'LOW' | 'MEDIUM' | 'HIGH';
   confidence: number;
@@ -756,6 +756,22 @@ export default function Dashboard() {
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
               </div>
+              {lastCrash && (lastCrash.player_count != null || lastCrash.total_bet_volume != null) && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '10px', fontSize: '12px', color: '#94a3b8' }}>
+                  {lastCrash.player_count != null && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <User size={14} color="#38bdf8" />
+                      <span>{lastCrash.player_count}</span>
+                    </div>
+                  )}
+                  {lastCrash.total_bet_volume != null && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Coins size={14} color="#ffd000" />
+                      <span>{lastCrash.total_bet_volume}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -870,6 +886,22 @@ export default function Dashboard() {
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
               </div>
+              {lastCrash && (lastCrash.player_count != null || lastCrash.total_bet_volume != null) && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '10px', fontSize: '12px', color: '#94a3b8' }}>
+                  {lastCrash.player_count != null && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <User size={14} color="#38bdf8" />
+                      <span>{lastCrash.player_count}</span>
+                    </div>
+                  )}
+                  {lastCrash.total_bet_volume != null && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Coins size={14} color="#ffd000" />
+                      <span>{lastCrash.total_bet_volume}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
