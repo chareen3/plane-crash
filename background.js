@@ -394,7 +394,7 @@ async function postRoundResultToDashboard(roundEvent) {
     };
 
     // Grade the previous round's prediction using the actual crash point
-    fetch('http://localhost:3000/api/grade', {
+    fetch('https://crashtracker.space/api/grade', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -403,7 +403,7 @@ async function postRoundResultToDashboard(roundEvent) {
       }),
     }).catch(err => warn('Grading API error:', err));
 
-    const res = await fetch('http://localhost:3000/api/rounds', {
+    const res = await fetch('https://crashtracker.space/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
