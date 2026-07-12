@@ -1987,17 +1987,24 @@ export default function Dashboard() {
                         <div style={{ color: stratMeta.color, transform: 'scale(1.8)', marginLeft: '10px', flexShrink: 0 }}>{stratMeta.icon}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div className="hero-banner-title" style={{ color: stratMeta.color, fontSize: '16px' }}>{stratMeta.label}</div>
-                          <div style={{ fontSize: '11px', color: '#888', marginTop: '4px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {prediction.strategy_reason || prediction.skip_reason || (lang === 'si' ? 'AI උපායමාර්ගය ක්‍රියාත්මකයි.' : lang === 'ta' ? 'AI உத்தி செயலில் உள்ளது.' : 'AI strategy active.')}
+                          <div style={{ fontSize: '13px', color: '#a1a1aa', marginTop: '6px', lineHeight: '1.4' }}>
+                            {prediction.strategy === 'SKIP' && prediction.stability_analysis && ((100 - (prediction.stability_analysis.holdScore || 50)) >= 70 || (prediction.stability_analysis.stability_index || 50) >= 70)
+                              ? "Market structure is stable overall, but the current entry quality is weak."
+                              : prediction.strategy_reason || prediction.skip_reason || (lang === 'si' ? 'AI උපායමාර්ගය ක්‍රියාත්මකයි.' : lang === 'ta' ? 'AI உத்தி செயலில் உள்ளது.' : 'AI strategy active.')}
                           </div>
-                          <div className="hc2-vol-row" style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                          <div className="hc2-vol-row" style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span className={`vol-badge vol-${stats?.volatility ?? 'normal'}`} style={{ fontSize: '10px', padding: '3px 8px', fontWeight: '600' }}>
                               {stats?.volatility?.toUpperCase() ?? 'NORMAL'} VOL
                             </span>
-                            <span className="hc2-trend" style={{ fontSize: '9px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                              {stats?.trend === 'rising' ? <TrendingUp size={12} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={12} color="#ff3366" /> : <Minus size={12} color="#888" />}
+                            <span className="hc2-trend" style={{ fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
+                              {stats?.trend === 'rising' ? <TrendingUp size={14} color="#00e5a0" /> : stats?.trend === 'falling' ? <TrendingDown size={14} color="#ff3366" /> : <Minus size={14} color="#888" />}
                               {stats?.trend?.toUpperCase() ?? 'FLAT'}
                             </span>
+                            {prediction.stability_analysis?.holdReasons?.slice(0, 2).map((reason: string, i: number) => (
+                              <span key={i} style={{ fontSize: '10px', padding: '3px 8px', fontWeight: '600', background: 'rgba(255,51,102,0.15)', color: '#ff4d79', borderRadius: '4px', border: '1px solid rgba(255,51,102,0.3)' }}>
+                                {reason}
+                              </span>
+                            ))}
                           </div>
                         </div>
 
@@ -2011,18 +2018,18 @@ export default function Dashboard() {
                               display: 'flex',
                               flexDirection: 'column',
                               alignItems: 'flex-start',
-                              width: '100px',
+                              width: '120px',
                               flexShrink: 0,
-                              padding: '6px 8px',
+                              padding: '8px 10px',
                               background: 'rgba(255, 255, 255, 0.03)',
                               borderRadius: '8px',
                               border: '1px solid rgba(255, 255, 255, 0.05)',
                               position: 'relative'
                             }}>
                               <div style={{
-                                fontSize: '8px',
+                                fontSize: '10px',
                                 fontWeight: '900',
-                                color: '#94a3b8',
+                                color: '#e2e8f0',
                                 fontFamily: "'Rajdhani', sans-serif",
                                 letterSpacing: '0.5px',
                                 marginBottom: '8px',
@@ -2030,10 +2037,10 @@ export default function Dashboard() {
                                 justifyContent: 'space-between',
                                 width: '100%'
                               }}>
-                                <span>STABILITY</span>
+                                <span>SESSION MATCH</span>
                                 <span style={{ color: '#00ffd5', fontWeight: '900' }}>{displayStabilityIndex}%</span>
                               </div>
-                              <div style={{ position: 'relative', width: '100%', height: '5px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px' }}>
+                              <div style={{ position: 'relative', width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px' }}>
                                 <div style={{
                                   position: 'absolute',
                                   left: 0,
@@ -2049,8 +2056,8 @@ export default function Dashboard() {
                                   left: `${displayStabilityIndex}%`,
                                   top: '50%',
                                   transform: 'translate(-50%, -50%)',
-                                  width: '8px',
-                                  height: '8px',
+                                  width: '10px',
+                                  height: '10px',
                                   borderRadius: '50%',
                                   backgroundColor: '#ffffff',
                                   border: '1.5px solid #a78bfa',
@@ -2062,10 +2069,10 @@ export default function Dashboard() {
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 width: '100%',
-                                fontSize: '7px',
-                                color: '#64748b',
+                                fontSize: '9px',
+                                color: '#94a3b8',
                                 fontWeight: '700',
-                                marginTop: '3px',
+                                marginTop: '4px',
                                 fontFamily: "'Rajdhani', sans-serif"
                               }}>
                                 <span>VOLATILE</span>
