@@ -14,7 +14,7 @@
   "host_permissions": [
     "https://lk.1xbet.com/*",
     "https://*.supabase.co/*",
-    "https://plane-crash.vercel.app/*",
+    "https://crashtracker.space/*",
     "http://localhost:3000/*",
     "http://127.0.0.1:3000/*",
     "https://*.pro/*"
@@ -53,7 +53,7 @@
     },
     {
       "matches": [
-        "https://plane-crash.vercel.app/*",
+        "https://crashtracker.space/*",
         "http://localhost:3000/*",
         "http://127.0.0.1:3000/*"
       ],

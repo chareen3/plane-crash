@@ -95,7 +95,7 @@ let heartbeatTimer = null;
 function startHeartbeat() {
   if (heartbeatTimer) clearInterval(heartbeatTimer);
   heartbeatTimer = setInterval(() => {
-    chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+    chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
       if (tabs) tabs.forEach(tab => {
         chrome.tabs.sendMessage(tab.id, {
           type: 'EXTENSION_HEARTBEAT',
@@ -169,29 +169,23 @@ function formatBytes(bytes) {
 // ---------------------------------------------------------------------------
 
 async function loadEvents() {
-  const data = await chrome.storage.local.get(STORAGE_KEYS.EVENTS);
-  return data[STORAGE_KEYS.EVENTS] || [];
+  return [];
 }
 
 async function saveEvents(events) {
-  await chrome.storage.local.set({ [STORAGE_KEYS.EVENTS]: events });
+  // Disabled: We no longer save events to local storage
 }
 
 async function loadSummaries() {
-  const data = await chrome.storage.local.get(STORAGE_KEYS.SUMMARIES);
-  return data[STORAGE_KEYS.SUMMARIES] || [];
+  return [];
 }
 
 async function saveSummaries(summaries) {
-  await chrome.storage.local.set({ [STORAGE_KEYS.SUMMARIES]: summaries });
+  // Disabled: We no longer save summaries to local storage
 }
 
 async function updateStoredStats() {
-  const events = await loadEvents();
-  const raw = JSON.stringify(events);
-  state.stats.totalEvents = events.length;
-  state.stats.storedBytes = new TextEncoder().encode(raw).length;
-  await chrome.storage.local.set({ [STORAGE_KEYS.STATS]: state.stats });
+  // Stats are updated in memory in flushBuffer
 }
 
 // ---------------------------------------------------------------------------
@@ -227,17 +221,10 @@ async function flushBuffer() {
   log(`Flushing ${toSave.length} events to storage`);
 
   try {
-    let events = await loadEvents();
-    events = events.concat(toSave);
+    state.stats.totalEvents += toSave.length;
+    state.stats.storedBytes = 0;
 
-    // Rolling window — drop oldest if over limit
-    if (events.length > CONFIG.MAX_STORED_EVENTS) {
-      events = events.slice(events.length - CONFIG.MAX_STORED_EVENTS);
-    }
-
-    await saveEvents(events);
-    await updateStoredStats();
-    updateBadge(events.length);
+    updateBadge(state.stats.totalEvents);
 
     // Broadcast stats to any open popups
     broadcastToPopup({ type: 'STATS_UPDATE', stats: state.stats });
@@ -261,24 +248,16 @@ let cachedAnonKey = null;
 async function loadSupabaseKey() {
   if (cachedAnonKey) return cachedAnonKey;
 
-  // Try loading from local storage first
-  const stored = await chrome.storage.local.get('supabase_anon_key');
-  if (stored && stored.supabase_anon_key) {
-    cachedAnonKey = stored.supabase_anon_key;
-    return cachedAnonKey;
-  }
-
-  // Fetch key from our own Vercel API
+  // Fetch key from our API
   try {
-    const res = await fetch('https://plane-crash.vercel.app/api/config');
+    const res = await fetch('https://crashtracker.space/api/config');
     const { key } = await res.json();
     if (key) {
       cachedAnonKey = key;
-      await chrome.storage.local.set({ supabase_anon_key: key });
       return key;
     }
   } catch (err) {
-    warn('Failed to load Supabase key from Vercel config endpoint:', err);
+    warn('Failed to load Supabase key from config endpoint:', err);
   }
 
   return null;
@@ -308,7 +287,7 @@ async function saveToSupabase(events) {
 
     // 🚀 Broadcast to dashboard INSTANTLY via our injected bridge script
     try {
-      chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+      chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
         if (tabs) tabs.forEach(tab => {
           rows.forEach(row => {
             chrome.tabs.sendMessage(tab.id, { type: 'NEW_CRASH', round: row }).catch(() => { });
@@ -394,7 +373,8 @@ async function postRoundResultToDashboard(roundEvent) {
     };
 
     // Grade the previous round's prediction using the actual crash point
-    fetch('http://localhost:3000/api/grade', {
+    const API_BASE_URL = 'https://crashtracker.space';
+    fetch(`${API_BASE_URL}/api/grade`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -403,7 +383,7 @@ async function postRoundResultToDashboard(roundEvent) {
       }),
     }).catch(err => warn('Grading API error:', err));
 
-    const res = await fetch('http://localhost:3000/api/rounds', {
+    const res = await fetch(`${API_BASE_URL}/api/rounds`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -416,7 +396,7 @@ async function postRoundResultToDashboard(roundEvent) {
 
       // Broadcast the updated state and prediction directly to the dashboard tabs!
       if (data.success && data.round && data.prediction) {
-        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+        chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_CRASH_LIVE',
@@ -728,7 +708,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case 'DASHBOARD_PING':
         // Service worker has been woken up. Send immediate heartbeat/status back to all dashboard tabs
-        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+        chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_HEARTBEAT',
@@ -763,7 +743,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return { received: true };
 
       case 'BET_AMOUNT_CHANGE':
-        chrome.tabs.query({ url: ["https://plane-crash.vercel.app/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
+        chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
           if (tabs) tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
               type: 'EXTENSION_BET_CHANGE',

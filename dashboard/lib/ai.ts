@@ -425,7 +425,7 @@ export async function callAI(
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://plane-crash.vercel.app',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL ?? 'https://crashtracker.space',
           'X-Title': 'Crash Statistics Dashboard',
         },
         body: JSON.stringify({
