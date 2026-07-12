@@ -448,18 +448,6 @@ function ingestEvent(rawEvent) {
     roundSummary: rawEvent.roundSummary || null,
   };
 
-  if (event.eventType === 'timer_change') {
-    chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
-      if (tabs) tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, {
-          type: 'TIMER_TICK',
-          timerText: event.currentTimer
-        }).catch(() => { });
-      });
-    });
-    return;
-  }
-
   // Build fingerprint and dedup
   const fp = buildFingerprint(event);
   event.fingerprint = fp;
