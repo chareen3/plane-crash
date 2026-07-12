@@ -270,7 +270,11 @@ async function loadSupabaseKey() {
 
   // Fetch key from our own Vercel API
   try {
-    const res = await fetch('https://crashtracker.space/api/config');
+    const res = await fetch('https://crashtracker.space/api/config', {
+      headers: {
+        'x-vercel-protection-bypass': 'diEpsGUfaf92ykvyzyZd3bZw7oRbJMK0'
+      }
+    });
     const { key } = await res.json();
     if (key) {
       cachedAnonKey = key;
@@ -396,7 +400,10 @@ async function postRoundResultToDashboard(roundEvent) {
     // Grade the previous round's prediction using the actual crash point
     fetch('https://crashtracker.space/api/grade', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-vercel-protection-bypass': 'diEpsGUfaf92ykvyzyZd3bZw7oRbJMK0'
+      },
       body: JSON.stringify({
         roundNumber: payload.round.round_number,
         actualCrashPoint: payload.round.crash_point,
@@ -405,7 +412,10 @@ async function postRoundResultToDashboard(roundEvent) {
 
     const res = await fetch('https://crashtracker.space/api/rounds', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-vercel-protection-bypass': 'diEpsGUfaf92ykvyzyZd3bZw7oRbJMK0'
+      },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(6000), // Allow 6s for DB write + AI prediction run
     });

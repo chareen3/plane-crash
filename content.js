@@ -320,11 +320,11 @@ function fireCrashResult(multiplier, source) {
   });
   enqueueEvent(event);
 
-  // Unlock after 6s (safe gap between rounds)
+  // Unlock after 30s as a fallback, but rely on state/multiplier resets to unlock normally
   clearTimeout(cState.roundLockTimer);
   cState.roundLockTimer = setTimeout(() => {
     cState.roundLocked = false;
-  }, 6000);
+  }, 30000);
 }
 
 
@@ -340,6 +340,11 @@ function captureMultiplierTick() {
   const numVal = parseMultiplier(text);
   const prevNum = parseMultiplier(cState.lastMultiplier);
   
+  if (numVal !== null && numVal < 1.1) {
+    cState.roundLocked = false;
+    clearTimeout(cState.roundLockTimer);
+  }
+
   cState.lastMultiplier = text;
   cState.lastMultiplierTime = Date.now(); // Mark time of change
   const mEl = queryFirst(SELECTORS.MULTIPLIER);
@@ -382,6 +387,11 @@ function captureRoundStateChange() {
   let normalisedState = text;
   if (lower.includes('wait') || lower.includes('next'))     normalisedState = 'waiting';
   else if (lower.includes('fly') || lower.includes('crash')) normalisedState = lower.includes('crash') ? 'crashed' : 'flying';
+
+  if (normalisedState === 'waiting') {
+    cState.roundLocked = false;
+    clearTimeout(cState.roundLockTimer);
+  }
 
   const isResult = normalisedState === 'crashed';
   const mult     = cState.lastMultiplier;
@@ -786,6 +796,10 @@ function injectWSListener() {
           // Stage change: 1 = betting open, 2 = flying, 3 = crashed
           const stage = msg.arguments[0];
           console.log('[CAC WS PARSED] Stage change:', stage);
+          if (stage === 1) {
+             cState.roundLocked = false;
+             clearTimeout(cState.roundLockTimer);
+          }
           // Reset staleness timer when the round goes live so the detector
           // does not misfire during the first few seconds of flight
           if (stage === 2) {
@@ -821,11 +835,11 @@ function startCollection(config = {}) {
   // Periodic flush to background
   cState.flushTimer = setInterval(flushToBackground, 3000);
 
-  // Crash staleness detector — if multiplier stops moving for >3500ms, assume crashed
+  // Crash staleness detector — if multiplier stops moving for >12000ms, assume crashed
   cState.crashDetectorTimer = setInterval(() => {
     if (!cState.lastMultiplierTime || !cState.lastMultiplier) return;
     const numVal = parseMultiplier(cState.lastMultiplier);
-    const stale = Date.now() - cState.lastMultiplierTime > 3500;
+    const stale = Date.now() - cState.lastMultiplierTime > 12000;
     const aboveFloor = numVal && numVal >= 1.01; // ignore 1.00x waiting state
     
     if (aboveFloor && stale) {
