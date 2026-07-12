@@ -764,6 +764,12 @@ export default function Dashboard() {
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
               </div>
+              {liveData?.state !== 'active' && !liveData?.timerText && lastCrash?.player_count && (
+                <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <Users size={12} color="#38bdf8" />
+                  <span>Number of bets: {lastCrash.player_count}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -878,6 +884,12 @@ export default function Dashboard() {
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
               </div>
+              {liveData?.state !== 'active' && !liveData?.timerText && lastCrash?.player_count && (
+                <div style={{ fontSize: '11px', color: '#888', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <Users size={12} color="#38bdf8" />
+                  <span>Number of bets: {lastCrash.player_count}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
