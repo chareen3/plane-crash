@@ -307,6 +307,7 @@ async function saveToSupabase(events) {
         created_at: e.capturedAt || new Date().toISOString(),
         duration_ms: summary ? summary.duration_ms : null,
         source: e.source || 'extension',
+        round_hash: e.roundHash || null,
       };
     });
 
@@ -392,7 +393,8 @@ async function postRoundResultToDashboard(roundEvent) {
       round: {
         round_number: roundEvent.roundNumber || Date.now(),
         crash_point: roundEvent.multiplier,
-        created_at: roundEvent.capturedAt || new Date().toISOString()
+        created_at: roundEvent.capturedAt || new Date().toISOString(),
+        round_hash: roundEvent.roundHash || null,
       },
       summary: summary
     };
@@ -476,6 +478,7 @@ function ingestEvent(rawEvent) {
     domPath: rawEvent.domPath || null,
     fingerprint: null,
     roundSummary: rawEvent.roundSummary || null,
+    roundHash: rawEvent.roundHash || null,
   };
 
   // Build fingerprint and dedup

@@ -53,6 +53,65 @@ export async function POST(request: Request) {
     const roundNumber = typeof round.round_number === 'number' ? round.round_number : (latestRoundNumber + 1);
     const crashPoint = Number(round.crash_point);
 
+    // Fetch last 30 rounds for telemetry calculations
+    const { data: lastRounds, error: lastRoundsErr } = await supabase
+      .from('crash_rounds')
+      .select('crash_point, created_at, duration_ms')
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (lastRoundsErr) {
+      console.error('Failed to fetch last rounds for telemetry:', lastRoundsErr);
+    }
+
+    const lastRoundsData = lastRounds || [];
+
+    // Calculate gap_ms
+    let gapMs: number | null = null;
+    if (lastRoundsData.length > 0) {
+      const prevRound = lastRoundsData[0];
+      const thisDuration = round.duration_ms || (summary ? summary.duration_ms : 0) || 0;
+      const thisCreatedAt = new Date(round.created_at || new Date()).getTime();
+      const prevCreatedAt = new Date(prevRound.created_at).getTime();
+      gapMs = Math.max(0, (thisCreatedAt - thisDuration) - prevCreatedAt);
+    }
+
+    // Calculate tier
+    let tier = 'INSTANT';
+    if (crashPoint >= 10.0) tier = 'MOON';
+    else if (crashPoint >= 5.0) tier = 'HIGH';
+    else if (crashPoint >= 2.0) tier = 'MED';
+    else if (crashPoint >= 1.15) tier = 'LOW';
+
+    // Calculate streak details
+    let streakType = 'MIXED';
+    let streakLength = 0;
+    if (lastRoundsData.length > 0) {
+      const getStreakCat = (v: number) => {
+        if (v < 2.0) return 'LOW';
+        if (v < 5.0) return 'MED';
+        return 'HIGH';
+      };
+      const firstCat = getStreakCat(Number(lastRoundsData[0].crash_point));
+      streakType = firstCat;
+      for (const r of lastRoundsData) {
+        if (getStreakCat(Number(r.crash_point)) === firstCat) {
+          streakLength++;
+        } else {
+          break;
+        }
+      }
+    }
+
+    const prev5Crashes = lastRoundsData.slice(0, 5).map(r => Number(r.crash_point));
+
+    // Calculate rolling_win_rate_30
+    let rollingWinRate30 = 0;
+    if (lastRoundsData.length > 0) {
+      const wins = lastRoundsData.filter(r => Number(r.crash_point) >= 1.5).length;
+      rollingWinRate30 = Number(((wins / lastRoundsData.length) * 100).toFixed(2));
+    }
+
     // 1. Insert completed round details into crash_rounds
     const { data: insertedRound, error: roundErr } = await supabase
       .from('crash_rounds')
@@ -61,7 +120,14 @@ export async function POST(request: Request) {
         crash_point: crashPoint,
         created_at: round.created_at || new Date().toISOString(),
         duration_ms: round.duration_ms || (summary ? summary.duration_ms : null),
-        source: round.source || 'extension'
+        source: round.source || 'extension',
+        round_hash: round.round_hash || null,
+        gap_ms: gapMs,
+        tier: tier,
+        streak_type: streakType,
+        streak_length: streakLength,
+        prev_5_crashes: prev5Crashes,
+        rolling_win_rate_30: rollingWinRate30
       })
       .select()
       .single();

@@ -166,8 +166,7 @@ const cState = {
   lastHistoryLen: 0,
   roundIndex:     0,
   seenHistory:    new Set(),
-  roundLocked:    false,
-  roundLockTimer:  null,
+  crashFired:     false,
 };
 
 // ---------------------------------------------------------------------------
@@ -303,13 +302,14 @@ function makeBaseEvent(overrides = {}) {
     rawTextSample:   null,
     rawPayload:      null,
     domPath:         null,
+    roundHash:       null,
     ...overrides,
   };
 }
 
-function fireCrashResult(multiplier, source) {
-  if (cState.roundLocked) return; // already fired for this round
-  cState.roundLocked = true;
+function fireCrashResult(multiplier, source, extra = {}) {
+  if (cState.crashFired) return;
+  cState.crashFired = true;
 
   cState.roundIndex++;
   const event = makeBaseEvent({
@@ -317,14 +317,21 @@ function fireCrashResult(multiplier, source) {
     source,
     multiplierText: String(multiplier) + 'x',
     multiplier: parseFloat(multiplier),
+    ...extra,
   });
   enqueueEvent(event);
+}
 
-  // Unlock after 30s as a fallback, but rely on state/multiplier resets to unlock normally
-  clearTimeout(cState.roundLockTimer);
-  cState.roundLockTimer = setTimeout(() => {
-    cState.roundLocked = false;
-  }, 30000);
+function startNewRound() {
+  if (!cState.crashFired && cState.lastMultiplier) {
+    const prevNum = parseMultiplier(cState.lastMultiplier);
+    if (prevNum && prevNum >= 1.0) {
+      fireCrashResult(prevNum, 'auto_new_round');
+    }
+  }
+  cState.crashFired = false;
+  cState.lastMultiplier = null;
+  cState.lastMultiplierTime = Date.now();
 }
 
 
@@ -338,22 +345,17 @@ function captureMultiplierTick() {
   if (text === cState.lastMultiplier) return null; // unchanged
 
   const numVal = parseMultiplier(text);
-  const prevNum = parseMultiplier(cState.lastMultiplier);
+  const prevNum = cState.lastMultiplier ? parseMultiplier(cState.lastMultiplier) : null;
   
   if (numVal !== null && numVal < 1.1) {
-    cState.roundLocked = false;
-    clearTimeout(cState.roundLockTimer);
+    startNewRound();
+  } else if (prevNum !== null && numVal < prevNum) {
+    startNewRound();
   }
 
   cState.lastMultiplier = text;
   cState.lastMultiplierTime = Date.now(); // Mark time of change
   const mEl = queryFirst(SELECTORS.MULTIPLIER);
-
-  // If the new multiplier is smaller than the previous one, the previous round just ended!
-  if (numVal !== null && prevNum !== null && numVal < prevNum) {
-    fireCrashResult(prevNum, 'observer');
-    return null;
-  }
 
   return makeBaseEvent({
     eventType:      'multiplier_tick',
@@ -389,8 +391,7 @@ function captureRoundStateChange() {
   else if (lower.includes('fly') || lower.includes('crash')) normalisedState = lower.includes('crash') ? 'crashed' : 'flying';
 
   if (normalisedState === 'waiting') {
-    cState.roundLocked = false;
-    clearTimeout(cState.roundLockTimer);
+    startNewRound();
   }
 
   const isResult = normalisedState === 'crashed';
@@ -520,7 +521,6 @@ function stopObserver() {
 function clearTimers() {
   if (cState.flushTimer)  { clearTimeout(cState.flushTimer);  cState.flushTimer  = null; }
   if (cState.retryTimer)  { clearTimeout(cState.retryTimer);  cState.retryTimer  = null; }
-  if (cState.roundLockTimer) { clearTimeout(cState.roundLockTimer); cState.roundLockTimer = null; }
   cState.buffer = [];
 }
 
@@ -788,17 +788,17 @@ function injectWSListener() {
         if (msg.target === 'OnCrash' && msg.arguments && msg.arguments[0]) {
           // Final crash result — grab the multiplier and fire immediately
           const crashMult = msg.arguments[0].f;
+          const roundHash = msg.arguments[0].h || msg.arguments[0].hash || msg.arguments[0].roundHash || msg.arguments[0].gameId || null;
           if (crashMult) {
-            console.log('[CAC WS PARSED] Crash detected:', crashMult);
-            fireCrashResult(crashMult, 'websocket');
+            console.log('[CAC WS PARSED] Crash detected:', crashMult, 'Hash:', roundHash);
+            fireCrashResult(crashMult, 'websocket', { roundHash });
           }
         } else if (msg.target === 'OnStage' && msg.arguments) {
           // Stage change: 1 = betting open, 2 = flying, 3 = crashed
           const stage = msg.arguments[0];
           console.log('[CAC WS PARSED] Stage change:', stage);
           if (stage === 1) {
-             cState.roundLocked = false;
-             clearTimeout(cState.roundLockTimer);
+             startNewRound();
           }
           // Reset staleness timer when the round goes live so the detector
           // does not misfire during the first few seconds of flight
