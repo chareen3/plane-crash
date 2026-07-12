@@ -5,7 +5,6 @@ export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request,
   })
-  return response;
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,7 +47,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/app', request.url))
   }
 
-  return response;
+  return response
 }
 
 export const config = {
