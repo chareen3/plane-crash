@@ -10,7 +10,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reference, note } = await req.json()
+    const { reference, note, planInterval } = await req.json()
 
     if (!reference || reference.trim() === '') {
       return NextResponse.json(
@@ -19,12 +19,14 @@ export async function POST(req: Request) {
       )
     }
 
+    const amount = planInterval === 'annually' ? 22000 : 2700
+
     // Insert pending payment record
     const { data, error } = await supabase
       .from('payments')
       .insert({
         user_id: user.id,
-        amount: 2700,
+        amount,
         currency: 'LKR',
         method: 'bank_transfer',
         status: 'pending',

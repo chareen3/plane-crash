@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { Polar } from '@polar-sh/sdk'
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -11,8 +11,15 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const body = await req.json().catch(() => ({}))
+    const priceType = body.priceType || 'monthly'
+
     const accessToken = process.env.POLAR_ACCESS_TOKEN || ''
-    const productPriceId = process.env.POLAR_PRICE_ID || ''
+    let productPriceId = process.env.POLAR_PRICE_ID || ''
+
+    if (priceType === 'annually' && process.env.POLAR_ANNUAL_PRICE_ID) {
+      productPriceId = process.env.POLAR_ANNUAL_PRICE_ID
+    }
 
     if (!accessToken || !productPriceId) {
       return NextResponse.json(

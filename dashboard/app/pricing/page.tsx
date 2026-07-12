@@ -27,6 +27,7 @@ function PricingContent() {
   // Card checkout loading
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [cardError, setCardError] = useState<string | null>(null)
+  const [billingInterval, setBillingInterval] = useState<'monthly' | 'annually'>('monthly')
 
   const supabase = createClient()
 
@@ -77,6 +78,7 @@ function PricingContent() {
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceType: billingInterval }),
       })
 
       const data = await response.json()
@@ -110,6 +112,7 @@ function PricingContent() {
         body: JSON.stringify({
           reference: slipRef,
           note: transferNote,
+          planInterval: billingInterval,
         }),
       })
 
@@ -135,7 +138,7 @@ function PricingContent() {
   }
 
   const features = [
-    'Real-time AI Crash Multiplier signals',
+    'Real-time Crash Multiplier signals',
     'Supports 1xbet, Aviator, and LuckyJet feeds',
     'Dynamic strategies (Safe, Swing, Moon target parameters)',
     'Real-time database integration via 24/7 cloud servers',
@@ -143,9 +146,9 @@ function PricingContent() {
     'Responsive desktop and mobile layout',
   ]
 
-  const isSubscribed = subscription && 
-    subscription.status === 'active' && 
-    subscription.current_period_end && 
+  const isSubscribed = subscription &&
+    subscription.status === 'active' &&
+    subscription.current_period_end &&
     new Date(subscription.current_period_end) > new Date()
 
   return (
@@ -217,91 +220,178 @@ function PricingContent() {
           </div>
         )}
 
-        <div className="text-center mb-12">
-          <h1 className="text-3xl md:text-5xl font-black mb-3">CHOOSE YOUR UPGRADE PATH</h1>
-          <p className="text-xs text-[#5a6a8a]">Unlock the full real-time predictive dashboard with a single simple plan.</p>
+        <div className="text-center mb-8">
+          <div className="inline-block px-3 py-1 rounded-full border border-cyan-500/20 bg-cyan-500/[0.05] text-cyan-400 text-[10px] font-black tracking-widest uppercase mb-3">
+            Upgrade Account
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">CHOOSE YOUR PLAN</h1>
+          <p className="text-xs text-[#8090b0] max-w-sm mx-auto">Get full access to the real-time prediction dashboard with a simple plan.</p>
         </div>
 
-        {/* Pricing Layout */}
-        <div className="grid md:grid-cols-5 gap-8 items-stretch max-w-4xl mx-auto">
-          {/* Feature List */}
-          <div className="md:col-span-3 flex flex-col justify-center p-6 space-y-6">
-            <h2 className="text-xs uppercase font-extrabold tracking-widest text-[#5a6a8a]">What is included in Pro?</h2>
-            <ul className="space-y-4">
-              {features.map((feat, idx) => (
-                <li key={idx} className="flex items-start gap-3 text-xs">
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5">
-                    <Check size={12} strokeWidth={3} />
-                  </span>
-                  <span className="text-[#f0f4ff]/85 leading-relaxed">{feat}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Pricing Upgrade Card */}
-          <div className="md:col-span-2 p-8 rounded-2xl border border-cyan-500/25 bg-[#0c1120] flex flex-col justify-between shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl" />
-            <div>
-              <span className="px-2.5 py-1 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 text-[10px] font-extrabold tracking-wider uppercase mb-4 inline-block">
-                PRO MEMBERSHIP
+        {/* Billing Cycle Toggle */}
+        <div className="flex justify-center mb-10">
+          <div className="bg-[#0c1120] border border-white/[0.08] p-1 rounded-xl flex gap-1">
+            <button
+              type="button"
+              onClick={() => setBillingInterval('monthly')}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                billingInterval === 'monthly'
+                  ? 'bg-cyan-500 text-[#080c18] shadow-md shadow-cyan-500/10'
+                  : 'text-[#8090b0] hover:text-[#f0f4ff]'
+              }`}
+            >
+              Monthly Billing
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingInterval('annually')}
+              className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                billingInterval === 'annually'
+                  ? 'bg-cyan-500 text-[#080c18] shadow-md shadow-cyan-500/10'
+                  : 'text-[#8090b0] hover:text-[#f0f4ff]'
+              }`}
+            >
+              Annual Billing
+              <span className="bg-emerald-500/20 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded font-black">
+                SAVE 32%
               </span>
-              <h3 className="text-xl font-bold mb-2">Pro Plan</h3>
-              <div className="flex items-baseline gap-1.5 mb-6">
-                <span className="text-4xl font-black text-cyan-400">$8</span>
-                <span className="text-xs text-[#5a6a8a]">/ month</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Pricing Layout - Landscape Pass Card */}
+        <div className="max-w-4xl mx-auto relative group">
+          {/* Subtle Outer Glow (Cyan-Indigo Theme) */}
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-3xl blur opacity-15 group-hover:opacity-30 transition duration-500" />
+          
+          <div className="relative p-8 md:p-10 rounded-3xl border border-white/[0.08] bg-[#0c1120]/85 backdrop-blur-md shadow-2xl flex flex-col md:flex-row gap-10 items-stretch overflow-hidden">
+            {/* Hologram/Reflective Light Effects */}
+            <div className="absolute -top-32 -right-32 w-72 h-72 bg-cyan-500/[0.03] rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-blue-500/[0.03] rounded-full blur-3xl pointer-events-none" />
+
+            {/* Left: Info & Features (60% width) */}
+            <div className="flex-1 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="px-2.5 py-1 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 text-[9px] font-black tracking-wider uppercase inline-block">
+                    ⚡ PRO ACCESS
+                  </span>
+                  {billingInterval === 'annually' && (
+                    <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded">
+                      BEST VALUE
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="text-2xl font-black text-[#f0f4ff] mb-2 tracking-wide uppercase">Crash Tracker Pro</h3>
+                <p className="text-xs text-[#8090b0] mb-6 leading-relaxed">
+                  Get full access to the real-time prediction suite. Configured specifically for the Sri Lankan player ecosystem.
+                </p>
+
+                {/* Features List */}
+                <div className="space-y-3">
+                  <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-[#5a6a8a] mb-2">FEATURES INCLUDED:</h4>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {features.map((feat, idx) => (
+                      <div key={idx} className="flex items-start gap-2.5 text-[11px] md:text-xs">
+                        <span className="w-4 h-4 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5 border border-cyan-500/20">
+                          <Check size={9} strokeWidth={4} />
+                        </span>
+                        <span className="text-[#e8eeff] font-medium leading-relaxed">{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
-              <div className="border-t border-white/[0.05] pt-4 mb-6">
-                <div className="flex items-center justify-between text-xs text-[#5a6a8a] mb-2">
-                  <span>Sri Lanka Price:</span>
-                  <span className="text-emerald-400 font-bold">≈ 2,700 LKR</span>
-                </div>
-                <p className="text-[10px] text-[#3a4560] leading-relaxed">
-                  * Card payments are billed in USD. Approximate LKR price matches local bank transfers.
+              <div className="border-t border-white/[0.03] pt-4 mt-6">
+                <p className="text-[9px] text-[#5a6a8a] leading-relaxed">
+                  * Local bank transfers are accepted directly in LKR. Card payments are billed in USD (approx. 2,700 LKR monthly or 22,000 LKR annually).
                 </p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              {cardError && (
-                <div className="p-2 rounded bg-red-500/5 border border-red-500/20 text-red-400 text-[10px] flex items-center gap-1.5">
-                  <AlertCircle size={12} />
-                  <span>{cardError}</span>
+            {/* Vertical Divider for desktop */}
+            <div className="hidden md:block w-px bg-white/[0.05] self-stretch" />
+
+            {/* Right: Checkout & Price (40% width) */}
+            <div className="w-full md:w-80 flex flex-col justify-between shrink-0">
+              <div>
+                <div className="text-[10px] uppercase font-extrabold tracking-widest text-[#5a6a8a] mb-2">SUBSCRIPTION PRICING</div>
+                
+                {/* LKR Pricing */}
+                <div className="flex items-baseline gap-2 mb-1.5">
+                  <span className="text-4xl md:text-5xl font-black text-cyan-400 drop-shadow-[0_0_12px_rgba(6,182,212,0.25)]">
+                    {billingInterval === 'annually' ? '22,000 LKR' : '2,700 LKR'}
+                  </span>
+                  <span className="text-sm line-through text-[#5a6a8a]">
+                    {billingInterval === 'annually' ? '81,600 LKR' : '6,800 LKR'}
+                  </span>
+                  <span className="text-xs text-[#5a6a8a] font-bold">
+                    {billingInterval === 'annually' ? '/ yr' : '/ mo'}
+                  </span>
                 </div>
-              )}
 
-              <button
-                type="button"
-                onClick={handleCardPayment}
-                disabled={loading || checkoutLoading || isSubscribed}
-                className="w-full py-3 font-bold text-xs uppercase tracking-wider rounded-xl bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 shadow-md hover:shadow-cyan-400/20 transition-all flex items-center justify-center gap-2 disabled:opacity-55"
-              >
-                {checkoutLoading ? (
-                  <>
-                    <Loader2 className="animate-spin" size={14} /> Loading...
-                  </>
-                ) : (
-                  <>
-                    Pay with Card <ArrowRight size={14} />
-                  </>
+                {/* USD Secondary */}
+                <div className="flex items-baseline gap-1.5 mb-6 text-xs text-[#8090b0]">
+                  <span>Convert to USD:</span>
+                  <span className="font-bold text-cyan-300">
+                    {billingInterval === 'annually' ? '$64 USD' : '$8 USD'}
+                  </span>
+                  <span className="line-through text-[#5a6a8a]">
+                    {billingInterval === 'annually' ? '$240 USD' : '$20 USD'}
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl border border-cyan-500/10 bg-cyan-500/[0.02] mb-6 text-center">
+                  <p className="text-[11px] text-cyan-300 leading-relaxed font-semibold">
+                    {billingInterval === 'annually' 
+                      ? 'Save 10,400 LKR (32%) compared to the monthly plan!'
+                      : "That's less than 90 LKR per day!"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {cardError && (
+                  <div className="p-2 rounded bg-red-500/5 border border-red-500/20 text-red-400 text-[10px] flex items-center gap-1.5">
+                    <AlertCircle size={12} />
+                    <span>{cardError}</span>
+                  </div>
                 )}
-              </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (!user) {
-                    router.push('/login?redirectTo=/pricing')
-                  } else {
-                    setShowBankModal(true)
-                  }
-                }}
-                disabled={loading || isSubscribed}
-                className="w-full py-3 font-bold text-xs uppercase tracking-wider rounded-xl border border-white/[0.08] bg-[#080c18] hover:bg-white/[0.03] text-[#f0f4ff] transition-all flex items-center justify-center gap-2 disabled:opacity-55"
-              >
-                <Landmark size={14} /> Bank Transfer (LKR)
-              </button>
+                <button
+                  type="button"
+                  onClick={handleCardPayment}
+                  disabled={loading || checkoutLoading || isSubscribed}
+                  className="w-full py-3.5 font-bold text-xs uppercase tracking-wider rounded-xl bg-[#00ffd5] text-slate-950 hover:bg-[#33ffdd] shadow-sm hover:shadow-[#00ffd5]/15 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-55 cursor-pointer"
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <Loader2 className="animate-spin" size={14} /> Loading...
+                    </>
+                  ) : (
+                    <>
+                      Pay with Card <ArrowRight size={14} />
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!user) {
+                      router.push('/login?redirectTo=/pricing')
+                    } else {
+                      setShowBankModal(true)
+                    }
+                  }}
+                  disabled={loading || isSubscribed}
+                  className="w-full py-3.5 font-bold text-xs uppercase tracking-wider rounded-xl border border-white/10 bg-transparent hover:bg-white/[0.03] text-[#e8eeff] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-55 cursor-pointer"
+                >
+                  <Landmark size={14} /> Bank Transfer (LKR)
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -341,15 +431,15 @@ function PricingContent() {
                   </div>
                   <div className="flex justify-between border-b border-white/[0.03] pb-1.5">
                     <span className="text-[#5a6a8a]">Bank Name:</span>
-                    <span className="font-semibold text-right">Commercial Bank of Ceylon</span>
+                    <span className="font-semibold text-right">Commercial Bank | Sri Lanka</span>
                   </div>
                   <div className="flex justify-between border-b border-white/[0.03] pb-1.5">
                     <span className="text-[#5a6a8a]">Account Name:</span>
-                    <span className="font-semibold text-right">Crash Predictions Private Ltd</span>
+                    <span className="font-semibold text-right">Crash Tracker Private Ltd</span>
                   </div>
                   <div className="flex justify-between border-b border-white/[0.03] pb-1.5">
                     <span className="text-[#5a6a8a]">Account Number:</span>
-                    <span className="font-mono font-bold text-cyan-400 text-right">8010049281</span>
+                    <span className="font-mono font-bold text-cyan-400 text-right">8005328624</span>
                   </div>
                   <div className="flex justify-between border-b border-white/[0.03] pb-1.5">
                     <span className="text-[#5a6a8a]">Branch Name:</span>
@@ -357,7 +447,14 @@ function PricingContent() {
                   </div>
                   <div className="flex justify-between font-bold pt-1 text-emerald-400">
                     <span>Required Amount:</span>
-                    <span>2,700 LKR</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[10px] line-through text-[#5a6a8a] font-normal">
+                        {billingInterval === 'annually' ? '81,600 LKR' : '6,800 LKR'}
+                      </span>
+                      <span>
+                        {billingInterval === 'annually' ? '22,000 LKR' : '2,700 LKR'}
+                      </span>
+                    </span>
                   </div>
                 </div>
 
@@ -420,9 +517,13 @@ function PricingContent() {
       <footer className="relative z-10 border-t border-white/[0.05] py-6 bg-[#080c18]">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between text-[11px] text-[#3a4560] gap-4">
           <span className="flex items-center gap-1.5"><Orbit size={14} /> &copy; {new Date().getFullYear()} Crash Tracker.</span>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4 justify-center md:justify-end">
             <Link href="/" className="hover:text-cyan-400">Home</Link>
             <Link href="/login" className="hover:text-cyan-400">Account Access</Link>
+            <Link href="/privacy" className="hover:text-cyan-400">Privacy</Link>
+            <Link href="/terms" className="hover:text-cyan-400">Terms</Link>
+            <Link href="/responsible-gaming" className="hover:text-cyan-400">Responsible Gaming</Link>
+            <Link href="/refund" className="hover:text-cyan-400">Refunds</Link>
           </div>
         </div>
       </footer>

@@ -91,21 +91,21 @@ export default async function LandingPage() {
 
           {/* Sub headline in English */}
           <p className="text-base md:text-xl text-[#8090b0] max-w-3xl mx-auto mb-4 leading-relaxed">
-            The house always has an advantage—until now. Our <strong className="text-cyan-400">Triple-AI Engine</strong> instantly analyzes real-time crash patterns, volatility, and historical streaks to calculate high-probability cashout targets.
+            The house always has an advantage—until now. Our <strong className="text-cyan-400">Advanced Prediction Engine</strong> instantly analyzes real-time crash patterns, volatility, and historical streaks to calculate high-probability cashout targets.
           </p>
           <p className="text-sm text-[#5a6a8a] max-w-2xl mx-auto mb-12">
-            Why lose thousands guessing? For less than the cost of a single bad bet (Rs. 2,700/mo), arm yourself with the most advanced predictive tool built for Sri Lankan 1xBet & Aviator players. No installation required — our servers run 24/7.
+            Dominate Aviator and 1xBet Crash with the ultimate real-time predictor. Instantly spot patterns and secure your profits before the crash. Your unfair advantage starts here.
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Link href={user ? "/app" : "/login?tab=signup"}
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-[#060a14] shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:-translate-y-1 transition-all duration-300">
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-2xl bg-[#00ffd5] text-[#060a14] hover:bg-[#33ffdd] shadow-sm hover:shadow-[#00ffd5]/15 hover:-translate-y-0.5 transition-all duration-200">
               <Sparkles size={16} />
               {user ? 'Open Dashboard' : 'Start Free — Try 7 Days'}
             </Link>
             <a href="#how-it-works"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] text-[#8090b0] hover:text-[#e8eeff] transition-all duration-300">
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-sm font-bold uppercase tracking-wider rounded-2xl border border-white/10 bg-transparent hover:bg-white/[0.03] text-[#8090b0] hover:text-[#e8eeff] hover:-translate-y-0.5 transition-all duration-200">
               <Eye size={16} />
               See How It Works
             </a>
@@ -115,8 +115,8 @@ export default async function LandingPage() {
           <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-[#5a6a8a]">
             <div className="flex items-center gap-1.5">
               <div className="flex -space-x-1">
-                {['🇱🇰','🇱🇰','🇱🇰','🇱🇰'].map((f, i) => (
-                  <div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500/30 to-blue-500/30 border border-white/10 flex items-center justify-center text-[10px]">{f}</div>
+                {['KP','SM','RJ','TD'].map((initials, i) => (
+                  <div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-[9px] font-bold text-cyan-300">{initials}</div>
                 ))}
               </div>
               <span><strong className="text-[#e8eeff]">500+</strong> Sri Lankan users</span>
@@ -159,24 +159,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ══════════════════════ HONEST MESSAGE ══════════════════════ */}
-      <section className="relative z-10 py-12">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="p-6 md:p-8 rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] flex flex-col md:flex-row items-start gap-5">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-              <AlertTriangle size={22} className="text-amber-400" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-amber-300 mb-2">
-                🎯 Our Honest Promise to You
-              </h3>
-              <p className="text-sm text-[#8090b0] leading-relaxed">
-                <strong className="text-[#e8eeff]">No tool, algorithm, or AI can predict Crash game outcomes with 100% accuracy.</strong> The house always has an edge. CrashTracker does NOT guarantee wins — it gives you <strong className="text-amber-300">statistically-informed signals</strong>, real-time pattern analysis, and smarter cashout timing to help you make <em>better decisions</em>, not guaranteed ones. Play responsibly. Only bet what you can afford to lose.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+
 
       {/* ══════════════════════ FEATURES ══════════════════════ */}
       <section id="features" className="relative z-10 py-20">
@@ -199,9 +182,9 @@ export default async function LandingPage() {
                 icon: <Brain size={24} />,
                 color: 'cyan',
                 glow: 'cyan',
-                title: 'Triple AI Model Engine',
+                title: 'Advanced Analytics Engine',
                 badge: 'Core',
-                desc: 'CrashTracker runs 3 AI models in parallel — each analysing different patterns. The consensus signal is far stronger than any single model alone. Powered by Claude, GPT-4o, and DeepSeek.',
+                desc: 'CrashTracker runs 3 real-time data engines in parallel — each analysing different patterns. The consensus signal is far stronger than any single data point alone.',
               },
               {
                 icon: <Zap size={24} />,
@@ -233,7 +216,7 @@ export default async function LandingPage() {
                 glow: 'blue',
                 title: 'Pattern & Streak Detection',
                 badge: 'Analytics',
-                desc: 'Detects hot/cold streaks, dead hours, volatility phases, and recovery cycles. Automatically skips rounds where the AI identifies high-risk low-reward conditions.',
+                desc: 'Detects hot/cold streaks, dead hours, volatility phases, and recovery cycles. Automatically skips rounds where the system identifies high-risk low-reward conditions.',
               },
               {
                 icon: <BarChart3 size={24} />,
@@ -241,7 +224,7 @@ export default async function LandingPage() {
                 glow: 'pink',
                 title: 'Performance Dashboard',
                 badge: 'Tracking',
-                desc: 'Track your win rate, AI accuracy, P&L per session, and identify which strategy (Conservative / Swing / Moon) is performing best for your play style.',
+                desc: 'Track your win rate, prediction accuracy, P&L per session, and identify which strategy (Conservative / Swing / Moon) is performing best for your play style.',
               },
               {
                 icon: <Clock size={24} />,
@@ -307,15 +290,15 @@ export default async function LandingPage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <div className="inline-block px-3 py-1 rounded-full border border-purple-500/20 bg-purple-500/[0.05] text-purple-400 text-xs font-bold tracking-widest uppercase mb-5">
-                Multi-Model AI
+                Advanced Analytics
               </div>
               <h2 className="text-3xl md:text-4xl font-black text-[#e8eeff] mb-5 leading-tight">
-                Not One AI.<br/>
-                <span className="text-purple-400">Three AI Minds</span><br/>
+                Not Just Guesses.<br/>
+                <span className="text-purple-400">Real-time Data Minds</span><br/>
                 Working Together.
               </h2>
               <p className="text-sm text-[#5a6a8a] leading-relaxed mb-6">
-                A single AI model can be wrong. That's why CrashTracker runs <strong className="text-[#e8eeff]">Claude Sonnet, GPT-4o, and DeepSeek</strong> simultaneously on every round — each with its own analysis strategy. When all three agree, you get the highest confidence signals. When they disagree, the system flags it as uncertain and reduces stake recommendations automatically.
+                A single data point can be misleading. That's why CrashTracker runs <strong className="text-[#e8eeff]">three specialized analytical engines</strong> simultaneously on every round — each with its own focus strategy. When all three agree, you get the highest confidence signals. When they disagree, the system flags it as uncertain and reduces stake recommendations automatically.
               </p>
               <div className="space-y-3">
                 {[
@@ -338,24 +321,24 @@ export default async function LandingPage() {
             <div className="space-y-4">
               {[
                 {
-                  name: 'Claude Sonnet',
-                  role: 'Pattern & Reasoning',
+                  name: 'Pattern Engine',
+                  role: 'Historical Reasoning',
                   desc: 'Excels at long-context pattern analysis and nuanced reasoning about volatility cycles.',
                   color: '#a78bfa',
                   bg: 'rgba(167,139,250,0.06)',
                   border: 'rgba(167,139,250,0.15)',
                 },
                 {
-                  name: 'GPT-4o',
-                  role: 'Signal Consensus',
-                  desc: 'Provides strategy recommendations and validates signals from the other models for consensus confidence.',
+                  name: 'Consensus Engine',
+                  role: 'Signal Validation',
+                  desc: 'Provides strategy recommendations and validates signals from the other engines for consensus confidence.',
                   color: '#00d4ff',
                   bg: 'rgba(0,212,255,0.06)',
                   border: 'rgba(0,212,255,0.15)',
                 },
                 {
-                  name: 'DeepSeek R1',
-                  role: 'Mathematical Analysis',
+                  name: 'Math Engine',
+                  role: 'Statistical Analysis',
                   desc: 'Specialised in statistical calculations — probability distributions, expected value, and risk-adjusted targets.',
                   color: '#00e5a0',
                   bg: 'rgba(0,229,160,0.06)',
@@ -494,108 +477,120 @@ export default async function LandingPage() {
       <section id="pricing" className="relative z-10 py-20">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-14">
-            <div className="inline-block px-3 py-1 rounded-full border border-green-500/20 bg-green-500/[0.05] text-green-400 text-xs font-bold tracking-widest uppercase mb-4">
-              Pricing
+            <div className="inline-block px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/[0.1] text-amber-400 text-xs font-bold tracking-widest uppercase mb-4">
+              Premium Access
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-[#e8eeff] mb-3">
-              One Plan. Full Access. <span className="text-green-400">No Limits.</span>
+              VIP Access. Elite Predictions. <span className="text-amber-400">High Rollers Only.</span>
             </h2>
             <p className="text-sm text-[#5a6a8a]">
               Everything included. No feature tiers. Cancel anytime.
             </p>
           </div>
 
-          <div className="relative p-8 md:p-12 rounded-3xl border border-cyan-500/20 bg-gradient-to-b from-[#0c1525] to-[#080e1a] overflow-hidden">
-            {/* Glow */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-cyan-500/[0.06] rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/[0.06] rounded-full blur-3xl pointer-events-none" />
+          <div className="max-w-4xl mx-auto relative group">
+            {/* Subtle Outer Glow (Cyan-Blue Theme) */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-3xl blur opacity-15 group-hover:opacity-30 transition duration-500" />
+            
+            <div className="relative p-8 md:p-10 rounded-3xl border border-white/[0.08] bg-[#0c1120]/85 backdrop-blur-md shadow-2xl flex flex-col md:flex-row gap-10 items-stretch overflow-hidden">
+              {/* Hologram/Reflective Light Effects */}
+              <div className="absolute -top-32 -right-32 w-72 h-72 bg-cyan-500/[0.03] rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-blue-500/[0.03] rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative grid md:grid-cols-2 gap-10 items-center">
-              {/* Left: Pricing */}
-              <div>
-                <div className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/25 text-cyan-300 text-xs font-bold tracking-widest uppercase mb-6">
-                  ⚡ PRO PLAN — MOST POPULAR
-                </div>
-                <div className="flex items-end gap-3 mb-2">
-                  <span className="text-5xl md:text-6xl font-black text-cyan-400">$8</span>
-                  <div className="mb-2">
-                    <div className="text-sm text-[#5a6a8a]">USD / month</div>
-                    <div className="text-base font-bold text-green-400">≈ 2,700 LKR / month</div>
+              {/* Left: Info & Features (60% width) */}
+              <div className="flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="px-2.5 py-1 rounded-full border border-cyan-500/20 bg-cyan-500/5 text-cyan-400 text-[9px] font-black tracking-wider uppercase inline-block">
+                      ⚡ PRO ACCESS
+                    </span>
+                    <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded">
+                      BEST VALUES INCLUDED
+                    </span>
+                  </div>
+
+                  <h3 className="text-2xl font-black text-[#f0f4ff] mb-2 tracking-wide uppercase">Crash Tracker Pro</h3>
+                  <p className="text-xs text-[#8090b0] mb-6 leading-relaxed">
+                    Get full access to the real-time prediction suite. Configured specifically for the Sri Lankan player ecosystem.
+                  </p>
+
+                  {/* Features List */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-[#5a6a8a] mb-2">FEATURES INCLUDED:</h4>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {[
+                        { text: 'All 3 Advanced Analytics Engines', icon: <Cpu size={12} className="text-cyan-400" /> },
+                        { text: 'Unlimited real-time predictions', icon: <Zap size={12} className="text-cyan-400" /> },
+                        { text: '24/7 Dedicated Server Connection', icon: <Activity size={12} className="text-cyan-400" /> },
+                        { text: 'Conservative, Swing & Moon strategies', icon: <Target size={12} className="text-cyan-400" /> },
+                        { text: 'Dead hour alerts & skip signals', icon: <AlertTriangle size={12} className="text-cyan-400" /> },
+                        { text: 'Full performance & win-rate analytics', icon: <BarChart3 size={12} className="text-cyan-400" /> },
+                      ].map((feature, i) => (
+                        <div key={i} className="flex items-start gap-2.5 text-[11px] md:text-xs">
+                          <span className="w-4 h-4 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5 border border-cyan-500/20">
+                            {feature.icon}
+                          </span>
+                          <span className="text-[#e8eeff] font-medium leading-relaxed">{feature.text}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-[#5a6a8a] mb-8">
-                  That's less than 90 LKR per day — less than a cup of tea, for full AI-powered signals.
-                </p>
 
-                <div className="space-y-3 mb-8">
-                  {[
-                    { text: 'All 3 AI Models (Claude + GPT-4o + DeepSeek)', icon: <Brain size={14} className="text-cyan-400" />, bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
-                    { text: 'Unlimited real-time predictions', icon: <Zap size={14} className="text-yellow-400" />, bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-                    { text: '24/7 Dedicated Server Connection', icon: <Cpu size={14} className="text-purple-400" />, bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-                    { text: 'Conservative, Swing & Moon strategies', icon: <Target size={14} className="text-emerald-400" />, bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-                    { text: 'Dead hour alerts & skip signals', icon: <AlertTriangle size={14} className="text-orange-400" />, bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
-                    { text: 'Full performance & win-rate analytics', icon: <BarChart3 size={14} className="text-blue-400" />, bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
-                    { text: 'Priority support (Sinhala & English)', icon: <Star size={14} className="text-pink-400" />, bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
-                    { text: 'Cancel anytime — no contracts', icon: <ShieldCheck size={14} className="text-green-400" />, bg: 'bg-green-500/10', border: 'border-green-500/20' },
-                  ].map((feature, i) => (
-                    <div key={i} className="flex items-center gap-3.5 text-[13px] md:text-sm text-[#8090b0] bg-white/[0.01] hover:bg-white/[0.03] border border-white/[0.02] p-2.5 rounded-xl transition-colors">
-                      <div className={`w-7 h-7 rounded-lg ${feature.bg} border ${feature.border} flex items-center justify-center shrink-0`}>
-                        {feature.icon}
-                      </div>
-                      <span className="font-medium text-[#e8eeff]">{feature.text}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Link href="/pricing"
-                    className="flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold uppercase tracking-wider rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-[#060a14] shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:-translate-y-0.5 transition-all duration-200">
-                    <Coins size={15} />
-                    Get Full Access
-                  </Link>
-                  <Link href="/pricing#bank-transfer"
-                    className="flex items-center justify-center gap-2 px-7 py-4 text-sm font-bold uppercase tracking-wider rounded-2xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] text-[#8090b0] hover:text-[#e8eeff] transition-all duration-200">
-                    🏦 Pay via Bank Transfer
-                  </Link>
+                <div className="border-t border-white/[0.03] pt-4 mt-6">
+                  <p className="text-[9px] text-[#5a6a8a] leading-relaxed">
+                    * Local bank transfers are accepted directly in LKR. Card payments are billed in USD (approx. 2,700 LKR monthly or 22,000 LKR annually).
+                  </p>
                 </div>
               </div>
 
-              {/* Right: Payment Methods */}
-              <div className="space-y-4">
-                <div className="text-xs font-bold uppercase tracking-widest text-[#5a6a8a] mb-3">Payment Methods</div>
-                {[
-                  {
-                    icon: '💳',
-                    title: 'International Card (USD)',
-                    desc: 'Visa, MasterCard, or any debit/credit card. Secure checkout via Polar.sh.',
-                    badge: 'Instant',
-                    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-                  },
-                  {
-                    icon: '🏦',
-                    title: 'Sri Lanka Bank Transfer (LKR)',
-                    desc: 'Pay via HNB, BOC, Sampath, or any local bank. Manual confirmation within 24 hours.',
-                    badge: '24h',
-                    badgeColor: 'bg-green-500/10 text-green-400 border-green-500/20',
-                  },
-                ].map((pm, i) => (
-                  <div key={i} className="p-5 rounded-2xl border border-white/[0.06] bg-white/[0.02]">
-                    <div className="flex items-start gap-4">
-                      <span className="text-2xl">{pm.icon}</span>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-bold text-[#e8eeff]">{pm.title}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${pm.badgeColor}`}>{pm.badge}</span>
-                        </div>
-                        <p className="text-xs text-[#5a6a8a] leading-relaxed">{pm.desc}</p>
-                      </div>
+              {/* Vertical Divider for desktop */}
+              <div className="hidden md:block w-px bg-white/[0.05] self-stretch" />
+
+              {/* Right: Checkout & Price Options (40% width) */}
+              <div className="w-full md:w-80 flex flex-col justify-between shrink-0">
+                <div className="space-y-4">
+                  <div className="text-[10px] uppercase font-extrabold tracking-widest text-[#5a6a8a] mb-2">CHOOSE YOUR SUBSCRIPTION</div>
+
+                  {/* Monthly pricing box */}
+                  <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[11px] font-bold text-[#e8eeff] uppercase">Monthly Plan</span>
+                      <span className="text-[10px] text-cyan-400 font-bold bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">60% OFF</span>
                     </div>
+                    <div className="flex items-baseline gap-1.5 mt-1.5">
+                      <span className="text-xl font-black text-[#e8eeff]">2,700 LKR</span>
+                      <span className="text-[10px] line-through text-[#5a6a8a]">6,800 LKR</span>
+                      <span className="text-[10px] text-[#5a6a8a]">/ mo</span>
+                    </div>
+                    <div className="text-[10px] text-[#8090b0] mt-0.5">approx. $8 USD</div>
                   </div>
-                ))}
-                <div className="p-4 rounded-xl border border-white/[0.04] bg-white/[0.01] text-center">
-                  <p className="text-xs text-[#5a6a8a]">
-                    🔒 Payments secured by Polar.sh • SSL encrypted
-                  </p>
+
+                  {/* Annual pricing box */}
+                  <div className="p-4 rounded-xl border border-cyan-500/20 bg-cyan-500/[0.02]">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[11px] font-bold text-[#e8eeff] uppercase">Annual Plan</span>
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">SAVE 32%</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mt-1.5">
+                      <span className="text-xl font-black text-cyan-400">22,000 LKR</span>
+                      <span className="text-[10px] line-through text-[#5a6a8a]">81,600 LKR</span>
+                      <span className="text-[10px] text-[#5a6a8a]">/ yr</span>
+                    </div>
+                    <div className="text-[10px] text-[#8090b0] mt-0.5">approx. $64 USD</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 mt-6">
+                  <Link href="/pricing"
+                    className="w-full py-3.5 font-bold text-xs uppercase tracking-wider rounded-xl bg-[#00ffd5] text-[#080c18] hover:bg-[#33ffdd] shadow-sm hover:shadow-[#00ffd5]/15 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2">
+                    <Coins size={14} /> Get Access Now
+                  </Link>
+
+                  <Link href="/pricing#bank-transfer"
+                    className="w-full py-3.5 font-bold text-xs uppercase tracking-wider rounded-xl border border-white/10 bg-transparent hover:bg-white/[0.03] text-[#e8eeff] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2">
+                    🏦 Bank Transfer (LKR)
+                  </Link>
                 </div>
               </div>
             </div>
@@ -630,8 +625,8 @@ export default async function LandingPage() {
                 a: 'Yes. We accept bank transfers in LKR directly to our HNB account. After payment, your account is activated within 24 hours. We also accept international cards in USD.',
               },
               {
-                q: 'What are the three AI models?',
-                a: 'Claude Sonnet (pattern reasoning), GPT-4o (consensus & strategy), and DeepSeek R1 (mathematical analysis). All three analyse each round independently, and the combined signal gives you a confidence score.',
+                q: 'How does the tracking engine work?',
+                a: 'We use three specialized analytical engines: Pattern Reasoning, Signal Validation, and Mathematical Analysis. All three analyse each round independently, and the combined signal gives you a confidence score.',
               },
               {
                 q: 'Can I cancel my subscription?',
@@ -727,10 +722,10 @@ export default async function LandingPage() {
               <div className="text-xs font-bold uppercase tracking-widest text-[#3a4560] mb-4">Legal</div>
               <div className="space-y-3">
                 {[
-                  { label: 'Privacy Policy', href: '#' },
-                  { label: 'Terms of Service', href: '#' },
-                  { label: 'Responsible Gaming', href: '#' },
-                  { label: 'Refund Policy', href: '#' },
+                  { label: 'Privacy Policy', href: '/privacy' },
+                  { label: 'Terms of Service', href: '/terms' },
+                  { label: 'Responsible Gaming', href: '/responsible-gaming' },
+                  { label: 'Refund Policy', href: '/refund' },
                 ].map((l, i) => (
                   <a key={i} href={l.href}
                     className="block text-xs text-[#3a4560] hover:text-cyan-400 transition-colors">
