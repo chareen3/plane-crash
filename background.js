@@ -753,31 +753,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
         return { received: true };
 
-      case 'LIVE_TICK':
-        chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
-          if (tabs) tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
-              type: 'LIVE_TICK',
-              multiplierText: msg.multiplierText,
-              state: msg.state,
-              roundIndex: msg.roundIndex
-            }).catch(() => { });
-          });
-        });
-        return { received: true };
-
-      case 'TIMER_TICK':
-        chrome.tabs.query({ url: ["https://crashtracker.space/*", "http://localhost:3000/*", "http://127.0.0.1:3000/*"] }, (tabs) => {
-          if (tabs) tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, {
-              type: 'TIMER_TICK',
-              timerText: msg.timerText,
-              roundIndex: msg.roundIndex
-            }).catch(() => { });
-          });
-        });
-        return { received: true };
-
       case 'CONTENT_READY':
         log('Content script ready in tab', tabId);
         return { capturing: state.capturing };
