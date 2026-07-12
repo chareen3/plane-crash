@@ -212,6 +212,54 @@ export async function POST(request: Request) {
       }
     }
 
+    // Fetch settings from database
+    const { data: dbSettings } = await supabase.from('game_settings').select('key, value');
+    const settings = Object.fromEntries((dbSettings ?? []).map(r => [r.key, r.value]));
+    const isMaintenance = settings.maintenance_mode === true || settings.maintenance_mode === 'true';
+    const sleepEnabled = settings.sleep_phase_enabled !== false && settings.sleep_phase_enabled !== 'false';
+
+    if (isMaintenance) {
+      const nextRoundNumber = roundNumber + 1;
+      const { data: insertedPred } = await supabase
+        .from('predictions')
+        .upsert({
+          predicted_risk:       'HIGH',
+          confidence:           0,
+          summary:              "System is under maintenance. Predictions and signals are paused.",
+          round_number:         nextRoundNumber,
+          predicted_multiplier: 0,
+          long_targets:         { x5: 0, x10: 0, x20: 0 },
+          should_bet:           false,
+          skip_reason:          'MAINTENANCE MODE ACTIVE',
+          cashout_target:       0,
+          strategy:             'SKIP',
+          strategy_reason:      'MAINTENANCE MODE ACTIVE',
+          ai_model_used:        'maintenance',
+          swing_target:         null,
+          volatility_phase:     'NORMAL',
+          recommended_stake_pct: 0,
+          tier_safe:            1.10,
+          tier_swing:           3.5,
+          tier_moon:            8.0,
+          cold_streak:          false,
+          skip_round:           true,
+          context_window:       {},
+          instant_crash_risk:   0,
+          instant_crash_warning: 'Maintenance mode.',
+          stability_analysis:   { status: 'INSUFFICIENT_DATA', similarity_score: 0, stability_index: 0, matched_patterns_count: 0, historical_win_rate_1_5x: 0, holdScore: 0, holdReasons: [], holdSignal: false }
+        }, { onConflict: 'round_number', ignoreDuplicates: false })
+        .select()
+        .maybeSingle();
+
+      return NextResponse.json({
+        success: true,
+        round: insertedRound,
+        stats: null,
+        prediction: insertedPred,
+        timeData: getLKTimeData(new Date(), sleepEnabled),
+      });
+    }
+
     // 4. Fetch the entire database history (up to 50,000 rounds) with timestamps
     let historyRounds: { crash_point: number; created_at: string }[] = [];
     const PAGE_SIZE = 1000;
@@ -241,7 +289,7 @@ export async function POST(request: Request) {
     const values = historyRounds.map((r: any) => ({ crash_point: Number(r.crash_point), created_at: r.created_at }));
 
     // Time context
-    const timeData = getLKTimeData();
+    const timeData = getLKTimeData(new Date(), sleepEnabled);
 
     const gameType = body.gameType || '1xbet';
     const stats = computeStats(values);

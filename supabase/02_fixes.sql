@@ -141,3 +141,34 @@ CREATE POLICY "Allow authenticated select predictions" ON predictions FOR SELECT
 
 DROP POLICY IF EXISTS "Allow authenticated select crash_rounds" ON crash_rounds;
 CREATE POLICY "Allow authenticated select crash_rounds" ON crash_rounds FOR SELECT TO authenticated USING (true);
+
+-- 7. Add persistent game_settings table
+CREATE TABLE IF NOT EXISTS public.game_settings (
+  key   text primary key,
+  value jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- Seed default values
+INSERT INTO public.game_settings (key, value) VALUES
+  ('maintenance_mode',   'false'),
+  ('sleep_phase_enabled', 'true'),
+  ('confidence_ceil',    '60'),
+  ('max_cashout',        '3.00'),
+  ('signal_mode',        '"normal"')
+ON CONFLICT (key) DO NOTHING;
+
+-- RLS: only service role or admin can write; anyone can read
+ALTER TABLE public.game_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "public read" ON public.game_settings;
+CREATE POLICY "public read"  ON public.game_settings FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "admin write" ON public.game_settings;
+CREATE POLICY "admin write"  ON public.game_settings FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND is_admin = true
+    )
+  );

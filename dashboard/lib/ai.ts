@@ -145,7 +145,7 @@ const FALLBACK_PHASE: LKPhaseInfo = {
   phase: 'DAY', rule: 'BET_NORMAL', playerCount: 'Unknown', note: 'Standard controls.',
 };
 
-export function getLKTimeData(now: Date = new Date()): LKTimeData {
+export function getLKTimeData(now: Date = new Date(), sleepPhaseEnabled = true): LKTimeData {
   let lkHour: number | undefined;
   let lkMinute: number | undefined;
   try {
@@ -179,7 +179,7 @@ export function getLKTimeData(now: Date = new Date()): LKTimeData {
     lkPlayerCount: info.playerCount,
     lkNote:        info.note,
     isLKPrime: info.phase === 'PRIME',
-    isLKSleep: info.phase === 'SLEEP',
+    isLKSleep: sleepPhaseEnabled && info.phase === 'SLEEP',
     currentAMPM: safeHour >= 12 ? 'PM' : 'AM',
     peakHours: PEAK_HOURS_UTC,
   };

@@ -3,16 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import { computeStats, computeBetSignal, buildHumanSummary, analyzeStability } from '../../../lib/stats';
 import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
-import fs from 'fs';
-import path from 'path';
-
-function getSettings() {
-  try {
-    const file = path.join(process.cwd(), 'data', 'settings.json');
-    if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch (e) {}
-  return { maintenanceMode: false };
-}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,8 +56,12 @@ async function fetchHistoricalHourRounds(sriLankaHour: number) {
 // ─── Main handler ──────────────────────────────────────────────────────────
 export async function GET(request: Request) {
   try {
-    const settings = getSettings();
-    if (settings.maintenanceMode) {
+    const { data: dbSettings } = await supabase.from('game_settings').select('key, value');
+    const settings = Object.fromEntries((dbSettings ?? []).map(r => [r.key, r.value]));
+    const isMaintenance = settings.maintenance_mode === true || settings.maintenance_mode === 'true';
+    const sleepEnabled = settings.sleep_phase_enabled !== false && settings.sleep_phase_enabled !== 'false';
+
+    if (isMaintenance) {
       return NextResponse.json({
         risk: 'HIGH',
         predicted_risk: 'HIGH',
@@ -77,7 +71,7 @@ export async function GET(request: Request) {
         strategy: 'SKIP',
         skip_reason: "MAINTENANCE MODE ACTIVE",
         cashout_target: 0,
-        timeData: getLKTimeData(),
+        timeData: getLKTimeData(new Date(), sleepEnabled),
       });
     }
 
@@ -109,7 +103,7 @@ export async function GET(request: Request) {
 
     // ── Compute stats immediately ──
     const stats = computeStats(values);
-    const timeData = getLKTimeData();
+    const timeData = getLKTimeData(new Date(), sleepEnabled);
 
     // ── Compute AI stability/similarity analyzer ──
     const currentLKHour = timeData.currentLKHour;
