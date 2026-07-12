@@ -169,23 +169,29 @@ function formatBytes(bytes) {
 // ---------------------------------------------------------------------------
 
 async function loadEvents() {
-  return [];
+  const data = await chrome.storage.local.get(STORAGE_KEYS.EVENTS);
+  return data[STORAGE_KEYS.EVENTS] || [];
 }
 
 async function saveEvents(events) {
-  // Disabled: We no longer save events to local storage
+  await chrome.storage.local.set({ [STORAGE_KEYS.EVENTS]: events });
 }
 
 async function loadSummaries() {
-  return [];
+  const data = await chrome.storage.local.get(STORAGE_KEYS.SUMMARIES);
+  return data[STORAGE_KEYS.SUMMARIES] || [];
 }
 
 async function saveSummaries(summaries) {
-  // Disabled: We no longer save summaries to local storage
+  await chrome.storage.local.set({ [STORAGE_KEYS.SUMMARIES]: summaries });
 }
 
 async function updateStoredStats() {
-  // Stats are updated in memory in flushBuffer
+  const events = await loadEvents();
+  const raw = JSON.stringify(events);
+  state.stats.totalEvents = events.length;
+  state.stats.storedBytes = new TextEncoder().encode(raw).length;
+  await chrome.storage.local.set({ [STORAGE_KEYS.STATS]: state.stats });
 }
 
 // ---------------------------------------------------------------------------
@@ -221,10 +227,17 @@ async function flushBuffer() {
   log(`Flushing ${toSave.length} events to storage`);
 
   try {
-    state.stats.totalEvents += toSave.length;
-    state.stats.storedBytes = 0;
+    let events = await loadEvents();
+    events = events.concat(toSave);
 
-    updateBadge(state.stats.totalEvents);
+    // Rolling window — drop oldest if over limit
+    if (events.length > CONFIG.MAX_STORED_EVENTS) {
+      events = events.slice(events.length - CONFIG.MAX_STORED_EVENTS);
+    }
+
+    await saveEvents(events);
+    await updateStoredStats();
+    updateBadge(events.length);
 
     // Broadcast stats to any open popups
     broadcastToPopup({ type: 'STATS_UPDATE', stats: state.stats });
@@ -248,16 +261,24 @@ let cachedAnonKey = null;
 async function loadSupabaseKey() {
   if (cachedAnonKey) return cachedAnonKey;
 
-  // Fetch key from our API
+  // Try loading from local storage first
+  const stored = await chrome.storage.local.get('supabase_anon_key');
+  if (stored && stored.supabase_anon_key) {
+    cachedAnonKey = stored.supabase_anon_key;
+    return cachedAnonKey;
+  }
+
+  // Fetch key from our own Vercel API
   try {
     const res = await fetch('https://crashtracker.space/api/config');
     const { key } = await res.json();
     if (key) {
       cachedAnonKey = key;
+      await chrome.storage.local.set({ supabase_anon_key: key });
       return key;
     }
   } catch (err) {
-    warn('Failed to load Supabase key from config endpoint:', err);
+    warn('Failed to load Supabase key from Vercel config endpoint:', err);
   }
 
   return null;
@@ -373,8 +394,7 @@ async function postRoundResultToDashboard(roundEvent) {
     };
 
     // Grade the previous round's prediction using the actual crash point
-    const API_BASE_URL = 'https://crashtracker.space';
-    fetch(`${API_BASE_URL}/api/grade`, {
+    fetch('http://localhost:3000/api/grade', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -383,7 +403,7 @@ async function postRoundResultToDashboard(roundEvent) {
       }),
     }).catch(err => warn('Grading API error:', err));
 
-    const res = await fetch(`${API_BASE_URL}/api/rounds`, {
+    const res = await fetch('http://localhost:3000/api/rounds', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
