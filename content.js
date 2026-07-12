@@ -115,24 +115,6 @@ const SELECTORS = {
     '.bet-input',
   ],
 
-  // Player count / total bets (before round starts)
-  PLAYER_COUNT: [
-    '.crash-total__value--players',
-    '.players-count',
-    '[class*="players-count"]',
-    '.c-crash-game__players',
-    '[class*="users-online"]',
-    '.crash-game__players-count',
-  ],
-
-  BET_VOLUME: [
-    '.crash-total__value--bets',
-    '.total-bets-amount',
-    '[class*="total-bets"]',
-    '.c-crash-game__total-bet',
-    '.crash-game__total-bet',
-  ],
-
   // Cashout / auto-cashout text
   CASHOUT: [
     '[class*="cashout"]',
@@ -163,6 +145,18 @@ const SELECTORS = {
     'main',
     'body',
   ],
+
+  // Number of bets / active players
+  PLAYER_COUNT: [
+    '.crash-total__value--players',
+    '.crash-players-bets__total .crash-total__value--players',
+  ],
+
+  // Total bets placed (volume)
+  BET_VOLUME: [
+    '.crash-total__value--bets',
+    '.crash-players-bets__total .crash-total__value--bets',
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -185,8 +179,6 @@ const cState = {
   roundIndex:     0,
   seenHistory:    new Set(),
   crashFired:     false,
-  lastPlayerCount: null,
-  lastBetVolume:   null,
 };
 
 // ---------------------------------------------------------------------------
@@ -297,11 +289,43 @@ function getRawTextSample() {
   return (root.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 300);
 }
 
+function parsePlayerCount(text) {
+  if (!text) return null;
+  const match = String(text).replace(/[^\d]/g, '');
+  return match ? parseInt(match, 10) : null;
+}
+
+function parseBetVolume(text) {
+  if (!text) return null;
+  // Remove spaces
+  let cleaned = String(text).replace(/\s/g, '');
+  // If it's like 1.250,50 -> remove dot, replace comma with dot
+  if (cleaned.includes('.') && cleaned.includes(',')) {
+    if (cleaned.indexOf('.') < cleaned.indexOf(',')) {
+      cleaned = cleaned.replace(/\./g, '').replace(/,/g, '.');
+    } else {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (cleaned.includes(',')) {
+    const parts = cleaned.split(',');
+    if (parts[parts.length - 1].length === 3) {
+      cleaned = cleaned.replace(/,/g, '');
+    } else {
+      cleaned = cleaned.replace(/,/g, '.');
+    }
+  }
+  const match = cleaned.match(/(\d+\.?\d*)/);
+  return match ? parseFloat(match[1]) : null;
+}
+
 // ---------------------------------------------------------------------------
 // Event factories
 // ---------------------------------------------------------------------------
 
 function makeBaseEvent(overrides = {}) {
+  const playersText = readText(SELECTORS.PLAYER_COUNT);
+  const betsText = readText(SELECTORS.BET_VOLUME);
+
   return {
     capturedAt:      new Date().toISOString(),
     pageUrl:         location.href,
@@ -323,8 +347,8 @@ function makeBaseEvent(overrides = {}) {
     rawPayload:      null,
     domPath:         null,
     roundHash:       null,
-    playerCount:     cState.lastPlayerCount,
-    betVolume:       cState.lastBetVolume,
+    playerCount:     parsePlayerCount(playersText),
+    totalBetVolume:  parseBetVolume(betsText),
     ...overrides,
   };
 }
@@ -483,20 +507,6 @@ function captureBetInfo() {
   const cashEl   = queryFirst(SELECTORS.CASHOUT);
   const betText  = betEl ? (betEl.value || betEl.textContent || '').trim() : null;
   const cashText = cashEl ? (cashEl.textContent || '').trim() : null;
-
-  const pText = readText(SELECTORS.PLAYER_COUNT);
-  const vText = readText(SELECTORS.BET_VOLUME);
-  
-  if (pText) {
-    const m = pText.match(/(\d+)/);
-    if (m) cState.lastPlayerCount = parseInt(m[1], 10);
-  }
-  
-  if (vText) {
-    const clean = vText.replace(/[^\d.]/g, '');
-    if (clean) cState.lastBetVolume = parseFloat(clean);
-  }
-
   return { betAmountText: betText, cashoutText: cashText };
 }
 

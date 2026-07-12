@@ -308,8 +308,8 @@ async function saveToSupabase(events) {
         duration_ms: summary ? summary.duration_ms : null,
         source: e.source || 'extension',
         round_hash: e.roundHash || null,
-        player_count: summary ? summary.player_count : null,
-        total_bet_volume: summary ? summary.total_bet_volume : null,
+        player_count: summary ? summary.player_count : (e.playerCount || null),
+        total_bet_volume: summary ? summary.total_bet_volume : (e.totalBetVolume || null),
       };
     });
 
@@ -367,17 +367,25 @@ function compileRoundSummary(roundIndex, events) {
     )
   );
 
-  let maxPlayerCount = null;
-  let maxBetVolume = null;
+  // Collect maximum player counts and bet volumes seen during this round
+  let playerCount = null;
+  let totalBetVolume = null;
 
-  roundEvents.forEach(e => {
+  for (const e of roundEvents) {
     if (e.playerCount !== null && e.playerCount !== undefined) {
-      if (maxPlayerCount === null || e.playerCount > maxPlayerCount) maxPlayerCount = e.playerCount;
+      if (playerCount === null || e.playerCount > playerCount) {
+        playerCount = e.playerCount;
+      }
     }
-    if (e.betVolume !== null && e.betVolume !== undefined) {
-      if (maxBetVolume === null || e.betVolume > maxBetVolume) maxBetVolume = e.betVolume;
+    if (e.totalBetVolume !== null && e.totalBetVolume !== undefined) {
+      if (totalBetVolume === null || e.totalBetVolume > totalBetVolume) {
+        totalBetVolume = e.totalBetVolume;
+      }
     }
-  });
+  }
+
+  if (playerCount === null && resultEv?.playerCount) playerCount = resultEv.playerCount;
+  if (totalBetVolume === null && resultEv?.totalBetVolume) totalBetVolume = resultEv.totalBetVolume;
 
   const startedAt = first.capturedAt;
   const endedAt = last.capturedAt;
@@ -394,9 +402,9 @@ function compileRoundSummary(roundIndex, events) {
     duration_ms: durationMs,
     event_count: roundEvents.length,
     history_snapshot: historySnapshot,
-    player_count: maxPlayerCount,
-    total_bet_volume: maxBetVolume,
-    notes: resultEv ? 'round_result captured' : 'inferred from events'
+    notes: resultEv ? 'round_result captured' : 'inferred from events',
+    player_count: playerCount,
+    total_bet_volume: totalBetVolume,
   };
 }
 
@@ -411,6 +419,8 @@ async function postRoundResultToDashboard(roundEvent) {
         crash_point: roundEvent.multiplier,
         created_at: roundEvent.capturedAt || new Date().toISOString(),
         round_hash: roundEvent.roundHash || null,
+        player_count: summary ? summary.player_count : (roundEvent.playerCount || null),
+        total_bet_volume: summary ? summary.total_bet_volume : (roundEvent.totalBetVolume || null),
       },
       summary: summary
     };
@@ -496,7 +506,7 @@ function ingestEvent(rawEvent) {
     roundSummary: rawEvent.roundSummary || null,
     roundHash: rawEvent.roundHash || null,
     playerCount: rawEvent.playerCount ?? null,
-    betVolume: rawEvent.betVolume ?? null,
+    totalBetVolume: rawEvent.totalBetVolume ?? null,
   };
 
   // Build fingerprint and dedup

@@ -32,7 +32,15 @@ const supabase = createClient({
   realtime: { params: { eventsPerSecond: 20 } }
 });
 
-type Round = { id?: string; round_number: number; crash_point: number; created_at: string; _optimistic?: boolean; player_count?: number; total_bet_volume?: number };
+type Round = {
+  id?: string;
+  round_number: number;
+  crash_point: number;
+  created_at: string;
+  _optimistic?: boolean;
+  player_count?: number | null;
+  total_bet_volume?: number | null;
+};
 type Prediction = {
   risk: 'LOW' | 'MEDIUM' | 'HIGH';
   confidence: number;
@@ -756,22 +764,6 @@ export default function Dashboard() {
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
               </div>
-              {lastCrash && (lastCrash.player_count != null || lastCrash.total_bet_volume != null) && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '10px', fontSize: '12px', color: '#94a3b8' }}>
-                  {lastCrash.player_count != null && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <User size={14} color="#38bdf8" />
-                      <span>{lastCrash.player_count}</span>
-                    </div>
-                  )}
-                  {lastCrash.total_bet_volume != null && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Coins size={14} color="#ffd000" />
-                      <span>{lastCrash.total_bet_volume}</span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -886,22 +878,6 @@ export default function Dashboard() {
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
               </div>
-              {lastCrash && (lastCrash.player_count != null || lastCrash.total_bet_volume != null) && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '10px', fontSize: '12px', color: '#94a3b8' }}>
-                  {lastCrash.player_count != null && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <User size={14} color="#38bdf8" />
-                      <span>{lastCrash.player_count}</span>
-                    </div>
-                  )}
-                  {lastCrash.total_bet_volume != null && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Coins size={14} color="#ffd000" />
-                      <span>{lastCrash.total_bet_volume}</span>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1713,6 +1689,23 @@ export default function Dashboard() {
                             {timeAgo(selectedRound.created_at, t)}
                           </div>
                         </div>
+
+                        {selectedRound.player_count !== undefined && selectedRound.player_count !== null && (
+                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Players (Bets)</div>
+                            <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', fontFamily: 'monospace' }}>
+                              {selectedRound.player_count}
+                            </div>
+                          </div>
+                        )}
+                        {selectedRound.total_bet_volume !== undefined && selectedRound.total_bet_volume !== null && (
+                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                            <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Total Volume</div>
+                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', fontFamily: 'monospace' }}>
+                              {Number(selectedRound.total_bet_volume).toLocaleString()} LKR
+                            </div>
+                          </div>
+                        )}
                       </div>
                       
                       <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>

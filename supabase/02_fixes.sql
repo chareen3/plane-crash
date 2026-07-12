@@ -115,3 +115,9 @@ BEGIN
     END LOOP;
   END;
 END $$;
+
+-- 4. Scrape telemetry columns (player_count & total_bet_volume)
+ALTER TABLE public.crash_rounds
+  ADD COLUMN IF NOT EXISTS player_count integer,
+  ADD COLUMN IF NOT EXISTS total_bet_volume numeric;
+
