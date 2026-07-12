@@ -1018,7 +1018,7 @@ export default function Dashboard() {
                 {liveData?.state === 'active' ? (liveData?.multiplierText || '1.00x') : (lastCrash ? Number(lastCrash.crash_point).toFixed(2) + 'x' : '—')}
               </span>
             </div>
-            {liveData?.state === 'active' && liveData?.timerText && (
+            {liveData?.state === 'waiting' && liveData?.timerText && (
               <div className="mlsb-timer">{f(t.nextFlightIn, { timer: liveData.timerText })}</div>
             )}
           </div>

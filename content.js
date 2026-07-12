@@ -491,8 +491,8 @@ function enqueueEvent(event) {
   if (!event || !cState.active) return;
   cState.buffer.push(event);
 
-  // Flush crash results to background immediately — don't wait for the 3s timer
-  if (event.eventType === 'round_result') {
+  // Flush crash results and timer changes to background immediately
+  if (event.eventType === 'round_result' || event.eventType === 'timer_change') {
     flushToBackground();
   }
 }
@@ -784,12 +784,29 @@ function injectWSListener() {
             fireCrashResult(crashMult, 'websocket');
           }
         } else if (msg.target === 'OnStage' && msg.arguments) {
-          // Stage change: 1 = betting open, 2 = flying, 3 = crashed
           const stage = msg.arguments[0];
           console.log('[CAC WS PARSED] Stage change:', stage);
-          // Reset staleness timer when the round goes live so the detector
-          // does not misfire during the first few seconds of flight
-          if (stage === 2) {
+          
+          if (stage && typeof stage === 'object' && stage.ts) {
+            // Target time for the next round in milliseconds
+            if (window.wsTimerInterval) clearInterval(window.wsTimerInterval);
+            window.wsTimerInterval = setInterval(() => {
+              const diff = (stage.ts - Date.now()) / 1000;
+              if (diff <= 0) {
+                clearInterval(window.wsTimerInterval);
+                return;
+              }
+              const text = diff.toFixed(1);
+              if (text !== cState.lastTimer) {
+                cState.lastTimer = text;
+                enqueueEvent(makeBaseEvent({
+                  eventType: 'timer_change',
+                  source: 'websocket',
+                  currentTimer: text,
+                }));
+              }
+            }, 100);
+          } else if (stage === 2) {
             cState.lastMultiplierTime = Date.now();
           }
         }
