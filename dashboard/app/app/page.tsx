@@ -387,7 +387,7 @@ export default function Dashboard() {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [lastSyncedRound, setLastSyncedRound] = useState<number | null>(null);
   const prevStatusRef = useRef<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const [liveData, setLiveData] = useState<{ multiplierText?: string; timerText?: string; state?: string } | null>(null);
+  const [liveData, setLiveData] = useState<{ multiplierText?: string; timerText?: string; state?: string; roundIndex?: number } | null>(null);
 
   const addToast = useCallback((message: string, type: ToastMessage['type'] = 'info', duration = 4000) => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -568,9 +568,21 @@ export default function Dashboard() {
       } else if (type === 'EXTENSION_BET_CHANGE') {
         setBetAmount(evt.data.amount);
       } else if (type === 'LIVE_TICK') {
-        setLiveData(prev => ({ ...prev, multiplierText: evt.data.multiplierText, state: evt.data.state, timerText: undefined }));
+        setLiveData(prev => ({
+          ...prev,
+          multiplierText: evt.data.multiplierText,
+          state: evt.data.state,
+          roundIndex: evt.data.roundIndex,
+          timerText: undefined
+        }));
       } else if (type === 'TIMER_TICK') {
-        setLiveData(prev => ({ ...prev, timerText: evt.data.timerText, multiplierText: undefined, state: 'waiting' }));
+        setLiveData(prev => ({
+          ...prev,
+          timerText: evt.data.timerText,
+          roundIndex: evt.data.roundIndex,
+          multiplierText: undefined,
+          state: 'waiting'
+        }));
       }
     };
     window.addEventListener('message', handleMessage);
@@ -756,6 +768,9 @@ export default function Dashboard() {
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
               </div>
+              <div className="widget-round-info" style={{ marginTop: '8px', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)', fontWeight: '600', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+                Round #{liveData?.roundIndex || lastCrash?.round_number || '—'}
+              </div>
             </div>
           </div>
         </div>
@@ -869,6 +884,9 @@ export default function Dashboard() {
                 {liveData?.state === 'active' ? t.flyingSupersonic :
                   liveData?.timerText ? f(t.nextFlightIn, { timer: liveData.timerText }) :
                     (lastCrash ? timeAgo(lastCrash.created_at, t) : t.telemetryStandby)}
+              </div>
+              <div className="widget-round-info" style={{ marginTop: '8px', fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)', fontWeight: '600', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
+                Round #{liveData?.roundIndex || lastCrash?.round_number || '—'}
               </div>
             </div>
           </div>

@@ -85,6 +85,7 @@ const SELECTORS = {
 
   // Countdown / round timer display
   TIMER: [
+    '.crash-timer__counter',
     '[class*="timer"]',
     '[class*="countdown"]',
     '[class*="waiting"]',
@@ -350,6 +351,18 @@ function captureMultiplierTick() {
     return null;
   }
 
+  // Try to send live tick instantly to background
+  try {
+    if (chrome.runtime?.id) {
+      chrome.runtime.sendMessage({
+        type: 'LIVE_TICK',
+        multiplierText: text,
+        state: 'active',
+        roundIndex: cState.roundIndex
+      }).catch(() => {});
+    }
+  } catch (_) {}
+
   return makeBaseEvent({
     eventType:      'multiplier_tick',
     source:         'observer',
@@ -365,6 +378,18 @@ function captureTimerChange() {
   if (text === cState.lastTimer) return null;
 
   cState.lastTimer = text;
+
+  // Try to send timer tick instantly to background
+  try {
+    if (chrome.runtime?.id) {
+      chrome.runtime.sendMessage({
+        type: 'TIMER_TICK',
+        timerText: text,
+        roundIndex: cState.roundIndex
+      }).catch(() => {});
+    }
+  } catch (_) {}
+
   return makeBaseEvent({
     eventType:    'timer_change',
     source:       'observer',
