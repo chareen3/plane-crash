@@ -112,6 +112,22 @@ export async function POST(request: Request) {
       rollingWinRate30 = Number(((wins / lastRoundsData.length) * 100).toFixed(2));
     }
 
+    // Calculate rounds_since_last_moon
+    let roundsSinceLastMoon = 0;
+    if (crashPoint < 10.0) {
+      const { data: lastMoon } = await supabase
+        .from('crash_rounds')
+        .select('round_number')
+        .gte('crash_point', 10.0)
+        .order('round_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (lastMoon) {
+        roundsSinceLastMoon = roundNumber - lastMoon.round_number;
+      }
+    }
+
     // 1. Insert completed round details into crash_rounds
     const { data: insertedRound, error: roundErr } = await supabase
       .from('crash_rounds')
@@ -130,6 +146,7 @@ export async function POST(request: Request) {
         rolling_win_rate_30: rollingWinRate30,
         player_count: round.player_count || null,
         total_bet_volume: round.total_bet_volume || null,
+        rounds_since_last_moon: roundsSinceLastMoon,
       })
       .select()
       .single();

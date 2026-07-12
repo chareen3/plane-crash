@@ -121,3 +121,4 @@ ALTER TABLE public.crash_rounds
   ADD COLUMN IF NOT EXISTS player_count integer,
   ADD COLUMN IF NOT EXISTS total_bet_volume numeric;
 
+ALTER TABLE crash_rounds ADD COLUMN rounds_since_last_moon integer;

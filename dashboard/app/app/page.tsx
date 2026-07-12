@@ -40,6 +40,7 @@ type Round = {
   _optimistic?: boolean;
   player_count?: number | null;
   total_bet_volume?: number | null;
+  rounds_since_last_moon?: number | null;
 };
 type Prediction = {
   risk: 'LOW' | 'MEDIUM' | 'HIGH';
