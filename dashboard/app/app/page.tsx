@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull, Settings, User, LogOut, Moon, Sun, Sunset, Star as StarIcon, Gauge, Sparkles } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Scale, Zap, Info, CheckCircle2, AlertTriangle, Rocket, RefreshCw, Trash2, TrendingDown, TrendingUp, Minus, BarChart3, AlertOctagon, Orbit, Bot, Activity, Target, Clock, Layers, Home, Wifi, WifiOff, Flame, Coins, Menu, X, ChevronUp, ChevronDown, Skull, Settings, User, Users, LogOut, Moon, Sun, Sunset, Star as StarIcon, Gauge, Sparkles } from "lucide-react";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from "@/utils/supabase/client";
@@ -1691,18 +1691,28 @@ export default function Dashboard() {
                         </div>
 
                         {selectedRound.player_count !== undefined && selectedRound.player_count !== null && (
-                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Players (Bets)</div>
-                            <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', fontFamily: 'monospace' }}>
-                              {selectedRound.player_count}
+                          <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ background: 'rgba(56,189,248,0.1)', padding: '6px', borderRadius: '6px' }}>
+                              <Users size={14} color="#38bdf8" />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase', marginBottom: '2px' }}>Number of bets</div>
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff', fontFamily: 'monospace' }}>
+                                {selectedRound.player_count}
+                              </div>
                             </div>
                           </div>
                         )}
                         {selectedRound.total_bet_volume !== undefined && selectedRound.total_bet_volume !== null && (
-                          <div style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                            <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Total Volume</div>
-                            <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', fontFamily: 'monospace' }}>
-                              {Number(selectedRound.total_bet_volume).toLocaleString()} LKR
+                          <div style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ background: 'rgba(245,158,11,0.1)', padding: '6px', borderRadius: '6px' }}>
+                              <Coins size={14} color="#f59e0b" />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '9px', color: '#888', textTransform: 'uppercase', marginBottom: '2px' }}>Total winnings</div>
+                              <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff', fontFamily: 'monospace' }}>
+                                {Number(selectedRound.total_bet_volume).toLocaleString()} LKR
+                              </div>
                             </div>
                           </div>
                         )}
