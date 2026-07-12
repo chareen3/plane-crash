@@ -20,8 +20,8 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Crash Tracker Dashboard",
-  description: "AI-Powered Real-time Crash Tracker",
+  title: "Crash Tracker | Real-Time Crash Analytics & Risk Assessment",
+  description: "Stop playing blind. Track real-time crash statistics, target hit rates, and volatility patterns to trade the crash with mathematical discipline.",
 };
 
 export default function RootLayout({

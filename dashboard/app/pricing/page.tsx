@@ -138,11 +138,11 @@ function PricingContent() {
   }
 
   const features = [
-    'Real-time Crash Multiplier signals',
-    'Supports 1xbet, Aviator, and LuckyJet feeds',
-    'Dynamic strategies (Safe, Swing, Moon target parameters)',
-    'Real-time database integration via 24/7 cloud servers',
-    'Comprehensive session statistics and evaluation logs',
+    'Real-time telemetry and risk rating feed',
+    'Supports 1xBet Crash live feeds',
+    'Target hit rates and Expected Value (EV) calculators',
+    'Real-time live telemetry via dedicated servers',
+    'Comprehensive session statistics and strategy logs',
     'Responsive desktop and mobile layout',
   ]
 
@@ -206,7 +206,7 @@ function PricingContent() {
           <div className="mb-10 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs flex items-start gap-3 max-w-2xl mx-auto">
             <Check size={18} className="shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold">Active Subscription Found:</span> You are currently subscribed to the Pro Plan. Feel free to navigate directly to the <Link href="/app" className="underline font-black">AI Predictions Dashboard</Link>.
+              <span className="font-bold">Active Subscription Found:</span> You are currently subscribed to the Pro Plan. Feel free to navigate directly to the <Link href="/app" className="underline font-black">Real-Time Analytics Dashboard</Link>.
             </div>
           </div>
         )}
@@ -225,7 +225,7 @@ function PricingContent() {
             Upgrade Account
           </div>
           <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">CHOOSE YOUR PLAN</h1>
-          <p className="text-xs text-[#8090b0] max-w-sm mx-auto">Get full access to the real-time prediction dashboard with a simple plan.</p>
+          <p className="text-xs text-[#8090b0] max-w-sm mx-auto">Get full access to the real-time telemetry and strategy dashboard with a simple plan.</p>
         </div>
 
         {/* Billing Cycle Toggle */}
@@ -285,7 +285,7 @@ function PricingContent() {
 
                 <h3 className="text-2xl font-black text-[#f0f4ff] mb-2 tracking-wide uppercase">Crash Tracker Pro</h3>
                 <p className="text-xs text-[#8090b0] mb-6 leading-relaxed">
-                  Get full access to the real-time prediction suite. Configured specifically for the Sri Lankan player ecosystem.
+                  Get full access to the real-time analytics suite. Configured specifically for the Sri Lankan player ecosystem.
                 </p>
 
                 {/* Features List */}

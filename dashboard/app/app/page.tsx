@@ -276,11 +276,6 @@ export default function Dashboard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '40px' }}>
             {[
               { name: '1xBet', color: '#00d4ff', desc: lang === 'si' ? 'තථ්‍ය කාලීන දත්ත ග්‍රහණය සහිත ප්‍රධාන ක්‍රෑෂ් ක්‍රීඩාව' : lang === 'ta' ? 'நிகழ்நேர தரவு பிடிப்புடன் கூடிய முதன்மை கிராஷ் விளையாட்டு' : 'Primary crash game with real-time data capture', status: 'ACTIVE' },
-              { name: 'Aviator', color: '#a78bfa', desc: lang === 'si' ? 'Spribe Aviator ගුණක ලුහුබැඳීම' : lang === 'ta' ? 'Spribe Aviator பெருக்கிகள் கண்காணிப்பு' : 'Spribe Aviator multipliers tracking', status: 'ACTIVE' },
-              { name: 'Lucky Jet', color: '#00e5a0', desc: lang === 'si' ? 'Lucky Jet ක්‍රෑෂ් රටා විශ්ලේෂණය' : lang === 'ta' ? 'Lucky Jet கிராஷ் வடிவ பகுப்பாய்வு' : 'Lucky Jet crash pattern analysis', status: 'ACTIVE' },
-              { name: 'JetX', color: '#ffc84a', desc: lang === 'si' ? 'SmartSoft Gaming රටා හඳුනාගැනීම' : lang === 'ta' ? 'SmartSoft Gaming வடிவ அங்கீகாரம்' : 'SmartSoft Gaming pattern recognition', status: 'BETA' },
-              { name: 'Crash X', color: '#ff3366', desc: lang === 'si' ? 'Turbo Games ක්‍රෑෂ් දත්ත එකතු කිරීම' : lang === 'ta' ? 'Turbo Games கிராஷ் தரவு சேகரிப்பு' : 'Turbo Games crash data collection', status: 'COMING' },
-              { name: 'Spaceman', color: '#00ffd5', desc: lang === 'si' ? 'Pragmatic Play ක්‍රෑෂ් විශ්ලේෂණ' : lang === 'ta' ? 'Pragmatic Play கிராஷ் பகுப்பாய்வு' : 'Pragmatic Play crash analytics', status: 'COMING' },
             ].map((partner, i) => (
               <div key={i} className="glass-card" style={{ padding: '20px', border: `1px solid ${partner.color}30`, transition: 'all 0.3s ease', cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>

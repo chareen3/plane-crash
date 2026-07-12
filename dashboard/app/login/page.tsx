@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
-import { Orbit, Lock, Mail, Loader2, AlertCircle, ArrowLeft, Zap, Shield, TrendingUp, Brain, Target, Flame, BarChart3, Activity, ChevronRight, ChevronLeft, Star, Quote } from 'lucide-react'
+import { Orbit, Lock, Mail, Loader2, AlertCircle, ArrowLeft, Zap, Shield, TrendingUp, Brain, Target, Flame, BarChart3, Activity, ChevronRight, ChevronLeft, Star, Quote, Phone } from 'lucide-react'
 
 const tips = [
   {
@@ -182,6 +182,7 @@ function AuthForm() {
   const [activeTab, setActiveTab] = useState<'login' | 'signup'>(initialTab)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [mobile, setMobile] = useState('')
   const [timezone, setTimezone] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -250,6 +251,7 @@ function AuthForm() {
           data: {
             timezone,
             is_admin: false,
+            mobile,
           },
         },
       })
@@ -265,6 +267,7 @@ function AuthForm() {
         setLoading(false)
         setEmail('')
         setPassword('')
+        setMobile('')
       }
     }
   }
@@ -344,6 +347,23 @@ function AuthForm() {
                 />
               </div>
             </div>
+
+            {activeTab === 'signup' && (
+              <div className="form-group">
+                <label className="form-label">Mobile Number</label>
+                <div className="input-wrapper">
+                  <Phone className="input-icon" size={16} />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+94 77 123 4567"
+                    value={mobile}
+                    onChange={e => setMobile(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="form-group">
               <label className="form-label">Password</label>

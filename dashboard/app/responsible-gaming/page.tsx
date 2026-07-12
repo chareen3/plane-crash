@@ -47,7 +47,7 @@ export default function ResponsibleGaming() {
             <h2 className="text-base font-bold text-[#e8eeff] uppercase tracking-wide">1. Core Truths About Crash Games</h2>
             <ul className="list-disc pl-5 space-y-2">
               <li>
-                <strong className="text-[#e8eeff]">The House Edge:</strong> Every crash-style game (including Aviator and 1xBet Crash) has a built-in house advantage. No tool, software, or prediction engine can bypass this math or guarantee long-term wins.
+                <strong className="text-[#e8eeff]">The House Edge:</strong> Every crash-style game (including 1xBet Crash) has a built-in house advantage. No tool, software, or prediction engine can bypass this math or guarantee long-term wins.
               </li>
               <li>
                 <strong className="text-[#e8eeff]">Unpredictable Spikes:</strong> Crash rounds operate on random number generators. Even though historical streaks and volatility phases can provide informed risk guidance, they do not dictate the future.

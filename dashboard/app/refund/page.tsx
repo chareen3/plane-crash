@@ -38,7 +38,7 @@ export default function RefundPolicy() {
 
         <div className="prose prose-invert max-w-none text-xs md:text-sm text-[#8090b0] space-y-6 leading-relaxed">
           <p>
-            Thank you for subscribing to CrashTracker. We aim to provide real-time game telemetry, historical charts, and predictive analysis parameters to help you evaluate crash rounds data-driven. Please read our refund policy below.
+            Thank you for subscribing to CrashTracker. We aim to provide real-time game telemetry, historical charts, and probability analysis parameters to help you evaluate crash rounds data-driven. Please read our refund policy below.
           </p>
 
           <hr className="border-white/[0.05] my-6" />
@@ -46,7 +46,7 @@ export default function RefundPolicy() {
           <section className="space-y-3">
             <h2 className="text-base font-bold text-[#e8eeff] uppercase tracking-wide">1. General Terms (No Refunds)</h2>
             <p>
-              Due to the digital nature of our Services and the immediate delivery of predictive telemetry, server sync logs, and active status privileges:
+              Due to the digital nature of our Services and the immediate delivery of analytics telemetry, server sync logs, and active status privileges:
             </p>
             <div className="p-4 rounded-xl border border-white/[0.05] bg-white/[0.01] text-xs space-y-2">
               <p>
@@ -84,7 +84,7 @@ export default function RefundPolicy() {
           <section className="space-y-3">
             <h2 className="text-base font-bold text-[#e8eeff] uppercase tracking-wide">4. Technical Outages or Issues</h2>
             <p>
-              If a major technical outage occurs on our server side that prevents predictions for more than 48 consecutive hours, please contact support. We may, at our sole discretion, extend your active subscription time as compensation.
+              If a major technical outage occurs on our server side that prevents telemetry tracking for more than 48 consecutive hours, please contact support. We may, at our sole discretion, extend your active subscription time as compensation.
             </p>
           </section>
 

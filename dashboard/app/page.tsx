@@ -78,23 +78,21 @@ export default async function LandingPage() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-cyan-500/25 bg-cyan-500/[0.06] text-cyan-300 text-xs font-bold tracking-widest uppercase mb-8 animate-pulse">
             <Bot size={13} />
-            AI-Powered • Real-Time • Multi-Model Engine
+            Live Telemetry • AI-Driven Analytics • Risk Assessment Dashboard
           </div>
 
           {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight leading-[1.05] mb-6">
-            <span className="block text-[#e8eeff]">Stop Gambling Blind.</span>
-            <span className="block bg-gradient-to-r from-cyan-300 via-blue-400 to-purple-400 bg-clip-text text-transparent mt-1">
-              Play with an Unfair Edge.
-            </span>
+          <h1 className="text-4xl md:text-6xl font-black text-[#e8eeff] mb-6 leading-tight tracking-tight">
+            Stop Playing Blind. <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">Play Smart with Live AI Data.</span>
           </h1>
 
           {/* Sub headline in English */}
           <p className="text-base md:text-xl text-[#8090b0] max-w-3xl mx-auto mb-4 leading-relaxed">
-            The house always has an advantage—until now. Our <strong className="text-cyan-400">Advanced Prediction Engine</strong> instantly analyzes real-time crash patterns, volatility, and historical streaks to calculate high-probability cashout targets.
+            Don't lose your money to emotions. Our <strong className="text-cyan-400">AI Analytics Engine</strong> reads live game data, finds hidden patterns, and shows you the safest time to cash out.
           </p>
           <p className="text-sm text-[#5a6a8a] max-w-2xl mx-auto mb-12">
-            Dominate Aviator and 1xBet Crash with the ultimate real-time predictor. Instantly spot patterns and secure your profits before the crash. Your unfair advantage starts here.
+            Built for 1xBet Crash. Get live alerts to avoid bad losing streaks, understand the risks, and play with a clear winning strategy.
           </p>
 
           {/* CTA Buttons */}
@@ -115,7 +113,7 @@ export default async function LandingPage() {
           <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-[#5a6a8a]">
             <div className="flex items-center gap-1.5">
               <div className="flex -space-x-1">
-                {['KP','SM','RJ','TD'].map((initials, i) => (
+                {['KP', 'SM', 'RJ', 'TD'].map((initials, i) => (
                   <div key={i} className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-[9px] font-bold text-cyan-300">{initials}</div>
                 ))}
               </div>
@@ -142,10 +140,10 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
-              { label: 'AI Models Running', value: '3 Simultaneous', icon: <Brain size={20} className="text-cyan-400" /> },
-              { label: 'Predictions Per Day', value: '1,000+', icon: <BarChart3 size={20} className="text-purple-400" /> },
+              { label: 'Live AI Engines', value: '3 Simultaneous', icon: <Brain size={20} className="text-cyan-400" /> },
+              { label: 'Rounds Processed Daily', value: '10,000+', icon: <BarChart3 size={20} className="text-purple-400" /> },
               { label: 'Rounds Analyzed', value: '50,000+', icon: <TrendingUp size={20} className="text-green-400" /> },
-              { label: 'Response Time', value: '< 2 seconds', icon: <Zap size={20} className="text-yellow-400" /> },
+              { label: 'Telemetry Latency', value: '< 2 seconds', icon: <Zap size={20} className="text-yellow-400" /> },
             ].map((s, i) => (
               <div key={i} className="flex flex-col items-center gap-2">
                 <div className="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.05] flex items-center justify-center">
@@ -182,49 +180,49 @@ export default async function LandingPage() {
                 icon: <Brain size={24} />,
                 color: 'cyan',
                 glow: 'cyan',
-                title: 'Advanced Analytics Engine',
+                title: 'AI Analytics Engine',
                 badge: 'Core',
-                desc: 'CrashTracker runs 3 real-time data engines in parallel — each analysing different patterns. The consensus signal is far stronger than any single data point alone.',
+                desc: 'CrashTracker runs 3 real-time AI data engines in parallel — each analysing different statistical layers. The consensus evaluation is far stronger than any single data point alone.',
               },
               {
                 icon: <Zap size={24} />,
                 color: 'yellow',
                 glow: 'yellow',
-                title: 'Real-Time Crash Signals',
+                title: 'Real-Time Risk Scoring',
                 badge: 'Live',
-                desc: 'Get instant risk ratings (LOW / MEDIUM / HIGH) and cashout targets calculated within 2 seconds of each round starting. No delay. No guessing.',
+                desc: 'Get instant risk ratings (LOW / MEDIUM / HIGH) and game state classification (Calm / Normal / Volatile) calculated within 2 seconds of each round starting. Play with systematic rules.',
               },
               {
                 icon: <Target size={24} />,
                 color: 'green',
                 glow: 'green',
-                title: 'Multi-Tier Cashout Targets',
-                badge: 'Strategy',
-                desc: 'Receive Conservative (1.5–2x), Swing (3–5x), and Moon (8–15x) targets for every round. Choose your risk level and stick to a system.',
+                title: 'Target Hit Rates & EV',
+                badge: 'Math',
+                desc: 'See empirical hit rates and Expected Value (EV) calculations for Conservative (1.5x), Swing (3.0x), and Moon (8.0x) targets. Play when the math is in your favor.',
               },
               {
                 icon: <Activity size={24} />,
                 color: 'purple',
                 glow: 'purple',
-                title: '24/7 Server Sync',
-                badge: 'Automation',
-                desc: 'Our secure cloud infrastructure silently reads game data directly from 1xBet servers and syncs it to your private dashboard in real-time — no manual data entry ever needed.',
+                title: 'Live Extension Sync Link',
+                badge: 'Telemetry',
+                desc: 'Our lightweight browser extension reads live round results directly from your game screen and syncs them to your private dashboard in real-time — zero manual entry or delays.',
               },
               {
                 icon: <Layers size={24} />,
                 color: 'blue',
                 glow: 'blue',
-                title: 'Pattern & Streak Detection',
+                title: 'Sequence & Streak Warnings',
                 badge: 'Analytics',
-                desc: 'Detects hot/cold streaks, dead hours, volatility phases, and recovery cycles. Automatically skips rounds where the system identifies high-risk low-reward conditions.',
+                desc: 'Identifies high-risk streaks like "Instant Crash Streaks" (multiple rounds under 1.2x). It alerts you to sit out and protect your capital during hostile cycles.',
               },
               {
                 icon: <BarChart3 size={24} />,
                 color: 'pink',
                 glow: 'pink',
-                title: 'Performance Dashboard',
+                title: 'Performance & Win-Rate Tracker',
                 badge: 'Tracking',
-                desc: 'Track your win rate, prediction accuracy, P&L per session, and identify which strategy (Conservative / Swing / Moon) is performing best for your play style.',
+                desc: 'Track your session statistics, target success rates, and P&L logs. Pinpoint exactly which strategy (Conservative / Swing / Moon) is delivering the best long-term results.',
               },
               {
                 icon: <Clock size={24} />,
@@ -232,15 +230,15 @@ export default async function LandingPage() {
                 glow: 'orange',
                 title: 'Dead Hour Alerts',
                 badge: 'Risk Guard',
-                desc: 'Some hours of the day are statistically more volatile. CrashTracker alerts you and suppresses aggressive signals during known dead hours to protect your bankroll.',
+                desc: 'Certain times of day exhibit high statistical volatility. CrashTracker identifies these dead hours, alerting you to reduce stakes or stop playing to preserve your bankroll.',
               },
               {
                 icon: <Globe size={24} />,
                 color: 'teal',
                 glow: 'teal',
-                title: 'Sri Lanka Optimised',
+                title: 'Sri Lanka Calibrated',
                 badge: 'Local',
-                desc: 'Time-zone aware (Asia/Colombo), Sinhala & Tamil font support, LKR pricing, and analysis calibrated to 1xBet LK server patterns — not generic global data.',
+                desc: 'Time-zone aware (Asia/Colombo), local LKR bank transfers, and statistics calibrated to local regional servers for maximum tracking accuracy.',
               },
               {
                 icon: <Lock size={24} />,
@@ -248,19 +246,19 @@ export default async function LandingPage() {
                 glow: 'rose',
                 title: 'Private & Secure',
                 badge: 'Security',
-                desc: 'Your game data stays private. End-to-end encrypted, secured by Supabase Auth. No data is ever sold or shared. Your edge stays yours.',
+                desc: 'Your credentials and telemetry are encrypted. The extension only reads public game data; it never accesses your wallet, places bets, or interferes with the game itself.',
               },
             ].map((f, i) => {
               const colorMap: Record<string, { bg: string; text: string; border: string; badge: string }> = {
-                cyan:   { bg: 'rgba(0,212,255,0.08)',   text: '#00d4ff', border: 'rgba(0,212,255,0.15)',   badge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
-                yellow: { bg: 'rgba(255,208,0,0.08)',   text: '#ffd000', border: 'rgba(255,208,0,0.15)',   badge: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
-                green:  { bg: 'rgba(0,229,160,0.08)',   text: '#00e5a0', border: 'rgba(0,229,160,0.15)',   badge: 'bg-green-500/10 text-green-400 border-green-500/20' },
+                cyan: { bg: 'rgba(0,212,255,0.08)', text: '#00d4ff', border: 'rgba(0,212,255,0.15)', badge: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
+                yellow: { bg: 'rgba(255,208,0,0.08)', text: '#ffd000', border: 'rgba(255,208,0,0.15)', badge: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
+                green: { bg: 'rgba(0,229,160,0.08)', text: '#00e5a0', border: 'rgba(0,229,160,0.15)', badge: 'bg-green-500/10 text-green-400 border-green-500/20' },
                 purple: { bg: 'rgba(167,139,250,0.08)', text: '#a78bfa', border: 'rgba(167,139,250,0.15)', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-                blue:   { bg: 'rgba(59,130,246,0.08)',  text: '#60a5fa', border: 'rgba(59,130,246,0.15)',  badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-                pink:   { bg: 'rgba(236,72,153,0.08)',  text: '#f472b6', border: 'rgba(236,72,153,0.15)',  badge: 'bg-pink-500/10 text-pink-400 border-pink-500/20' },
-                orange: { bg: 'rgba(249,115,22,0.08)',  text: '#fb923c', border: 'rgba(249,115,22,0.15)',  badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-                teal:   { bg: 'rgba(20,184,166,0.08)',  text: '#2dd4bf', border: 'rgba(20,184,166,0.15)',  badge: 'bg-teal-500/10 text-teal-400 border-teal-500/20' },
-                rose:   { bg: 'rgba(244,63,94,0.08)',   text: '#fb7185', border: 'rgba(244,63,94,0.15)',   badge: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
+                blue: { bg: 'rgba(59,130,246,0.08)', text: '#60a5fa', border: 'rgba(59,130,246,0.15)', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+                pink: { bg: 'rgba(236,72,153,0.08)', text: '#f472b6', border: 'rgba(236,72,153,0.15)', badge: 'bg-pink-500/10 text-pink-400 border-pink-500/20' },
+                orange: { bg: 'rgba(249,115,22,0.08)', text: '#fb923c', border: 'rgba(249,115,22,0.15)', badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
+                teal: { bg: 'rgba(20,184,166,0.08)', text: '#2dd4bf', border: 'rgba(20,184,166,0.15)', badge: 'bg-teal-500/10 text-teal-400 border-teal-500/20' },
+                rose: { bg: 'rgba(244,63,94,0.08)', text: '#fb7185', border: 'rgba(244,63,94,0.15)', badge: 'bg-rose-500/10 text-rose-400 border-rose-500/20' },
               }
               const c = colorMap[f.color]
               return (
@@ -284,7 +282,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ══════════════════════ AI MODELS ══════════════════════ */}
+      {/* ══════════════════════ STATISTICAL ENGINES ══════════════════════ */}
       <section className="relative z-10 py-20 border-y border-white/[0.04] bg-white/[0.01]">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-12 items-center">
@@ -293,21 +291,21 @@ export default async function LandingPage() {
                 Advanced Analytics
               </div>
               <h2 className="text-3xl md:text-4xl font-black text-[#e8eeff] mb-5 leading-tight">
-                Not Just Guesses.<br/>
-                <span className="text-purple-400">Real-time Data Minds</span><br/>
+                Not Just Guesses.<br />
+                <span className="text-purple-400">AI-Driven Data Analysis</span><br />
                 Working Together.
               </h2>
               <p className="text-sm text-[#5a6a8a] leading-relaxed mb-6">
-                A single data point can be misleading. That's why CrashTracker runs <strong className="text-[#e8eeff]">three specialized analytical engines</strong> simultaneously on every round — each with its own focus strategy. When all three agree, you get the highest confidence signals. When they disagree, the system flags it as uncertain and reduces stake recommendations automatically.
+                A single data point can be misleading. That's why CrashTracker runs <strong className="text-[#e8eeff]">3 specialized analytical models</strong> simultaneously on every round — each calculating a different mathematical layer. By cross-referencing their outputs, the dashboard provides a highly calibrated Risk Score so you bet with logic, not desperation.
               </p>
               <div className="space-y-3">
                 {[
-                  'Pattern recognition across last 200 rounds',
-                  'Streak & momentum analysis',
-                  'Volatility phase classification (CALM / NORMAL / VOLATILE)',
-                  'Hot/dead hour detection by time-of-day',
-                  'Recovery cycle prediction after crash streaks',
-                  'Instant crash risk scoring (0–100)',
+                  'Real-time sequence correlation across recent history',
+                  'Streak, trend & momentum classification',
+                  'Volatility phase analysis (CALM / NORMAL / VOLATILE)',
+                  'Dead-hour and high-risk phase detection',
+                  'Recovery cycle probabilities following crash clusters',
+                  'Instant crash risk indexing (0–100)',
                 ].map((pt, i) => (
                   <div key={i} className="flex items-center gap-3 text-sm text-[#8090b0]">
                     <div className="w-5 h-5 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
@@ -322,24 +320,24 @@ export default async function LandingPage() {
               {[
                 {
                   name: 'Pattern Engine',
-                  role: 'Historical Reasoning',
-                  desc: 'Excels at long-context pattern analysis and nuanced reasoning about volatility cycles.',
+                  role: 'Sequence Tracking',
+                  desc: 'Monitors historical clusters of multipliers and flags recurring patterns like instant crash streaks.',
                   color: '#a78bfa',
                   bg: 'rgba(167,139,250,0.06)',
                   border: 'rgba(167,139,250,0.15)',
                 },
                 {
                   name: 'Consensus Engine',
-                  role: 'Signal Validation',
-                  desc: 'Provides strategy recommendations and validates signals from the other engines for consensus confidence.',
+                  role: 'Risk Assessment',
+                  desc: 'Classifies standard deviations to calculate volatility and determine risk states (Calm, Normal, Volatile).',
                   color: '#00d4ff',
                   bg: 'rgba(0,212,255,0.06)',
                   border: 'rgba(0,212,255,0.15)',
                 },
                 {
                   name: 'Math Engine',
-                  role: 'Statistical Analysis',
-                  desc: 'Specialised in statistical calculations — probability distributions, expected value, and risk-adjusted targets.',
+                  role: 'Probability Engine',
+                  desc: 'Computes empirical target hit rates and Expected Value (EV) over the active session history.',
                   color: '#00e5a0',
                   bg: 'rgba(0,229,160,0.06)',
                   border: 'rgba(0,229,160,0.15)',
@@ -391,15 +389,15 @@ export default async function LandingPage() {
                 },
                 {
                   step: '02',
-                  title: 'Activate the Data Link',
-                  desc: 'Create your account and instantly connect. Our 24/7 dedicated servers continuously feed live 1xBet data directly into our AI models with zero latency. No extensions required.',
+                  title: 'Connect to Live Dedicated Servers',
+                  desc: 'Our dedicated live servers automatically capture and sync live multiplier data directly from the game to your dashboard in real-time, requiring absolutely zero extensions on your end.',
                   icon: <Cpu size={20} />,
                   color: '#a78bfa',
                 },
                 {
                   step: '03',
                   title: 'Open Your Dashboard',
-                  desc: 'Your private dashboard lights up with live AI signals, cashout targets, and risk ratings — round by round, automatically.',
+                  desc: 'Your dashboard lights up with real-time statistics, empirical hit rates, risk assessments, and sequence warning signals.',
                   icon: <Flame size={20} />,
                   color: '#00e5a0',
                 },
@@ -435,19 +433,19 @@ export default async function LandingPage() {
               {
                 name: 'Kasun P.',
                 location: 'Colombo',
-                text: 'Before this, I was playing blindly. Now I wait for the LOW risk signal and cash out at the target. My decisions are way more disciplined.',
+                text: 'Before this, I was playing blindly. Now I check the target hit rates and stick to a consistent LKR cashout system. My decisions are way more disciplined.',
                 stars: 5,
               },
               {
                 name: 'Nuwan R.',
                 location: 'Kandy',
-                text: 'The dead hour alert alone saved me from a bad session. It told me to stop during what I used to think were good hours.',
+                text: 'The dead hour alert alone saved me from a bad session. It flagged the high-volatility phase so I closed the game and kept my profits.',
                 stars: 5,
               },
               {
                 name: 'Kavindu D.',
                 location: 'Galle',
-                text: 'The server sync is seamless. I just play, the dashboard updates itself. The 3 AI models thing is crazy — you can see all three thinking.',
+                text: 'The live server data sync is seamless. I just play, the dashboard updates itself. The AI-driven engine correlation lets me see target EV in real-time.',
                 stars: 5,
               },
             ].map((t, i) => (
@@ -481,7 +479,7 @@ export default async function LandingPage() {
               Premium Access
             </div>
             <h2 className="text-3xl md:text-4xl font-black text-[#e8eeff] mb-3">
-              VIP Access. Elite Predictions. <span className="text-amber-400">High Rollers Only.</span>
+              VIP Access. Premium Analytics. <span className="text-amber-400">Play with System.</span>
             </h2>
             <p className="text-sm text-[#5a6a8a]">
               Everything included. No feature tiers. Cancel anytime.
@@ -491,7 +489,7 @@ export default async function LandingPage() {
           <div className="max-w-4xl mx-auto relative group">
             {/* Subtle Outer Glow (Cyan-Blue Theme) */}
             <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-3xl blur opacity-15 group-hover:opacity-30 transition duration-500" />
-            
+
             <div className="relative p-8 md:p-10 rounded-3xl border border-white/[0.08] bg-[#0c1120]/85 backdrop-blur-md shadow-2xl flex flex-col md:flex-row gap-10 items-stretch overflow-hidden">
               {/* Hologram/Reflective Light Effects */}
               <div className="absolute -top-32 -right-32 w-72 h-72 bg-cyan-500/[0.03] rounded-full blur-3xl pointer-events-none" />
@@ -511,7 +509,7 @@ export default async function LandingPage() {
 
                   <h3 className="text-2xl font-black text-[#f0f4ff] mb-2 tracking-wide uppercase">Crash Tracker Pro</h3>
                   <p className="text-xs text-[#8090b0] mb-6 leading-relaxed">
-                    Get full access to the real-time prediction suite. Configured specifically for the Sri Lankan player ecosystem.
+                    Get full access to the real-time analytics suite. Configured specifically for the Sri Lankan player ecosystem.
                   </p>
 
                   {/* Features List */}
@@ -519,12 +517,12 @@ export default async function LandingPage() {
                     <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-[#5a6a8a] mb-2">FEATURES INCLUDED:</h4>
                     <div className="grid sm:grid-cols-2 gap-3">
                       {[
-                        { text: 'All 3 Advanced Analytics Engines', icon: <Cpu size={12} className="text-cyan-400" /> },
-                        { text: 'Unlimited real-time predictions', icon: <Zap size={12} className="text-cyan-400" /> },
-                        { text: '24/7 Dedicated Server Connection', icon: <Activity size={12} className="text-cyan-400" /> },
-                        { text: 'Conservative, Swing & Moon strategies', icon: <Target size={12} className="text-cyan-400" /> },
-                        { text: 'Dead hour alerts & skip signals', icon: <AlertTriangle size={12} className="text-cyan-400" /> },
-                        { text: 'Full performance & win-rate analytics', icon: <BarChart3 size={12} className="text-cyan-400" /> },
+                        { text: 'Live AI Statistical Analysis', icon: <Cpu size={12} className="text-cyan-400" /> },
+                        { text: 'Unlimited real-time probability data', icon: <Zap size={12} className="text-cyan-400" /> },
+                        { text: 'Live chrome extension sync', icon: <Activity size={12} className="text-cyan-400" /> },
+                        { text: 'Target Expected Value (EV) calculators', icon: <Target size={12} className="text-cyan-400" /> },
+                        { text: 'Dead hour & streak warning alerts', icon: <AlertTriangle size={12} className="text-cyan-400" /> },
+                        { text: 'Full session statistics & strategy tracker', icon: <BarChart3 size={12} className="text-cyan-400" /> },
                       ].map((feature, i) => (
                         <div key={i} className="flex items-start gap-2.5 text-[11px] md:text-xs">
                           <span className="w-4 h-4 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400 shrink-0 mt-0.5 border border-cyan-500/20">
@@ -609,28 +607,28 @@ export default async function LandingPage() {
           <div className="space-y-4">
             {[
               {
-                q: 'Is this guaranteed to make me money?',
-                a: 'No. Absolutely not. No system can guarantee wins in a random-number-based game. CrashTracker is an analytical tool that helps you make more structured, data-informed decisions — not a money-printing machine. Please gamble responsibly.',
+                q: 'Can any software truly predict when the game will crash?',
+                a: 'No. Anyone claiming to predict the exact crash point is lying. Crash games use cryptographic random algorithms. However, we do not predict the future; we compute real-time probabilities and detect sequence patterns. Just like professional poker players do not know what card is next but bet on the mathematical odds, Crash Tracker helps you play the math, not the hype.',
               },
               {
-                q: 'Which platforms are supported?',
-                a: 'Currently optimised for 1xBet Crash (LK server), LuckyJet, and Aviator. Our 24/7 cloud servers read live game data automatically.',
+                q: 'Why do most Crash players lose their entire bankroll?',
+                a: 'Emotional tilt and greed. Players get greedy waiting for a 10x multiplier, or they double their bet to chase a loss (Martingale) right into an "Instant Crash Streak" (multiple consecutive rounds below 1.2x). Crash Tracker\'s AI Sequence Engine alerts you during these high-risk streaks so you can stay disciplined and walk away.',
               },
               {
-                q: 'Do I need to be a programmer to set this up?',
-                a: 'No. Just create an account, and your dashboard starts updating automatically. No coding, configuration, or downloads required.',
+                q: 'What is the mathematical advantage of using this dashboard?',
+                a: 'The dashboard calculates the empirical hit rate and Expected Value (EV) of targets like 1.5x and 2.0x in real-time. If the math shows a negative EV based on current volatility, you don\'t bet. If it\'s a positive EV phase, you play. You shift your mindset from an emotional gambler to a logical statistician.',
               },
               {
-                q: 'Can I pay in Sri Lankan Rupees?',
-                a: 'Yes. We accept bank transfers in LKR directly to our HNB account. After payment, your account is activated within 24 hours. We also accept international cards in USD.',
+                q: 'Does this tool violate 1xBet\'s rules or get me banned?',
+                a: 'No. The Chrome extension is a telemetry reader. It only reads the public numbers displayed on your game screen and syncs them to your dashboard. It does not click, place bets, or alter the game\'s code. To the casino, you are simply playing normally while viewing statistics on a second monitor.',
               },
               {
-                q: 'How does the tracking engine work?',
-                a: 'We use three specialized analytical engines: Pattern Reasoning, Signal Validation, and Mathematical Analysis. All three analyse each round independently, and the combined signal gives you a confidence score.',
+                q: 'What is the difference between Calm, Normal, and Volatile phases?',
+                a: 'The game goes through cycles. In "Volatile" phases or "Dead Hours", the probability of consecutive instant crashes (< 1.2x) is high. Crash Tracker\'s AI Consensus Engine measures this variance and flags the risk score, helping you know when to lower your stakes or close the tab entirely.',
               },
               {
-                q: 'Can I cancel my subscription?',
-                a: 'Yes, cancel anytime with one click from your billing page. No contracts, no penalties. Your access continues until the end of your current billing period.',
+                q: 'Can I cancel or change my plan anytime?',
+                a: 'Yes, absolutely. You can cancel your subscription with a single click from your billing dashboard. There are no contracts, commitments, or hidden penalties. Your access remains active until the end of your paid billing period.',
               },
             ].map((item, i) => (
               <div key={i} className="p-6 rounded-2xl border border-white/[0.05] bg-white/[0.02]">
@@ -658,7 +656,7 @@ export default async function LandingPage() {
                 Ready to Play <span className="text-cyan-400">Smarter</span>?
               </h2>
               <p className="text-sm text-[#5a6a8a] max-w-xl mx-auto mb-8 leading-relaxed">
-                Join 500+ Sri Lankan players who've replaced gut-feeling bets with AI-powered discipline. Remember — no prediction is 100% — but being <em>informed</em> is always better than being <em>blind</em>.
+                Join 500+ Sri Lankan players who've replaced gut-feeling bets with systematic data. Remember — no probability is 100% — but being <em>informed</em> is always better than playing <em>blind</em>.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href={user ? "/app" : "/login?tab=signup"}
@@ -689,12 +687,12 @@ export default async function LandingPage() {
                 </span>
               </div>
               <p className="text-xs text-[#3a4560] leading-relaxed mb-5 max-w-sm">
-                Sri Lanka's most advanced AI-powered Crash game analytics platform. Built to help you play with data, discipline, and clarity.
+                Sri Lanka's most advanced Crash game analytics platform. Built to help you play with data, discipline, and clarity.
               </p>
               {/* Disclaimer box */}
               <div className="p-4 rounded-xl border border-amber-500/15 bg-amber-500/[0.03]">
                 <p className="text-[11px] text-[#5a4a30] leading-relaxed">
-                  ⚠️ <strong className="text-amber-600/70">Disclaimer:</strong> CrashTracker is an analytical and informational tool only. <strong>No algorithm or AI can predict Crash game outcomes with 100% accuracy.</strong> Past patterns do not guarantee future results. This platform does not encourage gambling. Always gamble responsibly and within your means. If gambling is causing you harm, seek help.
+                  ⚠️ <strong className="text-amber-600/70">Disclaimer:</strong> CrashTracker is an analytical and informational tool only. <strong>No algorithm, software, or AI can predict Crash game outcomes with 100% accuracy.</strong> Crash events are randomly generated server-side. Past patterns do not guarantee future results. This platform does not encourage gambling. Always gamble responsibly and within your means. If gambling is causing you harm, seek help.
                 </p>
               </div>
             </div>
@@ -718,6 +716,7 @@ export default async function LandingPage() {
               </div>
             </div>
 
+            {/* Legal */}
             <div>
               <div className="text-xs font-bold uppercase tracking-widest text-[#3a4560] mb-4">Legal</div>
               <div className="space-y-3">

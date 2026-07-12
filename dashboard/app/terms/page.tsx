@@ -53,7 +53,7 @@ export default function TermsOfService() {
           <section className="space-y-3">
             <h2 className="text-base font-bold text-[#e8eeff] uppercase tracking-wide">2. Description of Service</h2>
             <p>
-              CrashTracker provides mathematical analysis, statistical patterns, and historical round logs for various crash-style games (such as 1xBet Crash, Aviator, and LuckyJet).
+              CrashTracker provides mathematical analysis, statistical patterns, and historical round logs for crash-style games (such as 1xBet Crash).
             </p>
             <div className="p-4 rounded-xl border border-amber-500/15 bg-amber-500/[0.03] text-amber-300">
               <strong>⚠️ CRITICAL DISCLAIMER:</strong> CrashTracker is an informational and analytical tool. We do NOT guarantee winning results. No algorithm or formula can predict random multiplier crashes with 100% accuracy. The house always has an inherent mathematical edge. Users must evaluate signals at their own risk. We are not responsible for any financial losses incurred.
