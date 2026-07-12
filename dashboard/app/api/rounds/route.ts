@@ -309,11 +309,16 @@ export async function POST(request: Request) {
     let skipRound  = strategyLabel === 'SKIP';
     let aiColdStreak = cold_streak;
 
-    const aiCallPromise = callAI(systemPrompt, userMessage, { stats, betSignal, timeData });
-    const aiResponse = await Promise.race([
-      aiCallPromise,
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 4000)),
-    ]);
+    const skipAI = betSignal.strategy === 'SKIP' || stats.masterSignal === 'STRONG_BUY';
+    let aiResponse = null;
+
+    if (!skipAI) {
+      const aiCallPromise = callAI(systemPrompt, userMessage, { stats, betSignal, timeData });
+      aiResponse = await Promise.race([
+        aiCallPromise,
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 15000)),
+      ]);
+    }
 
     if (aiResponse) {
       const { result: ai, model } = aiResponse;

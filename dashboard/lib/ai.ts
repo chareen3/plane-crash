@@ -80,7 +80,7 @@ const AI_MODELS = [
 ] as const;
 
 const OPENROUTER_URL       = 'https://openrouter.ai/api/v1/chat/completions';
-const REQUEST_TIMEOUT_MS   = 8_000;
+const REQUEST_TIMEOUT_MS   = 15_000;
 const MAX_REASONING_LENGTH = 500;
 /** Stable v2: ceiling reduced from 75 to 60 for consistent output. */
 const AI_CONFIDENCE_CEIL   = 60;
@@ -435,7 +435,7 @@ export async function callAI(
             { role: 'user',   content: userMessage },
           ],
           temperature: 0,
-          max_tokens:  350,
+          max_tokens:  500,
           response_format: { type: 'json_object' },
         }),
         signal: controller.signal,

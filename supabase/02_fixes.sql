@@ -122,3 +122,22 @@ ALTER TABLE public.crash_rounds
   ADD COLUMN IF NOT EXISTS total_bet_volume numeric;
 
 ALTER TABLE crash_rounds ADD COLUMN rounds_since_last_moon integer;
+
+-- 5. Drop insecure anonymous insert policies (bypassed by service role in backend API)
+DROP POLICY IF EXISTS "Allow anonymous inserts" ON crash_rounds;
+DROP POLICY IF EXISTS "Allow anon insert" ON predictions;
+DROP POLICY IF EXISTS "Allow anon update" ON predictions;
+DROP POLICY IF EXISTS "Allow service insert" ON predictions;
+DROP POLICY IF EXISTS "Allow anonymous inserts on round_summaries" ON round_summaries;
+DROP POLICY IF EXISTS "Allow anonymous inserts" ON round_summaries;
+DROP POLICY IF EXISTS "Allow anonymous insert game_config" ON game_config;
+DROP POLICY IF EXISTS "Allow anonymous inserts" ON game_config;
+DROP POLICY IF EXISTS "Allow anonymous insert strategy_eval" ON strategy_eval;
+DROP POLICY IF EXISTS "Allow anonymous inserts" ON strategy_eval;
+
+-- 6. Add secure SELECT policies for authenticated users
+DROP POLICY IF EXISTS "Allow authenticated select predictions" ON predictions;
+CREATE POLICY "Allow authenticated select predictions" ON predictions FOR SELECT TO authenticated USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated select crash_rounds" ON crash_rounds;
+CREATE POLICY "Allow authenticated select crash_rounds" ON crash_rounds FOR SELECT TO authenticated USING (true);

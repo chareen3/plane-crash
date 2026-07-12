@@ -87,6 +87,7 @@ export interface CrashStats {
   p90SafeCashout: number;
   p80SafeCashout: number;
   p70SafeCashout: number;
+  p65SafeCashout: number;
   p60SafeCashout: number;
   p50SafeCashout: number;
 
@@ -484,6 +485,7 @@ export function computeStats(
   const p90SafeCashout = cashoutAtWinRate(sorted, 90);
   const p80SafeCashout = cashoutAtWinRate(sorted, 80);
   const p70SafeCashout = cashoutAtWinRate(sorted, 70);
+  const p65SafeCashout = cashoutAtWinRate(sorted, 65);
   const p60SafeCashout = cashoutAtWinRate(sorted, 60);
   const p50SafeCashout = round2(median);
 
@@ -592,24 +594,19 @@ export function computeStats(
     suggestedCashout = 1.50;
     cashoutReasons.push(`selected 1.50x (normal variance protection: Markov MED+HIGH ${favorableMarkov.toFixed(0)}%)`);
   } else {
-    // Under low risk conditions (riskScore < 45), dynamically scale the target between 2.00x and 2.50x
-    const targets = [2.00, 2.03, 2.05, 2.08, 2.10, 2.12, 2.15, 2.18, 2.20, 2.23, 2.25, 2.29, 2.30, 2.32, 2.35, 2.38, 2.40, 2.42, 2.45, 2.48, 2.50];
-    
+    // Under low risk conditions (riskScore < 45), dynamically scale the target using percentile-based selection
     if (riskScore < 20) {
-      // Prime conditions: target higher range 2.35x - 2.50x (indices 14 to 20)
-      const targetIdx = 14 + (n % 7);
-      suggestedCashout = targets[targetIdx];
-      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (prime safe conditions: riskScore ${riskScore})`);
+      // Prime conditions: target higher range 2.35x - 2.50x based on p60SafeCashout
+      suggestedCashout = clamp(p60SafeCashout, 2.35, 2.50);
+      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (prime safe conditions: p60SafeCashout ${p60SafeCashout.toFixed(2)}x)`);
     } else if (riskScore < 30) {
-      // Stable conditions: target mid range 2.18x - 2.32x (indices 7 to 13)
-      const targetIdx = 7 + (n % 7);
-      suggestedCashout = targets[targetIdx];
-      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (stable conditions: riskScore ${riskScore})`);
+      // Stable conditions: target mid range 2.18x - 2.32x based on p65SafeCashout
+      suggestedCashout = clamp(p65SafeCashout, 2.18, 2.32);
+      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (stable conditions: p65SafeCashout ${p65SafeCashout.toFixed(2)}x)`);
     } else {
-      // Low risk baseline: target 2.00x - 2.15x (indices 0 to 6)
-      const targetIdx = n % 7;
-      suggestedCashout = targets[targetIdx];
-      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (base low-risk conditions: riskScore ${riskScore})`);
+      // Low risk baseline: target 2.00x - 2.15x based on p70SafeCashout
+      suggestedCashout = clamp(p70SafeCashout, 2.00, 2.15);
+      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (base low-risk conditions: p70SafeCashout ${p70SafeCashout.toFixed(2)}x)`);
     }
   }
 
@@ -634,7 +631,7 @@ export function computeStats(
     pUnder2, p2to5, pOver5, pInstantCrash,
     targets,
     p99SafeCashout, p95SafeCashout, p90SafeCashout,
-    p80SafeCashout, p70SafeCashout, p60SafeCashout, p50SafeCashout,
+    p80SafeCashout, p70SafeCashout, p65SafeCashout, p60SafeCashout, p50SafeCashout,
     ema,
     currentLowStreak, currentHighStreak, currentHighStreak250, longestLowStreak,
     recentMean: round2(recentMean),
@@ -679,7 +676,7 @@ function emptyStats(): CrashStats {
     pUnder2: 0, p2to5: 0, pOver5: 0, pInstantCrash: 0,
     targets: emptyTargets,
     p99SafeCashout: 1.05, p95SafeCashout: 1.05, p90SafeCashout: 1.10,
-    p80SafeCashout: 1.20, p70SafeCashout: 1.50, p60SafeCashout: 1.80, p50SafeCashout: 2.00,
+    p80SafeCashout: 1.20, p70SafeCashout: 1.50, p65SafeCashout: 1.65, p60SafeCashout: 1.80, p50SafeCashout: 2.00,
     ema: 0,
     currentLowStreak: 0, currentHighStreak: 0, currentHighStreak250: 0, longestLowStreak: 0,
     recentMean: 0, olderMean: 0, trend: 'flat',
@@ -709,6 +706,10 @@ export function gradePrediction(
   if (risk === 'LOW') return actualCrash >= 2;
   if (risk === 'MEDIUM') return actualCrash >= 1.5 && actualCrash < 4;
   return actualCrash < 1.5;
+}
+
+function sessionHotAndStrong(stats: CrashStats): boolean {
+  return stats.sessionHot && stats.trend === 'rising' && stats.riskScore < 35;
 }
 
 export function computeBetSignal(
@@ -836,10 +837,6 @@ export function computeBetSignal(
     holdReasons,
     holdSignal,
   };
-}
-
-function sessionHotAndStrong(stats: CrashStats): boolean {
-  return stats.sessionHot && stats.trend === 'rising' && stats.riskScore < 35;
 }
 
 export function buildHumanSummary(
