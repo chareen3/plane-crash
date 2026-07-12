@@ -1028,16 +1028,24 @@ export default function Dashboard() {
               />
             </div>
             <div className="mlsb-info">
-              <span className="mlsb-label">
-                {t.gameTitle}: {liveData?.state === 'active' ? t.liveMultiplier : t.roundCrashed}
+              <span className="mlsb-label" style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {liveData?.state === 'active' ? t.liveMultiplier : t.roundCrashed}
               </span>
-              <span className="mlsb-val" style={{
-                color: liveData?.state === 'active' ? '#38bdf8' :
-                  (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' :
-                    classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366')
-              }}>
-                {liveData?.state === 'active' ? (liveData?.multiplierText || '1.00x') : (lastCrash ? Number(lastCrash.crash_point).toFixed(2) + 'x' : '—')}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="mlsb-val" style={{
+                  color: liveData?.state === 'active' ? '#38bdf8' :
+                    (classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'green' ? '#00e5a0' :
+                      classifyRisk(Number(lastCrash?.crash_point ?? 0)) === 'yellow' ? '#ffd000' : '#ff3366')
+                }}>
+                  {liveData?.state === 'active' ? (liveData?.multiplierText || '1.00x') : (lastCrash ? Number(lastCrash.crash_point).toFixed(2) + 'x' : '—')}
+                </span>
+                {liveData?.state !== 'active' && lastCrash?.player_count && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                    <Users size={10} color="#38bdf8" />
+                    {lastCrash.player_count}
+                  </span>
+                )}
+              </div>
             </div>
             {liveData?.state === 'active' && liveData?.timerText && (
               <div className="mlsb-timer">{f(t.nextFlightIn, { timer: liveData.timerText })}</div>
