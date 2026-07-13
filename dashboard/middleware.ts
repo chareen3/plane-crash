@@ -42,8 +42,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from the login page
-  if (user && pathname.startsWith('/login')) {
+  // Redirect signed-in users away from the main login page only.
+  // Allow /login/update-password (password recovery) and /login/forgot.
+  if (user && (pathname === '/login' || pathname === '/login/')) {
     return NextResponse.redirect(new URL('/app', request.url))
   }
 
