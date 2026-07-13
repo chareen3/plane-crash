@@ -250,6 +250,7 @@ SESSION
 Rounds=${stats.count}
 Mean=${fmt(stats.mean)}x; median=${fmt(stats.median)}x; stdDev=${fmt(stats.stdDev)}
 EMA=${fmt(stats.ema)}x; trend=${stats.trend}; volatility=${stats.volatility} (${stats.volatilityPct}%)
+Regime=${stats.volatilityRegime ?? 'NORMAL'} (score ${stats.volatilityRegimeInfo?.score ?? 'n/a'}); ensemble=${stats.ensembleScore ?? 'n/a'}; recovery=${stats.recoveryMode ?? 'NONE'}; form=${stats.recentMomentumLabel ?? 'neutral'}
 Recent outcomes newest-first=${stats.recentOutcomes.map(v => `${v}x`).join(', ') || 'N/A'}
 Low streak=${stats.currentLowStreak}; high streak=${stats.currentHighStreak}
 Session momentum=${stats.sessionMomentum}; danger=${stats.sessionDanger}; hot=${stats.sessionHot}
