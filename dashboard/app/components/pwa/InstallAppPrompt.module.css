@@ -1,0 +1,383 @@
+/* CrashTracker PWA install — toast + bottom sheet (portaled to body) */
+
+.toast {
+  position: fixed !important;
+  left: 12px !important;
+  right: 12px !important;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+  top: auto !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: 420px !important;
+  max-height: none !important;
+  margin: 0 auto !important;
+  z-index: 100000 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px;
+  padding: 12px 12px 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 255, 213, 0.3);
+  background: rgba(10, 16, 28, 0.97);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: toastIn 0.32s ease;
+  box-sizing: border-box;
+  pointer-events: auto;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toastIcon {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: 11px;
+  overflow: hidden;
+  flex: 0 0 40px;
+  border: 1px solid rgba(0, 255, 213, 0.28);
+  background: #060a14;
+}
+
+.toastIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.toastBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toastBody strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.toastBody span {
+  display: block;
+  font-size: 11px;
+  color: #8b95b0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.toastBtn {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #00ffd5, #00a8ff);
+  color: #060a14;
+  font-size: 12px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toastClose {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #8b95b0;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* ── Full install sheet ── */
+.overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100001 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  pointer-events: auto;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
+.sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  max-height: min(88dvh, 620px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 22px 22px 0 0;
+  border: 1px solid rgba(0, 255, 213, 0.24);
+  border-bottom: none;
+  background:
+    radial-gradient(ellipse at 18% 0%, rgba(0, 255, 213, 0.16), transparent 48%),
+    radial-gradient(ellipse at 92% 8%, rgba(167, 139, 250, 0.12), transparent 42%),
+    linear-gradient(180deg, #10182c 0%, #080c18 100%);
+  box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.55);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  animation: sheetUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+  margin: 6px auto 14px;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.iconWrap {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 255, 213, 0.32);
+  box-shadow: 0 8px 24px rgba(0, 255, 213, 0.16);
+  background: #060a14;
+}
+
+.iconWrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.heroText {
+  flex: 1;
+  min-width: 0;
+}
+
+.heroText h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.15px;
+  line-height: 1.2;
+}
+
+.heroText p {
+  margin: 0;
+  font-size: 12px;
+  color: #8b95b0;
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+  text-transform: uppercase;
+  color: #00ffd5;
+  background: rgba(0, 255, 213, 0.1);
+  border: 1px solid rgba(0, 255, 213, 0.28);
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.feat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  font-weight: 600;
+  color: #c5cde4;
+}
+
+.featIcon {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 255, 213, 0.1);
+  color: #00ffd5;
+  flex-shrink: 0;
+}
+
+.iosSteps {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+}
+
+.iosSteps h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+}
+
+.iosSteps ol {
+  margin: 0;
+  padding-left: 18px;
+  color: #b8c0d9;
+  font-size: 12px;
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.iosSteps li {
+  margin-bottom: 4px;
+}
+
+.iosSteps strong {
+  color: #e8eeff;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.primary {
+  min-height: 50px;
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #00ffd5, #00a8ff);
+  color: #060a14;
+  font-size: 15px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 10px 28px rgba(0, 255, 213, 0.22);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.primary:active {
+  transform: scale(0.98);
+}
+
+.primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.secondary {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #8b95b0;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.secondary:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+@media (min-width: 851px) {
+  .sheet {
+    border-radius: 20px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid rgba(0, 255, 213, 0.22);
+    max-width: 400px;
+  }
+
+  .toast {
+    left: auto !important;
+    right: 24px !important;
+    bottom: 24px !important;
+    width: 380px !important;
+    max-width: 380px !important;
+  }
+}

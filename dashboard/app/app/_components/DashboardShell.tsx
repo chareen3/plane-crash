@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Home, Activity, Target, Layers, Clock, Menu, X, User, LogOut, Settings, RefreshCw, Zap, ShieldCheck, Info, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { Home, Activity, Target, Layers, Clock, Menu, X, User, LogOut, Settings, ShieldCheck, Info, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
 import { type Translations, type LanguageCode } from "@/lib/locales";
 import { type Round, type ToastMessage } from "../_lib/dashboard-types";
 import { ConnectionStatus } from "./ConnectionStatus";
@@ -208,17 +208,6 @@ export function DashboardShell({
             <div className="header-tools">
               <LanguageSwitcher lang={lang} onChange={handleLangChange} variant="compact" />
 
-              <button
-                type="button"
-                className="ui-btn ui-btn-icon accent header-tool-btn"
-                onClick={runPrediction}
-                disabled={isPredicting || roundsLength === 0}
-                title={t.refreshAI}
-                aria-label={t.refreshAI}
-              >
-                {isPredicting ? <RefreshCw size={15} className="spin" /> : <Zap size={15} />}
-              </button>
-
               <SafePlayModal compact />
 
               <div className="header-profile-wrap">
@@ -266,26 +255,11 @@ export function DashboardShell({
               className={`mobile-status-dot ${connectionStatus === 'connected' ? 'connected' : 'disconnected'}`}
               title={connectionStatus === 'connected' ? `${t.synced}: ${latency}ms` : t.disconnected}
             />
-            <button
-              type="button"
-              className="ui-btn ui-btn-icon accent"
-              onClick={runPrediction}
-              disabled={isPredicting || roundsLength === 0}
-              aria-label={t.refreshAI}
-            >
-              {isPredicting ? <RefreshCw size={14} className="spin" /> : <Zap size={14} />}
-            </button>
             <SafePlayModal compact />
           </div>
         </header>
 
-        {/* ─── MOBILE LIVE STATUS BAR ─── */}
-        <LiveSignalCard
-          liveData={liveData}
-          lastCrash={lastCrash}
-          t={t}
-          variant="mobile-bar"
-        />
+        {/* Crash strip is mobile-only (MobileShell) — not shown on desktop */}
 
         {/* ─── BODY ─── */}
         <div className="dash-body">

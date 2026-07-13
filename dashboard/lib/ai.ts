@@ -41,6 +41,12 @@ export interface LKTimeData {
   currentLKHour: number;
   currentLKMinute: number;
   currentLKTimeStr: string;
+  /** IANA zone used for peak-hour / phase logic (market primary) */
+  timezone: string;
+  /** Short human label e.g. Asia/Colombo (UTC+5:30) */
+  timezoneLabel: string;
+  /** UTC offset string for the market zone */
+  timezoneOffset: string;
   lkPhase: LKPhase;
   lkRule: LKRule;
   lkPlayerCount: string;
@@ -49,6 +55,8 @@ export interface LKTimeData {
   isLKSleep: boolean;
   currentAMPM: 'AM' | 'PM';
   peakHours: readonly PeakHourProfile[];
+  /** Current UTC hour's traffic profile */
+  currentPeak: PeakHourProfile | null;
 }
 
 export interface AIPrediction {
@@ -168,12 +176,19 @@ export function getLKTimeData(now: Date = new Date(), sleepPhaseEnabled = true):
   const safeHour = lkHour ?? 0;
   const safeMinute = lkMinute ?? 0;
   const info = LK_PHASE_TABLE[safeHour] ?? FALLBACK_PHASE;
+  const utcHour = now.getUTCHours();
+  const currentPeak =
+    PEAK_HOURS_UTC.find(p => p.hour === utcHour) ??
+    ({ hour: utcHour, label: `${String(utcHour).padStart(2, '0')}:00 UTC`, score: 50, tag: 'NORM' as const, note: '' });
 
   return {
-    currentUTCHour: now.getUTCHours(),
+    currentUTCHour: utcHour,
     currentLKHour: safeHour,
     currentLKMinute: safeMinute,
     currentLKTimeStr: `${String(safeHour).padStart(2, '0')}:${String(safeMinute).padStart(2, '0')}`,
+    timezone: 'Asia/Colombo',
+    timezoneLabel: 'Asia/Colombo',
+    timezoneOffset: 'UTC+5:30',
     lkPhase: info.phase,
     lkRule: info.rule,
     lkPlayerCount: info.playerCount,
@@ -182,6 +197,7 @@ export function getLKTimeData(now: Date = new Date(), sleepPhaseEnabled = true):
     isLKSleep: sleepPhaseEnabled && info.phase === 'SLEEP',
     currentAMPM: safeHour >= 12 ? 'PM' : 'AM',
     peakHours: PEAK_HOURS_UTC,
+    currentPeak,
   };
 }
 

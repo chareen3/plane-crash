@@ -2,11 +2,18 @@
 
 import { Activity, Bot } from "lucide-react";
 import { useDashboard } from "../../_context/DashboardContext";
+import { useMobileUI } from "../DashboardRoot";
+import { MobileLiveView } from "../mobile/MobileLiveView";
 import { LiveFeedTable } from "../CrashHistoryTable";
 
 export function LiveFeedView() {
+  const isMobile = useMobileUI();
   const d = useDashboard();
   const { rounds, prediction, latency, t, formatStr } = d;
+
+  if (isMobile) {
+    return <MobileLiveView />;
+  }
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", width: "100%" }}>

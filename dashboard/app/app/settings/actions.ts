@@ -37,19 +37,28 @@ export async function updateProfile(formData: FormData) {
     return { error: 'Not authenticated' }
   }
 
-  const timezone = formData.get('timezone') as string
-  
-  if (timezone) {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ timezone })
-      .eq('id', user.id)
+  const rawTz = String(formData.get('timezone') || '').trim()
+  if (!rawTz) {
+    return { error: 'Please select a timezone' }
+  }
 
-    if (error) {
-      return { error: error.message }
-    }
+  // Basic IANA validation
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: rawTz })
+  } catch {
+    return { error: 'Invalid timezone selected' }
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ timezone: rawTz })
+    .eq('id', user.id)
+
+  if (error) {
+    return { error: error.message }
   }
 
   revalidatePath('/app/settings')
+  revalidatePath('/app')
   return { success: 'Profile updated successfully' }
 }

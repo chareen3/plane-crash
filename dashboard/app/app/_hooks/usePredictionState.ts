@@ -1,13 +1,23 @@
 import { useState, useRef, useCallback } from "react";
 import { type Prediction } from "../_lib/dashboard-types";
+import { normalizePrediction } from "../_lib/normalize-prediction";
 
 export function usePredictionState(activeGame: string, fetchWinRate: () => void) {
-  const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [prediction, setPredictionRaw] = useState<Prediction | null>(null);
   const [timeData, setTimeData] = useState<any>(null);
   const [isPredicting, setIsPredicting] = useState(false);
   const [predStatus, setPredStatus] = useState<'idle' | 'predicting' | 'done'>('idle');
 
   const isPredictingRef = useRef(false);
+
+  /** Always store normalized predictions so the AI coach never gets bad shapes. */
+  const setPrediction = useCallback((p: Prediction | null | any) => {
+    if (p == null) {
+      setPredictionRaw(null);
+      return;
+    }
+    setPredictionRaw(normalizePrediction(p));
+  }, []);
 
   const runPrediction = useCallback(async () => {
     if (isPredictingRef.current) return;
@@ -19,20 +29,17 @@ export function usePredictionState(activeGame: string, fetchWinRate: () => void)
       const res = await fetch(`/api/predict?game=${activeGame}&tz=${encodeURIComponent(tz)}`);
       if (res.ok) {
         const d = await res.json();
-        if (d.risk || d.strategy) {
-          const mapped: Prediction = {
-            ...d,
-            predicted_risk: d.risk ?? d.predicted_risk,
-            strategy: d.strategy ?? 'CONSERVATIVE',
-            should_bet: d.should_bet ?? true,
-            cashout_target: d.cashout_target ?? d.predicted_multiplier ?? 1.2,
-          };
-          setPrediction(mapped);
+        // Accept any payload that normalizes into a coach-ready prediction
+        const mapped = normalizePrediction(d);
+        if (mapped) {
+          setPredictionRaw(mapped);
           if (d.timeData) setTimeData(d.timeData);
           setPredStatus('done');
         } else {
           setPredStatus('idle');
         }
+      } else {
+        setPredStatus('idle');
       }
     } catch {
       setPredStatus('idle');

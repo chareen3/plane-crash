@@ -1,12 +1,15 @@
 "use client";
 
-import { Activity, Bot, Layers, Zap } from "lucide-react";
+import { Activity, Layers, Zap } from "lucide-react";
 import { useDashboard } from "../../_context/DashboardContext";
+import { useMobileUI } from "../DashboardRoot";
+import { MobileHomeView } from "../mobile/MobileHomeView";
 import { PerformancePanel } from "../PerformancePanel";
 import { BetSignalHeroCard, AIPredictionPanel } from "../PredictionCard";
 import { TargetHitRatesTable, MiniLiveFeedPanel, CrashHistoryChart } from "../CrashHistoryTable";
 
 export function DashboardHomeView() {
+  const isMobile = useMobileUI();
   const d = useDashboard();
   const {
     winRate, statsWindow, setStatsWindow, showMobileStatsPanel, setShowMobileStatsPanel,
@@ -14,6 +17,10 @@ export function DashboardHomeView() {
     isPredicting, predStatus, timeData, getTargetStats, displayedRounds,
     chartType, setChartType, timeRange, setTimeRange, chartData,
   } = d;
+
+  if (isMobile) {
+    return <MobileHomeView />;
+  }
 
   return (
     <>

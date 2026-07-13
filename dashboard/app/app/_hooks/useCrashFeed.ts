@@ -43,6 +43,20 @@ export function useCrashFeed({
   const lastPredictedRoundRef = useRef<number>(-1);
   const prevStatusRef = useRef<'connecting' | 'connected' | 'disconnected'>('connecting');
 
+  // Keep latest callbacks without re-subscribing realtime (avoids "after subscribe()" errors)
+  const runPredictionRef = useRef(runPrediction);
+  const fetchWinRateRef = useRef(fetchWinRate);
+  const setPredictionRef = useRef(setPrediction);
+  const setPredStatusRef = useRef(setPredStatus);
+  const setTimeDataRef = useRef(setTimeData);
+  const onNewCrashLiveRef = useRef(onNewCrashLive);
+  runPredictionRef.current = runPrediction;
+  fetchWinRateRef.current = fetchWinRate;
+  setPredictionRef.current = setPrediction;
+  setPredStatusRef.current = setPredStatus;
+  setTimeDataRef.current = setTimeData;
+  onNewCrashLiveRef.current = onNewCrashLive;
+
   const triggerReconnect = useCallback(() => {
     setConnectionStatus('connecting');
     lastMessageTimeRef.current = Date.now();
@@ -71,23 +85,36 @@ export function useCrashFeed({
     return () => clearInterval(hbInterval);
   }, []);
 
-  // Subscriptions and watchdogs
+  // Subscriptions and watchdogs — mount once; use refs for handlers
   useEffect(() => {
+    let cancelled = false;
+
     // Lightweight cache cleanup
     try {
       localStorage.removeItem('oldCrashCache');
       localStorage.removeItem('debugLogs');
       localStorage.removeItem('crashHistory');
-    } catch(e) {}
+    } catch (e) {}
 
-    // Initial rounds load
+    // Drop any leftover channels with this topic (Strict Mode / HMR remounts)
+    try {
+      for (const ch of supabase.getChannels()) {
+        const topic = (ch as { topic?: string }).topic ?? "";
+        if (topic.includes("crash-realtime")) {
+          void supabase.removeChannel(ch);
+        }
+      }
+    } catch (e) {}
+
+    // Initial rounds load — then seed AI coach so it is not stuck empty until next crash
     supabase.from('crash_rounds').select('*').order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => {
-        if (data?.length) {
-          setRounds(data);
-          setLastCrash(data[0]);
-          setLocalStats(computeStats(data));
-        }
+        if (cancelled || !data?.length) return;
+        setRounds(data);
+        setLastCrash(data[0]);
+        setLocalStats(computeStats(data));
+        runPredictionRef.current();
+        fetchWinRateRef.current();
       });
 
     const handleMessage = (evt: MessageEvent) => {
@@ -121,7 +148,6 @@ export function useCrashFeed({
       if (type === 'EXTENSION_CRASH_LIVE') {
         const { round, prediction, stats, timeData: td } = evt.data;
         if (round) {
-          lastPredictedRoundRef.current = round.round_number;
           const roundObj: Round = { ...round, _optimistic: true };
           setLastCrash(roundObj);
           setLiveData(prev => ({ ...prev, state: 'crashed' }));
@@ -133,10 +159,20 @@ export function useCrashFeed({
           });
         }
         if (stats) setLocalStats(stats);
-        if (prediction) { setPrediction(prediction); setPredStatus('done'); }
-        if (td) setTimeData(td);
-        onNewCrashLive?.();
-        fetchWinRate();
+        if (td) setTimeDataRef.current(td);
+        // Prefer extension prediction; otherwise fetch so coach never stays blank
+        if (prediction) {
+          if (round?.round_number != null) lastPredictedRoundRef.current = round.round_number;
+          setPredictionRef.current(prediction);
+          setPredStatusRef.current('done');
+        } else if (round?.round_number != null && round.round_number !== lastPredictedRoundRef.current) {
+          lastPredictedRoundRef.current = round.round_number;
+          runPredictionRef.current();
+        } else if (!prediction) {
+          runPredictionRef.current();
+        }
+        onNewCrashLiveRef.current?.();
+        fetchWinRateRef.current();
       } else if (type === 'EXTENSION_BET_CHANGE') {
         setBetAmount(evt.data.amount);
       } else if (type === 'LIVE_TICK') {
@@ -157,25 +193,41 @@ export function useCrashFeed({
       }
     }, 5000);
 
-    const channel = supabase.channel('crash-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'crash_rounds' }, (payload) => {
+    // Unique channel name so remount never reuses a already-subscribed channel
+    const channelName = `crash-realtime-${Math.random().toString(36).slice(2, 10)}`;
+    const channel = supabase.channel(channelName);
+
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'crash_rounds' },
+      (payload) => {
+        if (cancelled) return;
         lastMessageTimeRef.current = Date.now();
         setIsExtensionConnected(true);
         const round = payload.new as Round;
         setRounds(prev => {
           const exists = prev.findIndex(r => r.round_number === round.round_number);
-          if (exists !== -1) { const u = [...prev]; u[exists] = round; return u; }
+          if (exists !== -1) {
+            const u = [...prev];
+            u[exists] = round;
+            return u;
+          }
           const updated = [round, ...prev].slice(0, 50);
           setLocalStats(computeStats(updated as any[]));
           return updated;
         });
         setLastCrash(round);
         if (round.round_number !== lastPredictedRoundRef.current) {
-          fetchWinRate();
-          runPrediction();
+          fetchWinRateRef.current();
+          runPredictionRef.current();
           lastPredictedRoundRef.current = round.round_number;
         }
-      }).subscribe();
+      },
+    );
+
+    channel.subscribe((status, err) => {
+      if (err) console.warn('[crash-realtime] subscribe error:', status, err);
+    });
 
     const connTimeout = setTimeout(() => {
       setIsExtensionConnected(curr => {
@@ -188,13 +240,14 @@ export function useCrashFeed({
     }, 5000);
 
     return () => {
+      cancelled = true;
       clearInterval(pingInterval);
       clearInterval(watchdogInterval);
       clearTimeout(connTimeout);
-      supabase.removeChannel(channel);
       window.removeEventListener('message', handleMessage);
+      void supabase.removeChannel(channel);
     };
-  }, [fetchWinRate, runPrediction, setPrediction, setPredStatus, setTimeData, onNewCrashLive]);
+  }, []);
 
   // Handle connection warnings
   useEffect(() => {

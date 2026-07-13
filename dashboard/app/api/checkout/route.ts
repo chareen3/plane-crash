@@ -34,7 +34,8 @@ export async function POST(req: Request) {
     })
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const successUrl = `${appUrl}/account/billing?success=true`
+    // Land on dashboard with install prompt after successful subscribe
+    const successUrl = `${appUrl}/app?welcome=subscribed`
 
     const checkout = await polar.checkouts.create({
       products: [productPriceId],

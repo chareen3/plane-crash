@@ -18,6 +18,8 @@ export interface Round {
 
 export interface Prediction {
   risk: 'LOW' | 'MEDIUM' | 'HIGH';
+  /** API alias — prefer `risk` after normalizePrediction() */
+  predicted_risk?: 'LOW' | 'MEDIUM' | 'HIGH' | string;
   confidence: number;
   summary: string;
   predicted_multiplier?: number;

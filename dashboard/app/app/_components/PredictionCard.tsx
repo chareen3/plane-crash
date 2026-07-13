@@ -1,65 +1,49 @@
+import type { ReactNode } from "react";
 import { ShieldAlert, ShieldCheck, Scale, Rocket, AlertTriangle, RefreshCw, Orbit, TrendingUp, TrendingDown, Minus, Bot, CheckCircle2, Info, Sparkles, Target, BarChart3, Moon, Sun, Sunset, Star as StarIcon, Gauge, Skull } from "lucide-react";
 import { type Translations, type LanguageCode } from "@/lib/locales";
 import { type Prediction } from "../_lib/dashboard-types";
 import { type CrashStats } from "@/lib/stats";
+import { riskKey, riskTone, safeCashout } from "../_lib/normalize-prediction";
+import { getPeakPhaseMeta, getPeakTagStyle, resolvePeakPhase } from "../_lib/peak-phase";
 
-const RISK_COLOR: Record<string, string> = { LOW: 'green', MEDIUM: 'yellow', HIGH: 'red' };
-
-const PHASE_ICONS: Record<string, { icon: any; color: string; glow: string; label: string; bg: string }> = {
-  SLEEP: {
-    icon: <Moon size={18} />,
-    color: '#6366f1',
-    glow: 'rgba(99,102,241,0.3)',
-    label: 'SLEEP',
-    bg: 'linear-gradient(135deg, rgba(99,102,241,0.12), rgba(99,102,241,0.03))'
-  },
-  MORNING: {
-    icon: <Sun size={18} />,
-    color: '#f59e0b',
-    glow: 'rgba(245,158,11,0.3)',
-    label: 'MORNING',
-    bg: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.03))'
-  },
-  DAY: {
-    icon: <Sun size={18} />,
-    color: '#38bdf8',
-    glow: 'rgba(56,189,248,0.3)',
-    label: 'DAY',
-    bg: 'linear-gradient(135deg, rgba(56,189,248,0.12), rgba(56,189,248,0.03))'
-  },
-  EVENING: {
-    icon: <Sunset size={18} />,
-    color: '#f97316',
-    glow: 'rgba(249,115,22,0.3)',
-    label: 'EVENING',
-    bg: 'linear-gradient(135deg, rgba(249,115,22,0.12), rgba(249,115,22,0.03))'
-  },
-  PRIME: {
-    icon: <Sparkles size={18} />,
-    color: '#00e5a0',
-    glow: 'rgba(0,229,160,0.4)',
-    label: 'PRIME',
-    bg: 'linear-gradient(135deg, rgba(0,229,160,0.15), rgba(0,229,160,0.04))'
-  },
-  LATE: {
-    icon: <StarIcon size={18} />,
-    color: '#a78bfa',
-    glow: 'rgba(167,139,250,0.3)',
-    label: 'LATE',
-    bg: 'linear-gradient(135deg, rgba(167,139,250,0.12), rgba(167,139,250,0.03))'
-  }
+const PHASE_ICONS: Record<string, ReactNode> = {
+  SLEEP: <Moon size={18} />,
+  MORNING: <Sun size={18} />,
+  DAY: <Sun size={18} />,
+  EVENING: <Sunset size={18} />,
+  PRIME: <Sparkles size={18} />,
+  LATE: <StarIcon size={18} />,
 };
 
 function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode }) {
-  const phase = timeData?.lkPhase ?? 'DAY';
-  const meta = PHASE_ICONS[phase] || PHASE_ICONS.DAY;
+  const phase = resolvePeakPhase(timeData?.lkPhase);
+  const meta = getPeakPhaseMeta(phase);
   const isPrime = phase === 'PRIME';
   const isSleep = phase === 'SLEEP';
+  // Market timezone is always Colombo — independent of user profile TZ
+  const tz = 'Asia/Colombo';
+  const tzOffset = timeData?.timezoneOffset || 'UTC+5:30';
+  const peak =
+    timeData?.currentPeak ||
+    (Array.isArray(timeData?.peakHours)
+      ? timeData.peakHours.find((p: any) => p.hour === timeData?.currentUTCHour)
+      : null);
+  const peakTag = String(peak?.tag ?? (isPrime ? 'PEAK' : isSleep ? 'NORM' : 'WARM')).toUpperCase();
+  const tagStyle = getPeakTagStyle(peakTag);
+  const peakScore = Number.isFinite(Number(peak?.score)) ? Number(peak.score) : null;
+  const timeStr = timeData?.currentLKTimeStr ?? '—';
+  const note = timeData?.lkNote ?? '';
+  const phaseIcon = PHASE_ICONS[phase] || PHASE_ICONS.DAY;
+
+  const peakLabel =
+    lang === 'si' ? 'උච්ච පැය' : lang === 'ta' ? 'உச்ச நேரம்' : 'PEAK HOURS';
+  const tzShort =
+    lang === 'si' ? 'ශ්‍රී ලංකා වේලාව' : lang === 'ta' ? 'இலங்கை நேரம்' : 'Sri Lanka time';
 
   return (
-    <div className={`time-sync-card ${phase.toLowerCase()}`} style={{
+    <div className={`time-sync-card ${String(phase).toLowerCase()}`} style={{
       background: meta.bg,
-      border: `1px solid ${meta.color}25`,
+      border: `1px solid ${meta.border}`,
       borderRadius: '14px',
       padding: '14px 16px',
       marginTop: '12px',
@@ -78,7 +62,7 @@ function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode })
       }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 1 }}>
-        <div className={`ts-icon-wrap ${phase.toLowerCase()}`} style={{
+        <div className={`ts-icon-wrap ${String(phase).toLowerCase()}`} style={{
           background: `${meta.color}15`,
           border: `1px solid ${meta.color}30`,
           borderRadius: '12px',
@@ -91,7 +75,7 @@ function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode })
           flexShrink: 0,
           position: 'relative'
         }}>
-          <div className="ts-icon" style={{ position: 'relative', zIndex: 1 }}>{meta.icon}</div>
+          <div className="ts-icon" style={{ position: 'relative', zIndex: 1 }}>{phaseIcon}</div>
           <div className="ts-icon-ring" style={{
             position: 'absolute',
             inset: '-4px',
@@ -102,7 +86,7 @@ function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode })
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span className="ts-title" style={{
               fontSize: '11px',
               fontWeight: '800',
@@ -114,7 +98,7 @@ function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode })
               gap: '6px'
             }}>
               <Gauge size={11} color={meta.color} />
-              PEAK HOURS
+              {peakLabel}
             </span>
             <span className="ts-badge" style={{
               fontSize: '9px',
@@ -140,19 +124,61 @@ function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode })
               ) : meta.label}
             </span>
           </div>
+
+          <div style={{
+            marginTop: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            flexWrap: 'wrap',
+            fontSize: '10px',
+            fontWeight: '700',
+            color: '#94a3b8',
+            letterSpacing: '0.2px',
+          }}>
+            <span style={{
+              color: meta.color,
+              background: `${meta.color}14`,
+              border: `1px solid ${meta.color}30`,
+              borderRadius: '999px',
+              padding: '2px 8px',
+              fontFamily: "'Rajdhani', sans-serif",
+            }}>
+              {tz}
+            </span>
+            <span style={{ opacity: 0.7 }}>{tzOffset}</span>
+            <span style={{ opacity: 0.45 }}>·</span>
+            <span style={{ color: '#cbd5e1' }}>{tzShort}</span>
+          </div>
+
           <div style={{
             fontSize: '11px',
             color: '#94a3b8',
-            marginTop: '4px',
+            marginTop: '6px',
             lineHeight: '1.4',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
             flexWrap: 'wrap'
           }}>
-            <strong style={{ color: '#ffffff', fontFamily: 'monospace' }}>{timeData.currentLKTimeStr}</strong>
-            <span style={{ opacity: 0.5 }}>·</span>
-            <span>{timeData.lkNote}</span>
+            <strong style={{ color: '#ffffff', fontFamily: 'monospace', fontSize: '13px' }}>{timeStr}</strong>
+            <span style={{
+              fontSize: '9px',
+              fontWeight: '800',
+              padding: '2px 7px',
+              borderRadius: '6px',
+              background: tagStyle.bg,
+              color: tagStyle.color,
+              border: `1px solid ${tagStyle.border}`,
+            }}>
+              {peakTag}{peakScore != null ? ` ${peakScore}` : ''}
+            </span>
+            {note ? (
+              <>
+                <span style={{ opacity: 0.5 }}>·</span>
+                <span>{note}</span>
+              </>
+            ) : null}
           </div>
         </div>
       </div>
@@ -170,7 +196,9 @@ function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode })
             height: '100%',
             borderRadius: '2px',
             background: `linear-gradient(90deg, ${meta.color}, ${meta.color}80)`,
-            width: isPrime ? '85%' : phase === 'EVENING' ? '60%' : phase === 'MORNING' ? '35%' : phase === 'DAY' ? '50%' : '25%',
+            width: peakScore != null
+              ? `${Math.min(100, Math.max(12, peakScore))}%`
+              : isPrime ? '85%' : phase === 'EVENING' ? '60%' : phase === 'MORNING' ? '35%' : phase === 'DAY' ? '50%' : '25%',
             animation: 'ts-bar-pulse 2s ease-in-out infinite',
           }} />
         </div>
@@ -182,6 +210,7 @@ function TimeSyncCard({ timeData, lang }: { timeData: any; lang: LanguageCode })
 const STRATEGY_META = (t: Translations) => ({
   SKIP: { color: '#ff3366', glow: 'rgba(255,51,102,0.3)', icon: <ShieldAlert size={28} strokeWidth={2} />, label: t.holdDoNotEnter, tag: t.danger },
   CONSERVATIVE: { color: '#00e5a0', glow: 'rgba(0,229,160,0.3)', icon: <ShieldCheck size={28} strokeWidth={2} />, label: t.safeEntrySignal, tag: t.safe },
+  BET_NORMAL: { color: '#00e5a0', glow: 'rgba(0,229,160,0.3)', icon: <ShieldCheck size={28} strokeWidth={2} />, label: t.safeEntrySignal, tag: t.safe },
   AGGRESSIVE: { color: '#ffd000', glow: 'rgba(255,208,0,0.3)', icon: <Scale size={28} strokeWidth={2} />, label: t.highRiskPlay, tag: t.risk },
   SWING: { color: '#a78bfa', glow: 'rgba(167,139,250,0.3)', icon: <Rocket size={28} strokeWidth={2} />, label: t.swingTrade, tag: t.swing },
 });
@@ -204,8 +233,8 @@ export function BetSignalHeroCard({
   t,
 }: BetSignalHeroCardProps) {
   const getStratMeta = (strategy: string) => {
-    const meta = STRATEGY_META(t)[strategy as 'SKIP' | 'CONSERVATIVE' | 'AGGRESSIVE' | 'SWING'] || STRATEGY_META(t)['CONSERVATIVE'];
-    return meta;
+    const key = strategy as keyof ReturnType<typeof STRATEGY_META>;
+    return STRATEGY_META(t)[key] || STRATEGY_META(t).CONSERVATIVE;
   };
 
   const stratMeta = prediction?.strategy ? getStratMeta(prediction.strategy) : null;
@@ -378,8 +407,18 @@ export function AIPredictionPanel({
     return result;
   };
 
+  // Prefer live local stats; fall back to stats embedded on prediction payload
+  const liveStats = stats ?? prediction?.stats ?? null;
+  const rk = riskKey(prediction?.risk ?? prediction?.predicted_risk);
+  const tone = riskTone(rk);
+  const riskLabel =
+    rk === 'HIGH' ? t.riskHigh : rk === 'LOW' ? t.riskLow : t.riskMedium;
+  const isSkip =
+    !!prediction &&
+    (prediction.strategy === 'SKIP' || prediction.should_bet === false);
+
   return (
-    <div className={`glass-card pred-card2 ${prediction ? `pred-${RISK_COLOR[prediction.risk]}` : ''}`}>
+    <div className={`glass-card pred-card2 ${prediction ? `pred-${tone}` : ''}`}>
       <div className="pc2-header responsive-header">
         <div className="pc2-title">
           <Bot size={16} color="#a78bfa" style={{ flexShrink: 0 }} />
@@ -388,7 +427,7 @@ export function AIPredictionPanel({
         <span className={`pred-status ${predStatus}`} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
           {predStatus === 'predicting' ? (
             <><RefreshCw size={11} className="spin" /> {t.analyzingDot}</>
-          ) : predStatus === 'done' ? (
+          ) : predStatus === 'done' || prediction ? (
             <><CheckCircle2 size={11} /> {t.ready}</>
           ) : (
             t.waiting
@@ -396,11 +435,11 @@ export function AIPredictionPanel({
         </span>
       </div>
 
-      {prediction?.ai_model_used && predStatus === 'done' && (
+      {prediction && (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
-          <span className={`risk-badge risk-${RISK_COLOR[prediction.risk]}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>
-            {prediction.risk === 'HIGH' ? <AlertTriangle size={12} /> : prediction.risk === 'MEDIUM' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
-            {prediction.risk === 'HIGH' ? t.riskHigh : prediction.risk === 'MEDIUM' ? t.riskMedium : t.riskLow}
+          <span className={`risk-badge risk-${tone}`} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', fontSize: '11px', fontWeight: '700', fontFamily: "'Rajdhani', sans-serif", letterSpacing: '0.5px' }}>
+            {rk === 'HIGH' ? <AlertTriangle size={12} /> : rk === 'MEDIUM' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
+            {riskLabel}
           </span>
           <span className="badge-pill" style={{ color: '#a78bfa', background: 'rgba(167,139,250,0.1)', fontWeight: '600', fontFamily: "'Rajdhani', sans-serif" }}>
             <Bot size={12} /> {t.aiCoachBadge}
@@ -433,9 +472,9 @@ export function AIPredictionPanel({
         </div>
       )}
 
-      {prediction && stats ? (
+      {prediction ? (
         <>
-          {prediction.instant_crash_risk !== undefined && prediction.instant_crash_risk >= 30 && (
+          {(prediction.instant_crash_risk ?? 0) >= 30 && (
             <>
               <style>{`
                 @keyframes pulse-border {
@@ -497,11 +536,11 @@ export function AIPredictionPanel({
                       fontWeight: '900',
                       marginLeft: 'auto'
                     }}>
-                      {prediction.instant_crash_risk}% RISK
+                      {Number(prediction.instant_crash_risk)}% RISK
                     </span>
                   </div>
                   <div style={{ color: '#ccc', fontSize: '11px', marginTop: '3px', lineHeight: '1.4', fontFamily: "'Rajdhani', sans-serif" }}>
-                    {prediction.instant_crash_warning}
+                    {prediction.instant_crash_warning || t.instantCrashFloor}
                   </div>
                 </div>
               </div>
@@ -512,11 +551,13 @@ export function AIPredictionPanel({
             <TimeSyncCard timeData={timeData} lang={lang} />
           )}
 
-          <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
-            {prediction.summary}
-          </div>
+          {prediction.summary ? (
+            <div className="pred-summary" style={{ fontStyle: 'italic', color: '#aaa', borderLeft: '3px solid #a78bfa', paddingLeft: '10px', margin: '10px 0 14px', fontSize: '12px', lineHeight: '1.5' }}>
+              {prediction.summary}
+            </div>
+          ) : null}
 
-          {prediction.strategy === 'SKIP' || !prediction.should_bet ? (
+          {isSkip ? (
             timeData?.isLKSleep ? (
               <div style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.25)', borderRadius: '10px', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <ShieldAlert size={18} color="#00ffd5" style={{ flexShrink: 0 }} />
@@ -542,35 +583,40 @@ export function AIPredictionPanel({
             <>
               <div className={`cashout-targets ${prediction.swing_target ? '' : 'single'}`}>
                 {(() => {
-                  const targetVal = prediction.cashout_target || (stats ? stats.conservativeCashout : 1.10);
-                  const tStats = getTargetStats(targetVal);
-                  const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
-                  const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
+                  const safeTarget = safeCashout(prediction, liveStats?.conservativeCashout);
+                  const tStats = getTargetStats(safeTarget);
+                  const hit = Number.isFinite(tStats.hitRate) ? tStats.hitRate : 0;
+                  const ev = Number.isFinite(tStats.ev) ? tStats.ev : 0;
+                  const evStr = ev >= 0 ? `+${ev.toFixed(3)}` : ev.toFixed(3);
+                  const evColor = ev >= 0 ? '#00e5a0' : '#ff3366';
                   return (
                     <div className="cashout-target safe" style={{ borderLeftColor: '#00e5a0', background: 'rgba(0,229,160,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
                       <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><ShieldCheck size={12} color="#00e5a0" /> {t.safeAutoCashout}</div>
                       <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#00e5a0', margin: '4px 0' }}>
-                        {targetVal.toFixed(2)}x
+                        {safeTarget.toFixed(2)}x
                       </div>
                       <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span>{formatStr(t.chance, { pct: tStats.hitRate })}</span>
+                        <span>{formatStr(t.chance, { pct: hit })}</span>
                         <span style={{ color: evColor, fontWeight: '600' }}>{formatStr(t.expectedProfit, { ev: evStr })}</span>
                       </div>
                     </div>
                   );
                 })()}
-                {prediction.swing_target && (() => {
-                  const tStats = getTargetStats(prediction.swing_target);
-                  const evStr = tStats.ev >= 0 ? `+${tStats.ev.toFixed(3)}` : tStats.ev.toFixed(3);
-                  const evColor = tStats.ev >= 0 ? '#00e5a0' : '#ff3366';
+                {prediction.swing_target != null && Number(prediction.swing_target) > 1 && (() => {
+                  const swing = Number(prediction.swing_target);
+                  const tStats = getTargetStats(swing);
+                  const hit = Number.isFinite(tStats.hitRate) ? tStats.hitRate : 0;
+                  const ev = Number.isFinite(tStats.ev) ? tStats.ev : 0;
+                  const evStr = ev >= 0 ? `+${ev.toFixed(3)}` : ev.toFixed(3);
+                  const evColor = ev >= 0 ? '#00e5a0' : '#ff3366';
                   return (
                     <div className="cashout-target risk" style={{ borderLeftColor: '#ffd000', background: 'rgba(255,208,0,0.03)', padding: '10px', borderLeftWidth: '3px', borderRadius: '6px' }}>
                       <div className="ct-label" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#888' }}><Scale size={12} color="#ffd000" /> {t.optionalSwing}</div>
                       <div className="ct-mult" style={{ fontSize: '22px', fontWeight: '800', fontFamily: 'monospace', color: '#ffd000', margin: '4px 0' }}>
-                        {prediction.swing_target.toFixed(2)}x
+                        {swing.toFixed(2)}x
                       </div>
                       <div className="ct-pct" style={{ fontSize: '10px', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <span>{formatStr(t.chance, { pct: tStats.hitRate })}</span>
+                        <span>{formatStr(t.chance, { pct: hit })}</span>
                         <span style={{ color: evColor, fontWeight: '600' }}>{formatStr(t.expectedProfit, { ev: evStr })}</span>
                       </div>
                     </div>
@@ -578,24 +624,24 @@ export function AIPredictionPanel({
                 })()}
               </div>
 
-              {stats?.pInstantCrash !== undefined && (
+              {liveStats?.pInstantCrash != null && Number.isFinite(Number(liveStats.pInstantCrash)) && (
                 <div style={{ background: 'rgba(255,51,102,0.06)', border: '1px solid rgba(255,51,102,0.15)', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', marginBottom: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                   <AlertTriangle size={14} color="#ff3366" style={{ flexShrink: 0, marginTop: '2px' }} />
                   <div style={{ fontSize: '10px', color: '#c7d2fe', lineHeight: '1.4' }}>
                     <span style={{ color: '#ff3366', fontWeight: '800', textTransform: 'uppercase', marginRight: '4px' }}>{t.instantCrashFloor}</span>
-                    {formatStr(t.instantCrashDesc, { pct: stats.pInstantCrash.toFixed(1) })}
+                    {formatStr(t.instantCrashDesc, { pct: Number(liveStats.pInstantCrash).toFixed(1) })}
                   </div>
                 </div>
               )}
             </>
           )}
 
-          {stats.p90SafeCashout !== undefined && !prediction.swing_target && prediction.strategy !== 'SKIP' && (
+          {liveStats?.p90SafeCashout != null && Number.isFinite(Number(liveStats.p90SafeCashout)) && !prediction.swing_target && !isSkip && (
             <div className="ai-ceiling-forecast" style={{ background: 'rgba(0,229,160,0.1)', borderColor: '#00e5a0', marginTop: '12px' }}>
               <span className="ceiling-label" style={{ color: '#00e5a0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Target size={12} color="#00e5a0" /> {t.statisticalCeiling}
               </span>
-              <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(stats.p90SafeCashout).toFixed(2)}x</span>
+              <span className="ceiling-val" style={{ color: '#00e5a0' }}>{Number(liveStats.p90SafeCashout).toFixed(2)}x</span>
             </div>
           )}
 
@@ -614,15 +660,15 @@ export function AIPredictionPanel({
                 fontFamily: "'Rajdhani', sans-serif"
               }}>
                 <span>{lang === 'si' ? 'දිගුකාලීන පුරෝකථනය' : lang === 'ta' ? 'நீண்ட கால கணிப்புகள்' : 'LONG-TERM CHANCES'}</span>
-                <span style={{ 
-                  color: prediction.ai_model_used !== 'stats-only' ? '#6c63ff' : '#888', 
+                <span style={{
+                  color: prediction.ai_model_used && prediction.ai_model_used !== 'stats-only' ? '#6c63ff' : '#888',
                   fontWeight: '900',
-                  background: prediction.ai_model_used !== 'stats-only' ? 'rgba(108, 99, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+                  background: prediction.ai_model_used && prediction.ai_model_used !== 'stats-only' ? 'rgba(108, 99, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)',
                   padding: '2px 6px',
                   borderRadius: '4px',
-                  border: prediction.ai_model_used !== 'stats-only' ? '1px solid rgba(108, 99, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.08)'
+                  border: prediction.ai_model_used && prediction.ai_model_used !== 'stats-only' ? '1px solid rgba(108, 99, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.08)'
                 }}>
-                  {prediction.ai_model_used !== 'stats-only' ? '🤖 AI MODEL' : '📊 STATS'}
+                  {prediction.ai_model_used && prediction.ai_model_used !== 'stats-only' ? '🤖 AI MODEL' : '📊 STATS'}
                 </span>
               </div>
               <div className="long-targets-row" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
@@ -630,7 +676,10 @@ export function AIPredictionPanel({
                   { target: '5.0x', refVal: '19.4%', val: prediction.long_targets.x5 },
                   { target: '10.0x', refVal: '9.7%', val: prediction.long_targets.x10 },
                   { target: '20.0x', refVal: '4.8%', val: prediction.long_targets.x20 },
-                ].map(lt => (
+                ].map(lt => {
+                  const pct = Number(lt.val);
+                  const safe = Number.isFinite(pct) ? pct : 0;
+                  return (
                   <div key={lt.target} style={{
                     flex: 1,
                     textAlign: 'center',
@@ -642,48 +691,59 @@ export function AIPredictionPanel({
                   }}>
                     <span style={{ display: 'block', fontSize: '10px', color: '#aaa', fontWeight: '700' }}>{lt.target}</span>
                     <span style={{ display: 'block', fontSize: '15px', fontWeight: '800', margin: '2px 0', color: '#fff' }}>
-                      {Number(lt.val).toFixed(1)}%
+                      {safe.toFixed(1)}%
                     </span>
                     <span style={{ display: 'block', fontSize: '8px', color: '#555' }}>Ref: {lt.refVal}</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
-          <div className="pred-bars">
-            {[
-              { label: t.under2x, pct: stats.pUnder2, cls: 'red' },
-              { label: t.between2and5, pct: stats.p2to5, cls: 'yellow' },
-              { label: t.over5x, pct: stats.pOver5, cls: 'green' },
-            ].map(b => (
-              <div className="pred-bar-row" key={b.label}>
-                <span className="pred-bar-label">{b.label}</span>
-                <div className="pred-bar-track">
-                  <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${b.pct}%` }} />
-                </div>
-                <span className={`pred-bar-pct ${b.cls}`}>{b.pct}%</span>
+          {liveStats && (
+            <>
+              <div className="pred-bars">
+                {[
+                  { label: t.under2x, pct: liveStats.pUnder2 ?? 0, cls: 'red' },
+                  { label: t.between2and5, pct: liveStats.p2to5 ?? 0, cls: 'yellow' },
+                  { label: t.over5x, pct: liveStats.pOver5 ?? 0, cls: 'green' },
+                ].map(b => {
+                  const pct = Number(b.pct);
+                  const safePct = Number.isFinite(pct) ? pct : 0;
+                  return (
+                  <div className="pred-bar-row" key={b.label}>
+                    <span className="pred-bar-label">{b.label}</span>
+                    <div className="pred-bar-track">
+                      <div className={`pred-bar-fill ${b.cls}`} style={{ width: `${Math.min(100, Math.max(0, safePct))}%` }} />
+                    </div>
+                    <span className={`pred-bar-pct ${b.cls}`}>{safePct}%</span>
+                  </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
 
-          <div className="pred-meta">
-            <span>{formatStr(t.ema, { val: stats.ema })}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {stats.currentLowStreak > 0
-                ? formatStr(t.streakLow, { val: stats.currentLowStreak })
-                : formatStr(t.streakHigh, { val: stats.currentHighStreak })}
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {lang === 'si' ? 'ප්‍රවණතාවය' : lang === 'ta' ? 'போக்கு' : 'Trend'}: {stats.trend === 'rising' ? t.trendRising : stats.trend === 'falling' ? t.trendFalling : t.trendFlat}
-            </span>
-            <span>{formatStr(t.riskScoreLabel, { val: stats.riskScore })}</span>
-          </div>
+              <div className="pred-meta">
+                <span>{formatStr(t.ema, { val: liveStats.ema ?? '—' })}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {(liveStats.currentLowStreak ?? 0) > 0
+                    ? formatStr(t.streakLow, { val: liveStats.currentLowStreak })
+                    : formatStr(t.streakHigh, { val: liveStats.currentHighStreak ?? 0 })}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {lang === 'si' ? 'ප්‍රවණතාවය' : lang === 'ta' ? 'போக்கு' : 'Trend'}: {liveStats.trend === 'rising' ? t.trendRising : liveStats.trend === 'falling' ? t.trendFalling : t.trendFlat}
+                </span>
+                <span>{formatStr(t.riskScoreLabel, { val: liveStats.riskScore ?? 0 })}</span>
+              </div>
+            </>
+          )}
         </>
       ) : (
         <div className="pred-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '28px 0' }}>
-          {isPredicting ? <RefreshCw className="spin" size={22} /> : <Orbit size={22} />}
-          {isPredicting ? t.runningAIAnalysis : t.startCaptureForPred}
+          {isPredicting || predStatus === 'predicting' ? <RefreshCw className="spin" size={22} /> : <Orbit size={22} />}
+          {isPredicting || predStatus === 'predicting'
+            ? t.runningAIAnalysis
+            : t.startCaptureForPred}
         </div>
       )}
     </div>
