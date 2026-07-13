@@ -18,7 +18,7 @@ interface TargetsPageProps {
   t: Translations;
 }
 
-const PRESET_TARGETS = [1.15, 1.2, 1.35, 1.5, 1.8, 2, 2.5, 3, 5, 10];
+const PRESET_TARGETS = [1.15, 1.2, 1.35, 1.5, 1.8, 2, 2.5, 3, 5, 10, 15, 20, 25, 30, 35];
 
 function signalColor(signal: string) {
   switch (signal) {
@@ -284,8 +284,8 @@ export function TargetsPage({ rounds, stats, prediction, lang, t }: TargetsPageP
               <input
                 type="range"
                 min={1.05}
-                max={10}
-                step={0.05}
+                max={35}
+                step={customTarget >= 10 ? 1 : 0.05}
                 value={customTarget}
                 onChange={e => setCustomTarget(Number(e.target.value))}
                 style={{ width: '100%', accentColor: '#00ffd5', marginBottom: 14 }}

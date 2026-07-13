@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Home, Activity, Target, Layers, Clock, Menu, X, User, LogOut, Settings, RefreshCw, Zap, ShieldCheck, Info, CheckCircle2, AlertTriangle } from "lucide-react";
-import { type Translations, type LanguageCode, LANGUAGE_NAMES } from "@/lib/locales";
+import { Home, Activity, Target, Layers, Clock, Menu, X, User, LogOut, Settings, RefreshCw, Zap, ShieldCheck, Info, CheckCircle2, AlertTriangle, Sparkles } from "lucide-react";
+import { type Translations, type LanguageCode } from "@/lib/locales";
 import { type Round, type ToastMessage } from "../_lib/dashboard-types";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { BetControls } from "./BetControls";
 import { LiveSignalCard } from "./LiveSignalCard";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 import SafePlayModal from "../SafePlayModal";
 import { NAV_HREF, type NavId } from "../_context/DashboardContext";
 
@@ -79,8 +80,13 @@ export function DashboardShell({
       {/* ─── DESKTOP SIDEBAR ─── */}
       <aside className="sidebar desktop-sidebar">
         <div className="sidebar-logo">
-          <img src="/logo.png" alt="CrashTracker" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'cover' }} />
-          <span className="sidebar-logo-text">CrashTracker</span>
+          <div className="sidebar-logo-mark">
+            <img src="/logo.png" alt="CrashTracker" />
+          </div>
+          <div className="sidebar-logo-copy">
+            <span className="sidebar-logo-text">CrashTracker</span>
+            <span className="sidebar-logo-tag">Live AI</span>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -88,21 +94,22 @@ export function DashboardShell({
             <Link
               key={item.id}
               href={item.href}
-              className={`sidebar-nav-item ${activeNav === item.id ? 'active' : ''}`}
+              className={`sidebar-nav-item ui-nav ${activeNav === item.id ? 'active' : ''}`}
               onClick={() => setMobileDrawerOpen(false)}
             >
-              {item.icon}
+              <span className="nav-icon-wrap">{item.icon}</span>
               <span>{item.label}</span>
+              {activeNav === item.id && <span className="nav-active-dot" />}
             </Link>
           ))}
           {isAdmin && (
-            <Link href="/admin" className="sidebar-nav-item" style={{ color: '#a78bfa' }}>
-              <ShieldCheck size={18} />
+            <Link href="/admin" className="sidebar-nav-item ui-nav admin">
+              <span className="nav-icon-wrap"><ShieldCheck size={18} /></span>
               <span>Admin Panel</span>
             </Link>
           )}
-          <Link href="/app/settings" className="sidebar-nav-item" style={{ marginTop: 'auto', paddingTop: 20 }}>
-            <Settings size={18} />
+          <Link href="/app/settings" className="sidebar-nav-item ui-nav settings-link">
+            <span className="nav-icon-wrap"><Settings size={18} /></span>
             <span>Profile & Settings</span>
           </Link>
         </nav>
@@ -149,19 +156,10 @@ export function DashboardShell({
 
           <div className="drawer-section">
             <h4 className="drawer-section-title">{t.preferences}</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{t.selectLanguage}</span>
-                <select
-                  value={lang}
-                  onChange={(e) => handleLangChange(e.target.value as LanguageCode)}
-                  className="currency-select"
-                  style={{ width: 'auto', background: 'rgba(255,255,255,0.05)' }}
-                >
-                  {Object.entries(LANGUAGE_NAMES).map(([k, name]) => (
-                    <option key={k} value={k} style={{ background: '#0f111a' }}>{name}</option>
-                  ))}
-                </select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <span style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>{t.selectLanguage}</span>
+                <LanguageSwitcher lang={lang} onChange={handleLangChange} variant="full" />
               </div>
               <BetControls betAmount={betAmount} t={t} variant="row" />
             </div>
@@ -181,82 +179,103 @@ export function DashboardShell({
       {/* ─── MAIN CONTENT ─── */}
       <div className="dash-main">
         {/* ─── DESKTOP TOP BAR ─── */}
-        <header className="dash-topbar desktop-header">
-          <div className="dash-topbar-title">
-            <Activity size={18} color="#00ffd5" />
-            <span>{t.appName}</span>
-            <span className="dash-topbar-sub">{t.appSub}</span>
+        <header className="dash-topbar desktop-header modern-header">
+          <div className="dash-topbar-left">
+            <div className="dash-topbar-title">
+              <span className="header-icon-glow" aria-hidden>
+                <Sparkles size={15} color="#00ffd5" />
+              </span>
+              <div className="header-title-stack">
+                <span className="header-title-main">{t.appName}</span>
+                <span className="dash-topbar-sub">{t.appSub}</span>
+              </div>
+            </div>
           </div>
 
           <div className="dash-topbar-actions">
-            <BetControls betAmount={betAmount} t={t} variant="badge" />
+            <div className="header-status-cluster">
+              <ConnectionStatus
+                connectionStatus={connectionStatus}
+                latency={latency}
+                lastSyncedRound={lastSyncedRound}
+                triggerReconnect={triggerReconnect}
+                t={t}
+                showButton={connectionStatus !== 'connected'}
+              />
+              {betAmount ? <BetControls betAmount={betAmount} t={t} variant="badge" /> : null}
+            </div>
 
-            <select
-              value={lang}
-              onChange={(e) => handleLangChange(e.target.value as LanguageCode)}
-              className="currency-select"
-            >
-              {Object.entries(LANGUAGE_NAMES).map(([k, name]) => (
-                <option key={k} value={k} style={{ background: '#0f111a' }}>{name}</option>
-              ))}
-            </select>
+            <div className="header-tools">
+              <LanguageSwitcher lang={lang} onChange={handleLangChange} variant="compact" />
 
-            <ConnectionStatus
-              connectionStatus={connectionStatus}
-              latency={latency}
-              lastSyncedRound={lastSyncedRound}
-              triggerReconnect={triggerReconnect}
-              t={t}
-            />
-
-            <SafePlayModal />
-
-            <div style={{ position: 'relative' }}>
-              <button className="top-btn" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-                <User size={14} /> Profile
+              <button
+                type="button"
+                className="ui-btn ui-btn-icon accent header-tool-btn"
+                onClick={runPrediction}
+                disabled={isPredicting || roundsLength === 0}
+                title={t.refreshAI}
+                aria-label={t.refreshAI}
+              >
+                {isPredicting ? <RefreshCw size={15} className="spin" /> : <Zap size={15} />}
               </button>
-              {userMenuOpen && (
-                <div style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '200px',
-                  backgroundColor: 'var(--bg2)', border: '1px solid var(--border2)', borderRadius: '12px',
-                  padding: '8px', zIndex: 100, display: 'flex', flexDirection: 'column', gap: '4px',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-                }}>
-                  <Link href="/app/settings" className="sidebar-nav-item" style={{ padding: '10px 12px', fontSize: '13px' }}>
-                    <Settings size={14} /> Profile Settings
-                  </Link>
-                  <button className="sidebar-nav-item" onClick={handleLogout} style={{ padding: '10px 12px', fontSize: '13px', color: 'var(--red)' }}>
-                    <LogOut size={14} /> Logout
-                  </button>
-                </div>
-              )}
+
+              <SafePlayModal compact />
+
+              <div className="header-profile-wrap">
+                <button
+                  type="button"
+                  className="ui-btn ui-btn-icon header-tool-btn"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  title="Profile"
+                  aria-label="Profile"
+                >
+                  <User size={15} />
+                </button>
+                {userMenuOpen && (
+                  <div className="header-dropdown">
+                    <Link href="/app/settings" className="header-dropdown-item" onClick={() => setUserMenuOpen(false)}>
+                      <Settings size={14} /> Profile Settings
+                    </Link>
+                    <button type="button" className="header-dropdown-item danger" onClick={handleLogout}>
+                      <LogOut size={14} /> Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
 
         {/* ─── MOBILE TOP BAR ─── */}
-        <header className="dash-topbar mobile-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button className="mobile-menu-btn" onClick={() => setMobileDrawerOpen(true)}>
-              <Menu size={22} color="#fff" />
+        <header className="dash-topbar mobile-header modern-header">
+          <div className="dash-topbar-left">
+            <button type="button" className="ui-btn ui-btn-icon mobile-menu-btn" onClick={() => setMobileDrawerOpen(true)} aria-label="Menu">
+              <Menu size={18} />
             </button>
             <div className="dash-topbar-title">
-              <img src="/logo.png" alt="CrashTracker" style={{ width: '20px', height: '20px', borderRadius: '5px', objectFit: 'cover' }} />
-              <span className="sidebar-logo-text">{t.appName}</span>
+              <div className="sidebar-logo-mark sm">
+                <img src="/logo.png" alt="" />
+              </div>
+              <span className="header-title-main">{t.appName}</span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {connectionStatus === 'connected' ? (
-              <span className="mobile-status-dot connected" title={`${t.synced}: ${latency}ms`} />
-            ) : (
-              <span className="mobile-status-dot disconnected" title={t.disconnected} />
-            )}
-
-            <button className="mobile-action-btn" onClick={runPrediction} disabled={isPredicting || roundsLength === 0}>
-              {isPredicting ? <RefreshCw size={14} className="spin" color="#00ffd5" /> : <Zap size={14} color="#00ffd5" />}
+          <div className="dash-topbar-actions mobile-actions">
+            <LanguageSwitcher lang={lang} onChange={handleLangChange} variant="compact" />
+            <span
+              className={`mobile-status-dot ${connectionStatus === 'connected' ? 'connected' : 'disconnected'}`}
+              title={connectionStatus === 'connected' ? `${t.synced}: ${latency}ms` : t.disconnected}
+            />
+            <button
+              type="button"
+              className="ui-btn ui-btn-icon accent"
+              onClick={runPrediction}
+              disabled={isPredicting || roundsLength === 0}
+              aria-label={t.refreshAI}
+            >
+              {isPredicting ? <RefreshCw size={14} className="spin" /> : <Zap size={14} />}
             </button>
-            <SafePlayModal />
+            <SafePlayModal compact />
           </div>
         </header>
 

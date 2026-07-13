@@ -195,7 +195,7 @@ const colors = [
   '#f97316', // Step 6
 ];
 
-export default function SafePlayModal() {
+export default function SafePlayModal({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0); // 0 = Language Selector, 1 to 6 = Safe Play principles
   const [selectedLang, setSelectedLang] = useState<'en' | 'si' | 'ta'>('en');
@@ -790,37 +790,27 @@ export default function SafePlayModal() {
 
   return (
     <>
-      {/* ── Bubble Button in header ── */}
+      {/* ── Header trigger ── */}
       <button
+        type="button"
         onClick={() => {
           setActiveStep(0);
           setOpen(true);
         }}
         title="Safe Play Tips"
-        style={{
-          position: 'relative',
-          background: 'linear-gradient(135deg, rgba(0,229,160,0.1), rgba(56,189,248,0.1))',
-          border: '1px solid rgba(0,229,160,0.2)',
-          borderRadius: '10px',
-          padding: '6px 12px',
-          display: 'flex', alignItems: 'center', gap: '6px',
-          color: '#00e5a0',
-          fontSize: '13px', fontWeight: 700,
-          cursor: 'pointer',
-          transition: 'all 0.2s',
-        }}
+        className={compact ? 'ui-btn ui-btn-icon safe-play-btn compact' : 'ui-btn safe-play-btn'}
+        aria-label="Safe Play Tips"
       >
-        <ShieldCheck size={14} />
-        <span className="sp-label">{selectedLang === 'si' ? 'ආරක්ෂිත ක්‍රීඩාව' : selectedLang === 'ta' ? 'பாதுகாப்பு' : 'Safe Play'}</span>
-        {/* Blinking notification dot */}
-        <span style={{
-          position: 'absolute', top: '-4px', right: '-4px',
-          width: '9px', height: '9px',
-          borderRadius: '50%', backgroundColor: '#00e5a0',
-          boxShadow: '0 0 8px #00e5a0',
-          animation: 'safePulse 1.4s ease-in-out infinite',
-          display: firstTime || open ? 'block' : 'none',
-        }} />
+        <ShieldCheck size={15} />
+        {!compact && (
+          <span className="sp-label ui-btn-label">
+            {selectedLang === 'si' ? 'ආරක්ෂිත' : selectedLang === 'ta' ? 'பாதுகாப்பு' : 'Safe Play'}
+          </span>
+        )}
+        <span
+          className="safe-play-dot"
+          style={{ display: firstTime || open ? 'block' : 'none' }}
+        />
       </button>
 
       {/* ── Portal: renders the overlay at document.body level ── */}

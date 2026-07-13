@@ -5,6 +5,7 @@ import {
   BarChart3, Layers, Clock, Target, Star, ChevronRight, AlertTriangle,
   Check, Flame, Globe, Lock, Cpu, Eye, Sparkles, ArrowRight
 } from 'lucide-react'
+import { ProductShowcase } from './components/ProductShowcase'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,7 @@ export default async function LandingPage() {
 
           {/* Nav */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#5a6a8a]">
+            <a href="#product" className="hover:text-cyan-400 transition-colors">Product</a>
             <a href="#features" className="hover:text-cyan-400 transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-cyan-400 transition-colors">How it Works</a>
             <a href="#pricing" className="hover:text-cyan-400 transition-colors">Pricing</a>
@@ -157,7 +159,23 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      {/* ══════════════════════ PRODUCT SHOWCASE ══════════════════════ */}
+      <ProductShowcase />
 
+      {/* Mid-page CTA after screenshots */}
+      <section className="relative z-10 pb-8">
+        <div className="max-w-3xl mx-auto px-6 text-center">
+          <p className="text-sm text-[#8090b0] mb-5">
+            This is the same interface after you sign up — live risk scoring, target math, and pattern alerts.
+          </p>
+          <Link href={user ? '/app' : '/login?tab=signup'}
+            className="inline-flex items-center justify-center gap-2 px-8 py-3.5 text-sm font-bold uppercase tracking-wider rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 text-[#060a14] shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:-translate-y-0.5 transition-all">
+            <Sparkles size={15} />
+            {user ? 'Open Your Dashboard' : 'Start Free Trial — See It Live'}
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+      </section>
 
       {/* ══════════════════════ FEATURES ══════════════════════ */}
       <section id="features" className="relative z-10 py-20">

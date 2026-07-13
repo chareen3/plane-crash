@@ -275,7 +275,7 @@ p99=${stats.p99SafeCashout}x; p95=${stats.p95SafeCashout}x; p90=${stats.p90SafeC
 p80=${stats.p80SafeCashout}x; p70=${stats.p70SafeCashout}x; p60=${stats.p60SafeCashout}x; median=${stats.p50SafeCashout}x
 
 TARGET HIT RATES
-${[1.05, 1.1, 1.18, 1.2, 1.5, 2, 3, 5, 10].map(t => targetLine(stats, t)).join('\n')}
+${[1.05, 1.1, 1.18, 1.2, 1.5, 2, 3, 5, 10, 15, 20, 25, 30, 35].map(t => targetLine(stats, t)).join('\n')}
 
 CONDITIONAL EVIDENCE
 Pattern: ${patternSummary(stats)}

@@ -48,26 +48,13 @@ export function ConnectionStatus({
 
       {showButton && connectionStatus !== 'connected' && (
         <button
-          className="top-btn reconnect-btn"
+          type="button"
+          className="ui-btn ui-btn-accent reconnect-btn"
           onClick={triggerReconnect}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(0, 212, 255, 0.1)',
-            border: '1px solid rgba(0, 212, 255, 0.25)',
-            color: '#00ffd5',
-            padding: '6px 12px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: '600',
-            transition: 'all 0.2s',
-            ...buttonStyle
-          }}
+          style={buttonStyle}
         >
           <RefreshCw size={14} className={connectionStatus === 'connecting' ? 'spin' : ''} />
-          {btnTxt}
+          <span className="ui-btn-label">{btnTxt}</span>
         </button>
       )}
     </>

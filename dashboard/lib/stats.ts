@@ -216,7 +216,7 @@ interface NormalizedRound {
 
 const TIERS: readonly CrashTier[] = ['INSTANT', 'LOW', 'MED', 'HIGH'];
 const TARGET_LEVELS = [
-  1.05, 1.1, 1.18, 1.2, 1.5, 1.8, 2, 3, 5, 10, 15, 20, 25,
+  1.05, 1.1, 1.18, 1.2, 1.5, 1.8, 2, 3, 5, 10, 15, 20, 25, 30, 35,
 ] as const;
 
 /** Absolute maximum any signal will ever output (customer requirement). */

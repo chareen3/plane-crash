@@ -412,19 +412,34 @@ interface TargetHitRatesTableProps {
 
 export function TargetHitRatesTable({ rounds, stats, t }: TargetHitRatesTableProps) {
   return (
-    <div className="glass-card" style={{ marginBottom: '16px' }}>
-      <div className="panel-title" style={{ marginBottom: '10px' }}>{t.targetHitRatesTitle.replace('{count}', String(rounds.length))}</div>
+    <div className="glass-card target-hit-card" style={{ marginBottom: '16px' }}>
+      <div className="panel-title target-hit-title" style={{ marginBottom: '12px' }}>
+        <Target size={14} color="#00ffd5" />
+        {t.targetHitRatesTitle.replace('{count}', String(rounds.length))}
+      </div>
       {stats && stats.count > 0 ? (
         <div className="target-table">
           <div className="target-table-head">
             <span>{t.thTarget}</span><span>{t.thMath}</span><span>{t.thHitRate}</span><span>{t.thRecent}</span><span>{t.thLast}</span><span>{t.thSignal}</span>
           </div>
           {stats.targets.map(tRow => (
-            <div key={tRow.target} className={`target-row signal-${tRow.signal.toLowerCase()}`}>
-              <span className="target-mult">{tRow.target.toFixed(1)}x</span>
+            <div key={tRow.target} className={`target-row signal-${tRow.signal.toLowerCase()}${tRow.target >= 25 ? ' mega-row' : ''}`}>
+              <span className="target-mult">{tRow.target >= 10 ? tRow.target.toFixed(0) : tRow.target.toFixed(2).replace(/\.?0+$/, '')}x</span>
               <span className="target-math">{(tRow.mathProb ?? 0).toFixed(1)}%</span>
               <div className="target-bar-wrap">
-                <div className="target-bar-bg"><div className="target-bar-fill" style={{ width: `${tRow.hitRate}%` }} /></div>
+                <div className="target-bar-bg">
+                  <div
+                    className="target-bar-fill"
+                    style={{
+                      width: `${Math.min(100, tRow.hitRate)}%`,
+                      background: tRow.target >= 25
+                        ? 'linear-gradient(90deg, #a78bfa, #ff3366)'
+                        : tRow.target >= 10
+                          ? 'linear-gradient(90deg, #00d4ff, #a78bfa)'
+                          : undefined,
+                    }}
+                  />
+                </div>
                 <span className="target-pct">{tRow.hitRate}%</span>
               </div>
               <span className={`target-recent ${tRow.recentHitRate >= tRow.hitRate ? 'up' : 'down'}`}>{tRow.recentHitRate}%{tRow.recentHitRate >= tRow.hitRate ? ' ↑' : ' ↓'}</span>
