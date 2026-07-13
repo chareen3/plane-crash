@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats, computeBetSignal, buildHumanSummary, analyzeStability } from '../../../lib/stats';
-import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt } from '../../../lib/ai';
+import { computeStats, computeBetSignal, buildHumanSummary, analyzeStability, buildAdvisoryTiers } from '../../../lib/stats';
+import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt, AI_CONFIDENCE_CEIL } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
 const supabase = createClient(
@@ -123,14 +123,17 @@ export async function GET(request: Request) {
 
     stats.stabilityAnalysis = finalStabilityAnalysis;
 
-    // If Sleep phase and strategy is SKIP, do not call AI or cache to DB
+    const advisoryTiers = buildAdvisoryTiers(stats, betSignal);
+
+    // Sleep: still write a SKIP prediction so feed never looks "dead"
     if (timeData.isLKSleep && betSignal.strategy === 'SKIP') {
       const summary = buildHumanSummary(stats, betSignal);
-      const prediction = {
-        risk: 'HIGH',
-        predicted_risk: 'HIGH', // for fallback compat
-        confidence: 0, // Engine paused, so confidence is 0
+      const sleepRow = {
+        predicted_risk: 'HIGH',
+        confidence: 0,
         summary,
+        round_number: nextRoundNumber,
+        predicted_multiplier: advisoryTiers.tier_safe,
         should_bet: false,
         strategy: 'SKIP',
         cashout_target: 0,
@@ -138,35 +141,64 @@ export async function GET(request: Request) {
         swing_target: null,
         volatility_phase: betSignal.volatility_phase,
         recommended_stake_pct: 0,
+        skip_reason: betSignal.skip_reason,
+        strategy_reason: '[v4-balanced] Sleep phase lock',
+        ai_model_used: 'sleep-skip',
+        tier_safe: advisoryTiers.tier_safe,
+        tier_swing: advisoryTiers.tier_swing,
+        tier_moon: advisoryTiers.tier_moon,
+        skip_round: true,
+        stability_analysis: finalStabilityAnalysis,
+        instant_crash_risk: stats.instant_crash_risk,
+        instant_crash_warning: stats.instant_crash_warning,
+      };
+      await supabase.from('predictions').upsert(sleepRow, {
+        onConflict: 'round_number',
+        ignoreDuplicates: false,
+      });
+      return NextResponse.json({
+        ...sleepRow,
+        risk: 'HIGH',
         timeData,
         stats,
-        skip_reason: betSignal.skip_reason,
         ai_failed: false,
         stability_analysis: finalStabilityAnalysis,
-      };
-      return NextResponse.json(prediction);
+      });
     }
 
-    // Return cached pred but with fresh stats — fill in any null fields with fresh betSignal
+    // Cached row: refresh live signal fields + fill null tiers
     if (existingPred) {
+      const liveCashout = betSignal.should_bet ? betSignal.cashout_target : 0;
+      const tiers = {
+        tier_safe: existingPred.tier_safe ?? advisoryTiers.tier_safe,
+        tier_swing: existingPred.tier_swing ?? advisoryTiers.tier_swing,
+        tier_moon: existingPred.tier_moon ?? advisoryTiers.tier_moon,
+      };
+      // Backfill null tiers in DB once
+      if (existingPred.tier_safe == null || existingPred.tier_swing == null || existingPred.tier_moon == null) {
+        await supabase.from('predictions').update(tiers).eq('round_number', nextRoundNumber);
+      }
       return NextResponse.json({
         risk: existingPred.predicted_risk,
-        confidence: Math.min(existingPred.confidence ?? Math.min(stats.confidence, 85), 99),
-        // Always regenerate summary so it reflects current live stats and looks human
+        confidence: Math.min(
+          existingPred.confidence ?? stats.signalConfidence ?? stats.confidence,
+          AI_CONFIDENCE_CEIL,
+        ),
         summary: buildHumanSummary(stats, betSignal),
-        predicted_multiplier: existingPred.predicted_multiplier ?? betSignal.cashout_target,
+        predicted_multiplier: liveCashout || existingPred.predicted_multiplier || tiers.tier_safe,
         long_targets: existingPred.long_targets,
         should_bet: betSignal.should_bet ?? existingPred.should_bet,
         recommended_bet_units: betSignal.recommended_bet_units,
-        skip_reason: existingPred.skip_reason ?? betSignal.skip_reason,
+        skip_reason: betSignal.skip_reason ?? existingPred.skip_reason,
         strategy: betSignal.strategy ?? existingPred.strategy,
-        cashout_target: betSignal.cashout_target ?? existingPred.cashout_target,
-        strategy_reason: existingPred.strategy_reason ?? betSignal.strategy_reason ?? 'Based on historical pattern analysis.',
+        cashout_target: liveCashout || existingPred.cashout_target || 0,
+        strategy_reason: betSignal.strategy_reason ?? existingPred.strategy_reason ?? 'Based on historical pattern analysis.',
         ai_model_used: existingPred.ai_model_used ?? 'stats-only',
         stats,
-        swing_target: existingPred.swing_target ?? betSignal.swing_target,
-        volatility_phase: existingPred.volatility_phase ?? betSignal.volatility_phase,
-        recommended_stake_pct: existingPred.recommended_stake_pct ?? betSignal.recommended_stake_pct,
+        swing_target: betSignal.swing_target ?? existingPred.swing_target,
+        volatility_phase: betSignal.volatility_phase ?? existingPred.volatility_phase,
+        recommended_stake_pct: betSignal.recommended_stake_pct ?? existingPred.recommended_stake_pct,
+        ...tiers,
         timeData,
         ai_failed: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only',
         ai_fallback_reason: (existingPred.ai_model_used ?? 'stats-only') === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
@@ -176,9 +208,11 @@ export async function GET(request: Request) {
 
     // ── Stats-only defaults ──
     let aiRisk        = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
-    let aiConfidence  = Math.min(stats.confidence, 85);
+    let aiConfidence  = Math.min(stats.signalConfidence || stats.confidence, AI_CONFIDENCE_CEIL);
     let aiSummary     = buildHumanSummary(stats, betSignal);
-    let aiPredMultiplier = betSignal.cashout_target ?? stats.p90SafeCashout;
+    let aiPredMultiplier = betSignal.cashout_target > 0
+      ? betSignal.cashout_target
+      : stats.suggestedCashout;
     const aiLongTargets  = {
       x5:  stats.targets.find((t: any) => t.target === 5.0)?.hitRate  ?? 20,
       x10: stats.targets.find((t: any) => t.target === 10.0)?.hitRate ?? 10,
@@ -187,7 +221,7 @@ export async function GET(request: Request) {
     let strategyLabel  = betSignal.strategy ?? 'CONSERVATIVE';
     let strategyReason = betSignal.skip_reason ?? betSignal.strategy_reason ?? 'Stats-based signal.';
     let finalBet       = strategyLabel === 'SKIP' ? false : (betSignal.should_bet ?? true);
-    let finalCashout   = strategyLabel === 'SKIP' ? 0 : (betSignal.cashout_target ?? stats.p90SafeCashout);
+    let finalCashout   = strategyLabel === 'SKIP' ? 0 : (betSignal.cashout_target ?? stats.suggestedCashout);
     let aiModelUsed    = 'stats-only';
 
     // ── Wait for AI prediction ──
@@ -210,37 +244,40 @@ export async function GET(request: Request) {
     let volatilityPhase = betSignal.volatility_phase;
     let recommendedStakePct = betSignal.recommended_stake_pct;
 
-    let tierSafe   = Math.max(1.8, finalCashout);
-    let tierSwing  = swingTarget || 3.5;
-    let tierMoon   = aiLongTargets.x10 || 8.0;
+    let tierSafe   = advisoryTiers.tier_safe;
+    let tierSwing  = advisoryTiers.tier_swing;
+    let tierMoon   = advisoryTiers.tier_moon;
     let skipRound  = strategyLabel === 'SKIP';
     let aiColdStreak = cold_streak;
 
     try {
+      // Always call AI (except already handled sleep)
       const aiResponse = await callAI(systemPrompt, userMessage, { stats, betSignal, timeData });
       if (aiResponse) {
         const { result: ai, model } = aiResponse;
         aiModelUsed = model;
-        
+
         if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) {
-          aiConfidence = Math.min(ai.confidence, 75); // max 75, never 100
+          aiConfidence = Math.min(ai.confidence, AI_CONFIDENCE_CEIL);
         }
         if (typeof ai.reasoning === 'string' && ai.reasoning.length > 5) {
           aiSummary = ai.reasoning;
           strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.reasoning;
         }
-        
-        if (typeof ai.tier_safe === 'number' && ai.tier_safe >= 1.0) {
-          tierSafe = ai.tier_safe;
-          aiPredMultiplier = ai.tier_safe;
-          finalCashout = ai.tier_safe;
-        }
-        if (typeof ai.tier_swing === 'number' && ai.tier_swing >= 1.0) {
-          tierSwing = ai.tier_swing;
-          swingTarget = ai.tier_swing;
-        }
-        if (typeof ai.tier_moon === 'number' && ai.tier_moon >= 1.0) {
-          tierMoon = ai.tier_moon;
+
+        if (betSignal.strategy !== 'SKIP') {
+          if (typeof ai.tier_safe === 'number' && ai.tier_safe >= 1.0) {
+            tierSafe = ai.tier_safe;
+            aiPredMultiplier = ai.tier_safe;
+            finalCashout = ai.tier_safe;
+          }
+          if (typeof ai.tier_swing === 'number' && ai.tier_swing >= 1.0) {
+            tierSwing = ai.tier_swing;
+            swingTarget = ai.tier_swing;
+          }
+          if (typeof ai.tier_moon === 'number' && ai.tier_moon >= 1.0 && ai.tier_moon <= 3.0) {
+            tierMoon = ai.tier_moon;
+          }
         }
         if (typeof ai.p5x_chance === 'number' && ai.p5x_chance >= 0 && ai.p5x_chance <= 100) {
           aiLongTargets.x5 = ai.p5x_chance;
@@ -258,14 +295,18 @@ export async function GET(request: Request) {
           skipRound = ai.skip_round;
         }
 
-        // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
+        // Hard-lock SKIP — AI cannot upgrade SKIP into a bet
         if (betSignal.strategy !== 'SKIP') {
           if (skipRound) {
             strategyLabel = 'SKIP';
             finalBet = false;
             finalCashout = 0;
+            const adv = buildAdvisoryTiers(stats, { ...betSignal, should_bet: false, cashout_target: 0 });
+            tierSafe = adv.tier_safe;
+            tierSwing = adv.tier_swing;
+            tierMoon = adv.tier_moon;
           } else {
-            strategyLabel = 'BET_NORMAL';
+            strategyLabel = betSignal.strategy === 'AGGRESSIVE' ? 'AGGRESSIVE' : 'BET_NORMAL';
             finalBet = true;
           }
         }
@@ -274,6 +315,10 @@ export async function GET(request: Request) {
       console.error('[AI CALL] Error:', err);
     }
 
+    if (finalBet && finalCashout > 0) {
+      tierSafe = finalCashout;
+      aiPredMultiplier = finalCashout;
+    }
 
     const aiPrediction = {
       predicted_risk:       aiRisk,
@@ -299,7 +344,7 @@ export async function GET(request: Request) {
       tier_swing:           tierSwing,
       tier_moon:            tierMoon,
       cold_streak:          aiColdStreak,
-      skip_round:           skipRound,
+      skip_round:           skipRound || !finalBet,
       context_window:       contextVal,
       instant_crash_risk:   stats.instant_crash_risk,
       instant_crash_warning: stats.instant_crash_warning,
@@ -307,17 +352,24 @@ export async function GET(request: Request) {
       stability_analysis:   finalStabilityAnalysis,
     };
 
-    await supabase.from('predictions').insert(aiPrediction);
+    const { error: insertErr } = await supabase.from('predictions').upsert(aiPrediction, {
+      onConflict: 'round_number',
+      ignoreDuplicates: false,
+    });
+    if (insertErr) {
+      console.error('[predict] Failed to save prediction:', insertErr);
+    }
 
     return NextResponse.json({
       ...aiPrediction,
-      risk: aiPrediction.predicted_risk, // map for frontend expectation
+      risk: aiPrediction.predicted_risk,
       recommended_bet_units: betSignal.recommended_bet_units,
       stats,
       timeData,
       ai_failed: aiModelUsed === 'stats-only',
       ai_fallback_reason: aiModelUsed === 'stats-only' ? 'AI timeout — using statistical model only' : undefined,
       stability_analysis: finalStabilityAnalysis,
+      save_error: insertErr?.message,
     });
 
   } catch (err: any) {

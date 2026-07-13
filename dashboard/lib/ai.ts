@@ -83,7 +83,7 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_REASONING_LENGTH = 500;
 /** Stable v2: ceiling reduced from 75 to 60 for consistent output. */
-const AI_CONFIDENCE_CEIL = 60;
+export const AI_CONFIDENCE_CEIL = 60;
 /** Must match SIGNAL_MAX_CASHOUT in stats.ts */
 const SIGNAL_MAX_CASHOUT = 3.00;
 
@@ -289,14 +289,15 @@ Do not increase confidence or target because of PRIME phase or high traffic.
 
 OUTPUT POLICY
 - If ENFORCED_SKIP=false, tier_safe must equal the backend cashout_target (rounded to 2 decimals), maximum 3.00.
-- tier_swing: 0 when backend swing_target is absent; otherwise use that value capped at 3.00.
-- tier_moon: informational only, use a historical percentile, never > 3.00, never claim a large result is "due".
+- tier_swing: use backend swing_target when present (capped at 3.00); otherwise set a modest optional swing ≥ tier_safe up to 3.00, or 0 if risk is elevated.
+- tier_moon: informational only from percentiles (p50–p60 band), never > 3.00, never claim a large result is "due". Do NOT use hit-rate percentages as multipliers.
 - cold_streak: true when sessionDanger=true or when at least 3 of the latest 5 rounds are below 2x.
 - p5x_chance, p10x_chance, p20x_chance: use full-history hit rates where available.
+- Confidence should track the backend signal confidence ceiling (vary by session; do not always output 60 or 75).
 - Output raw JSON only, no markdown or extra keys.`;
 }
 
-export const systemPrompt = `You are a conservative JSON formatter for a crash-game statistics service. You do not predict random outcomes or use gambler's-fallacy reasoning. The deterministic backend signal is authoritative and cannot be upgraded by you.
+export const systemPrompt = `You are a balanced JSON formatter for a crash-game statistics service. You do not predict random outcomes or use gambler's-fallacy reasoning. The deterministic backend signal is authoritative and cannot be upgraded by you from SKIP to BET.
 
 Return exactly this JSON object:
 {
@@ -314,8 +315,9 @@ Return exactly this JSON object:
 
 Rules:
 - Output valid JSON only.
-- Confidence is an integer from 0 to 60.
+- Confidence is an integer from 0 to 60 and should vary with the backend signal confidence.
 - All 3 tier values must be between 0 and 3.00. Never output a tier above 3.00.
+- Prefer usable safe targets (often 1.35–2.00 when BET) — do not default everything to 1.10.
 - Probabilities are integers from 0 to 100.
 - Reasoning is exactly two short sentences with no guarantees.
 - If ENFORCED_SKIP is true, skip_round=true and all 3 tiers=0.

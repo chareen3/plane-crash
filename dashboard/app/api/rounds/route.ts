@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { computeStats, gradePrediction, computeBetSignal, buildHumanSummary, analyzeStability } from '../../../lib/stats';
-import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt } from '../../../lib/ai';
+import { computeStats, gradePrediction, computeBetSignal, buildHumanSummary, analyzeStability, buildAdvisoryTiers } from '../../../lib/stats';
+import { PEAK_HOURS_UTC, buildPrompt, callAI, getLKTimeData, systemPrompt, AI_CONFIDENCE_CEIL } from '../../../lib/ai';
 import { getSriLankaTimeSlot, getPrediction } from '../../../lib/prediction';
 
 
@@ -312,16 +312,19 @@ export async function POST(request: Request) {
     const nextRoundNumber = roundNumber + 1;
 
     let aiRisk = stats.riskLabel as 'LOW' | 'MEDIUM' | 'HIGH';
-    let aiConfidence = Math.min(stats.confidence, 85);
+    // Varying confidence from signal engine (not stuck at 75/85)
+    let aiConfidence = Math.min(stats.signalConfidence || stats.confidence, AI_CONFIDENCE_CEIL);
     let aiSummary = buildHumanSummary(stats, betSignal);
-    let aiPredMultiplier = betSignal.cashout_target ?? stats.p90SafeCashout;
+    let aiPredMultiplier = betSignal.cashout_target > 0
+      ? betSignal.cashout_target
+      : stats.suggestedCashout;
     const aiLongTargets = {
       x5:  stats.targets.find(t => t.target === 5.0)?.hitRate ?? 20,
       x10: stats.targets.find(t => t.target === 10.0)?.hitRate ?? 10,
       x20: stats.targets.find(t => t.target === 20.0)?.hitRate ?? 5
     };
     let strategyLabel = betSignal.strategy;
-    let strategyReason = betSignal.skip_reason ?? 'Stats-only baseline.';
+    let strategyReason = betSignal.skip_reason ?? betSignal.strategy_reason ?? 'Stats-only baseline.';
     let finalBet = strategyLabel === 'SKIP' ? false : betSignal.should_bet;
     let finalCashout = strategyLabel === 'SKIP' ? 0 : betSignal.cashout_target;
     let aiModelUsed = 'stats-only';
@@ -347,17 +350,14 @@ export async function POST(request: Request) {
     let volatilityPhase = betSignal.volatility_phase;
     let recommendedStakePct = betSignal.recommended_stake_pct;
 
-    // tier_safe = the actual CONSERVATIVE exit target from computeBetSignal (never less than 1.10x).
-    // This is the primary grading target — what the user should cash out at to win.
-    // tier_swing = moonshot optional target, NOT used for win/loss grading.
-    let tierSafe   = finalCashout > 0 ? finalCashout : 1.10;
-    if (tierSafe < 1.10) tierSafe = 1.10; // floor
-    let tierSwing  = swingTarget || 3.5;
-    let tierMoon   = aiLongTargets.x10 || 8.0;
+    // Always populate advisory tiers from stats (never hit-rate % as multiplier, never null)
+    let { tier_safe: tierSafe, tier_swing: tierSwing, tier_moon: tierMoon } =
+      buildAdvisoryTiers(stats, betSignal);
     let skipRound  = strategyLabel === 'SKIP';
     let aiColdStreak = cold_streak;
 
-    const skipAI = betSignal.strategy === 'SKIP' || stats.masterSignal === 'STRONG_BUY';
+    // v4: always call AI except sleep (maintenance already returned). SKIP no longer blocks AI.
+    const skipAI = timeData.isLKSleep;
     let aiResponse = null;
 
     if (!skipAI) {
@@ -373,24 +373,27 @@ export async function POST(request: Request) {
       aiModelUsed = model;
 
       if (typeof ai.confidence === 'number' && ai.confidence >= 0 && ai.confidence <= 100) {
-        aiConfidence = Math.min(ai.confidence, 75); // max 75, never 100
+        aiConfidence = Math.min(ai.confidence, AI_CONFIDENCE_CEIL);
       }
       if (typeof ai.reasoning === 'string' && ai.reasoning.length > 5) {
         aiSummary = ai.reasoning;
         strategyReason = (betSignal.skip_reason ? betSignal.skip_reason + ' | ' : '') + 'AI: ' + ai.reasoning;
       }
 
-      if (typeof ai.tier_safe === 'number' && ai.tier_safe >= 1.0) {
-        tierSafe = ai.tier_safe;
-        aiPredMultiplier = ai.tier_safe;
-        finalCashout = ai.tier_safe;
-      }
-      if (typeof ai.tier_swing === 'number' && ai.tier_swing >= 1.0) {
-        tierSwing = ai.tier_swing;
-        swingTarget = ai.tier_swing;
-      }
-      if (typeof ai.tier_moon === 'number' && ai.tier_moon >= 1.0) {
-        tierMoon = ai.tier_moon;
+      // AI may refine tiers when BET; on SKIP keep stats advisory tiers (enforce may zero AI JSON)
+      if (betSignal.strategy !== 'SKIP') {
+        if (typeof ai.tier_safe === 'number' && ai.tier_safe >= 1.0) {
+          tierSafe = ai.tier_safe;
+          aiPredMultiplier = ai.tier_safe;
+          finalCashout = ai.tier_safe;
+        }
+        if (typeof ai.tier_swing === 'number' && ai.tier_swing >= 1.0) {
+          tierSwing = ai.tier_swing;
+          swingTarget = ai.tier_swing;
+        }
+        if (typeof ai.tier_moon === 'number' && ai.tier_moon >= 1.0 && ai.tier_moon <= 3.0) {
+          tierMoon = ai.tier_moon;
+        }
       }
       if (typeof ai.p5x_chance === 'number' && ai.p5x_chance >= 0 && ai.p5x_chance <= 100) {
         aiLongTargets.x5 = ai.p5x_chance;
@@ -408,17 +411,34 @@ export async function POST(request: Request) {
         skipRound = ai.skip_round;
       }
 
-      // Fix #4: Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP signal.
+      // Hard-lock SKIP. AI cannot override a mathematically confirmed SKIP into a bet.
       if (betSignal.strategy !== 'SKIP') {
         if (skipRound) {
           strategyLabel = 'SKIP';
           finalBet = false;
           finalCashout = 0;
+          // Keep advisory tiers for UI/analytics
+          const advisory = buildAdvisoryTiers(stats, { ...betSignal, should_bet: false, cashout_target: 0 });
+          tierSafe = advisory.tier_safe;
+          tierSwing = advisory.tier_swing;
+          tierMoon = advisory.tier_moon;
         } else {
-          strategyLabel = 'BET_NORMAL';
+          strategyLabel = betSignal.strategy === 'AGGRESSIVE' ? 'AGGRESSIVE' : 'BET_NORMAL';
           finalBet = true;
         }
       }
+    }
+
+    // Ensure tiers never null/zero for analytics when we have stats
+    if (!tierSafe || tierSafe < 1.0) {
+      const advisory = buildAdvisoryTiers(stats, betSignal);
+      tierSafe = advisory.tier_safe;
+      tierSwing = advisory.tier_swing;
+      tierMoon = advisory.tier_moon;
+    }
+    if (finalBet && finalCashout > 0) {
+      tierSafe = finalCashout;
+      aiPredMultiplier = finalCashout;
     }
 
     // 6. Save the next prediction to Supabase

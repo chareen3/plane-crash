@@ -6,13 +6,12 @@
  * probabilities, and recommends risk-aware cashout targets.
  * None of its outputs guarantees a win.
  *
- * STABLE v3 — conservative upgrades on v2:
- *  - detectVolatilityRegime() on last ~40 rounds (LOW|NORMAL|HIGH|EXTREME)
- *  - Weighted recent momentum (last 15) + recovery modes after mega/cold spikes
- *  - Ensemble signal (Markov + streaks + form + regime) drives masterSignal
- *  - Dynamic confidence cut under HIGH/EXTREME / unstable form
- *  - High hit-rate cashout ladder (~85% historical) under stress
- *  - MIN_CONFIDENCE_TO_BET enforced in computeBetSignal
+ * STABLE v4 — balanced (usable signals, not ultra-conservative paralysis):
+ *  - Regime / momentum / recovery kept as telemetry + soft target caps
+ *  - Ensemble drives masterSignal but DANGER only on true danger
+ *  - WAIT still allows BET with lower targets
+ *  - Prefer mid targets 1.35–2.00x; swing 2–3x when form is hot
+ *  - No 85% hit-rate clamp that forced 1.10x forever
  *  - INSTANT boundary 1.15; hard max cashout 3.00x
  */
 
@@ -532,19 +531,19 @@ function computeEnsembleSignal(args: {
     0, 100,
   );
 
-  let streak = 55;
-  streak -= currentLowStreak * 10;
-  streak -= currentInstantStreak * 18;
-  if (recoveryMode === 'POST_MEGA') streak -= 35;
-  if (recoveryMode === 'POST_SPIKE') streak -= 20;
-  if (recoveryMode === 'COLD_LOCK') streak -= 30;
+  let streak = 60;
+  streak -= currentLowStreak * 6;
+  streak -= currentInstantStreak * 14;
+  if (recoveryMode === 'POST_MEGA') streak -= 20;
+  if (recoveryMode === 'POST_SPIKE') streak -= 10;
+  if (recoveryMode === 'COLD_LOCK') streak -= 12;
   streak = clamp(streak, 0, 100);
 
   let form = clamp((momentumScore + 100) / 2, 0, 100);
-  if (momentumLabel === 'unstable') form = Math.min(form, 35);
+  if (momentumLabel === 'unstable') form = Math.min(form, 40);
 
   const regimeMap: Record<VolatilityRegime, number> = {
-    LOW: 75, NORMAL: 60, HIGH: 30, EXTREME: 10,
+    LOW: 78, NORMAL: 65, HIGH: 45, EXTREME: 25,
   };
   const regimeScore = regimeMap[regime];
 
@@ -553,26 +552,36 @@ function computeEnsembleSignal(args: {
     0, 100,
   ));
 
-  const calmRegime = regime === 'LOW' || regime === 'NORMAL';
-  const stableForm = momentumLabel !== 'unstable';
-  const noRecovery = recoveryMode === 'NONE';
+  // v4 balanced: DANGER only for true danger; recovery/cold → WAIT (lower targets), not auto-SKIP
+  const isPostMega = recoveryMode === 'POST_MEGA';
+  const isClear = recoveryMode === 'NONE';
 
   let recommendation: MasterSignal = 'WAIT';
-  if (riskScore >= 80 || currentInstantStreak >= 3 || (regime === 'EXTREME' && score < 40)) {
+  if (riskScore >= 85 || currentInstantStreak >= 3 || (regime === 'EXTREME' && score < 30)) {
     recommendation = 'ABORT';
-  } else if (riskScore >= 60 || !noRecovery || score < 35 || !stableForm) {
+  } else if (riskScore >= 75 || isPostMega || currentInstantStreak >= 2) {
     recommendation = 'DANGER';
-  } else if (score >= 70 && calmRegime && noRecovery && stableForm) {
-    recommendation = 'STRONG_BUY';
-  } else if (score >= 55 && calmRegime) {
+  } else if (
+    score >= 58
+    && (regime === 'LOW' || regime === 'NORMAL')
+    && isClear
+    && momentumLabel !== 'unstable'
+    && riskScore < 45
+  ) {
+    recommendation = score >= 72 ? 'STRONG_BUY' : 'BUY';
+  } else if (score >= 48 && riskScore < 65 && isClear) {
     recommendation = 'BUY';
-  } else if (score < 55 || regime === 'HIGH' || regime === 'EXTREME') {
+  } else if (score >= 48 && riskScore < 60 && !isPostMega) {
+    // POST_SPIKE / COLD_LOCK: still allow BUY when ensemble ok
+    recommendation = 'BUY';
+  } else {
     recommendation = 'WAIT';
   }
 
-  // EXTREME never allows BUY / STRONG_BUY
-  if (regime === 'EXTREME' && (recommendation === 'BUY' || recommendation === 'STRONG_BUY')) {
-    recommendation = 'DANGER';
+  // EXTREME: no STRONG_BUY; BUY only if ensemble still strong
+  if (regime === 'EXTREME') {
+    if (recommendation === 'STRONG_BUY') recommendation = 'WAIT';
+    else if (recommendation === 'BUY' && score < 55) recommendation = 'WAIT';
   }
 
   return {
@@ -588,8 +597,8 @@ function computeEnsembleSignal(args: {
 }
 
 /**
- * Pick the highest ladder target ≤ base with historical hit-rate ≥ desiredHitRate.
- * Fail-safe low target when no ladder level qualifies (conservative).
+ * Soft hit-rate bias only under HIGH risk. Desired ~70% (not 85%) so targets stay usable.
+ * Fail-safe 1.20x rather than permanently pinning 1.10x.
  */
 function preferHighHitTarget(stats: CrashStats, desiredHitRate: number): number {
   const base = stats.suggestedCashout;
@@ -597,15 +606,7 @@ function preferHighHitTarget(stats: CrashStats, desiredHitRate: number): number 
     .filter(t => t.target <= base + 1e-9 && t.hitRate >= desiredHitRate)
     .sort((a, b) => b.target - a.target);
   if (candidates[0]) return candidates[0].target;
-  // Also allow synthetic ladder points not in TARGET_LEVELS via win rate on raw recentOutcomes proxy
-  const ladder = [1.10, 1.15, 1.20, 1.25, 1.35, 1.50, 1.80, 2.00];
-  for (let i = ladder.length - 1; i >= 0; i--) {
-    const t = ladder[i];
-    if (t > base + 1e-9) continue;
-    const fromTargets = stats.targets.find(x => Math.abs(x.target - t) < 0.011);
-    if (fromTargets && fromTargets.hitRate >= desiredHitRate) return t;
-  }
-  return Math.min(base, 1.15);
+  return Math.max(1.20, Math.min(base, 1.35));
 }
 
 function analyzeSequence(values: readonly number[]): SequenceMatch | undefined {
@@ -783,16 +784,16 @@ export function computeStats(
     totalWeight += w;
   });
   let riskScore = totalWeight > 0 ? weightedRiskTotal / totalWeight : 50;
-  if (sessionDanger) riskScore += 25;
+  if (sessionDanger) riskScore += 12;
   if (sessionHot)    riskScore -= 15;
   if (trend === 'falling') riskScore += 5;
   if (trend === 'rising')  riskScore -= 5;
-  if (currentInstantStreak >= 2) riskScore += 10;
-  if (volatilityRegimeInfo.regime === 'HIGH') riskScore += 10;
-  if (volatilityRegimeInfo.regime === 'EXTREME') riskScore += 20;
-  if (recoveryMode === 'POST_MEGA') riskScore += 15;
-  if (recoveryMode === 'COLD_LOCK') riskScore += 12;
-  if (momentum.label === 'unstable') riskScore += 10;
+  if (currentInstantStreak >= 2) riskScore += 12;
+  if (volatilityRegimeInfo.regime === 'HIGH') riskScore += 6;
+  if (volatilityRegimeInfo.regime === 'EXTREME') riskScore += 12;
+  if (recoveryMode === 'POST_MEGA') riskScore += 10;
+  if (recoveryMode === 'COLD_LOCK') riskScore += 6;
+  if (momentum.label === 'unstable') riskScore += 6;
   riskScore = Math.round(clamp(riskScore, 0, 100));
 
   const riskLabel: CrashStats['riskLabel'] =
@@ -831,68 +832,68 @@ export function computeStats(
     + momentumStrength   * 0.10,
     0, 100,
   ));
+  // Mild confidence cuts only — keep values usable/varying for AI display
   if (volatilityRegimeInfo.regime === 'HIGH') {
-    signalConfidence = Math.round(signalConfidence * 0.75);
+    signalConfidence = Math.round(signalConfidence * 0.90);
   }
   if (volatilityRegimeInfo.regime === 'EXTREME') {
-    signalConfidence = Math.round(signalConfidence * 0.55);
+    signalConfidence = Math.round(signalConfidence * 0.80);
   }
-  if (momentum.label === 'unstable') signalConfidence -= 15;
-  if (markovDominance < 40) signalConfidence -= 10;
-  if (recoveryMode !== 'NONE') signalConfidence -= 10;
+  if (momentum.label === 'unstable') signalConfidence -= 8;
+  if (recoveryMode === 'POST_MEGA') signalConfidence -= 8;
   signalConfidence = Math.round(clamp(signalConfidence, 0, 100));
   const confidence = Math.min(100, Math.round((n / 50) * 100));
 
   const winRateAt = (t: number) =>
     Math.round((values.filter(v => v >= t).length / n) * 100);
 
-  // ─── Stable cashout calculation ───────────────────────────────────────────
-  // Dynamically select target multiplier based on risk, then regime/recovery caps
+  // ─── Balanced cashout ladder (v4) ─────────────────────────────────────────
   const cashoutReasons: string[] = [];
-  let suggestedCashout = 2.00;
+  let suggestedCashout = 1.80;
 
-  if (riskScore >= 70 || currentLowStreak >= 3) {
-    suggestedCashout = 1.10;
-    cashoutReasons.push(`selected 1.10x (high risk floor: riskScore ${riskScore}, cold streak ${currentLowStreak})`);
-  } else if (riskScore >= 55 || currentLowStreak >= 2) {
+  if (riskScore >= 80 || currentLowStreak >= 5 || currentInstantStreak >= 2) {
+    suggestedCashout = 1.20;
+    cashoutReasons.push(`selected 1.20x (elevated floor: risk ${riskScore}, lowStreak ${currentLowStreak})`);
+  } else if (riskScore >= 70 || currentLowStreak >= 4) {
     suggestedCashout = 1.35;
-    cashoutReasons.push(`selected 1.35x (moderate risk caution: riskScore ${riskScore})`);
-  } else if (riskScore >= 45 || favorableMarkov < 45) {
+    cashoutReasons.push(`selected 1.35x (high risk caution: risk ${riskScore})`);
+  } else if (riskScore >= 55 || currentLowStreak >= 3 || favorableMarkov < 40) {
     suggestedCashout = 1.50;
-    cashoutReasons.push(`selected 1.50x (normal variance protection: Markov MED+HIGH ${favorableMarkov.toFixed(0)}%)`);
+    cashoutReasons.push(`selected 1.50x (medium caution: risk ${riskScore}, Markov MED+HIGH ${favorableMarkov.toFixed(0)}%)`);
+  } else if (riskScore >= 40 || favorableMarkov < 50) {
+    suggestedCashout = 1.80;
+    cashoutReasons.push(`selected 1.80x (balanced baseline)`);
+  } else if (riskScore < 25 && momentum.label === 'hot') {
+    suggestedCashout = clamp(p60SafeCashout, 2.20, 2.50);
+    cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (hot form + low risk)`);
+  } else if (riskScore < 35) {
+    suggestedCashout = clamp(p65SafeCashout, 2.00, 2.35);
+    cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (stable low-risk band)`);
   } else {
-    if (riskScore < 20) {
-      suggestedCashout = clamp(p60SafeCashout, 2.35, 2.50);
-      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (prime safe conditions: p60SafeCashout ${p60SafeCashout.toFixed(2)}x)`);
-    } else if (riskScore < 30) {
-      suggestedCashout = clamp(p65SafeCashout, 2.18, 2.32);
-      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (stable conditions: p65SafeCashout ${p65SafeCashout.toFixed(2)}x)`);
-    } else {
-      suggestedCashout = clamp(p70SafeCashout, 2.00, 2.15);
-      cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (base low-risk conditions: p70SafeCashout ${p70SafeCashout.toFixed(2)}x)`);
-    }
+    suggestedCashout = clamp(p70SafeCashout, 1.80, 2.15);
+    cashoutReasons.push(`selected ${suggestedCashout.toFixed(2)}x (p70 band)`);
   }
 
   const regimeCap: Record<VolatilityRegime, number> = {
     LOW: SIGNAL_MAX_CASHOUT,
     NORMAL: 2.50,
-    HIGH: 1.35,
-    EXTREME: 1.20,
+    HIGH: 2.00,
+    EXTREME: 1.50,
   };
   let cap = regimeCap[volatilityRegimeInfo.regime];
-  if (recoveryMode === 'POST_MEGA' || recoveryMode === 'POST_SPIKE') {
-    cap = Math.min(cap, 1.20);
-  }
-  if (recoveryMode === 'COLD_LOCK') cap = Math.min(cap, 1.15);
-  if (momentum.label === 'unstable') cap = Math.min(cap, 1.25);
+  // POST_MEGA: one-round caution, not permanent 1.10 lock
+  if (recoveryMode === 'POST_MEGA') cap = Math.min(cap, 1.50);
+  if (recoveryMode === 'POST_SPIKE') cap = Math.min(cap, 1.80);
+  if (recoveryMode === 'COLD_LOCK') cap = Math.min(cap, 1.50);
+  if (momentum.label === 'unstable') cap = Math.min(cap, 1.80);
   if (suggestedCashout > cap) {
     cashoutReasons.push(`regime/recovery cap ${cap.toFixed(2)}x (${volatilityRegimeInfo.regime}, ${recoveryMode})`);
     suggestedCashout = cap;
   }
-  suggestedCashout = round2(clamp(suggestedCashout, 1.10, SIGNAL_MAX_CASHOUT));
+  suggestedCashout = round2(clamp(suggestedCashout, 1.15, SIGNAL_MAX_CASHOUT));
 
   const conservativeCashout = suggestedCashout;
-  const aggressiveCashout   = Math.max(suggestedCashout, 2.50);
+  const aggressiveCashout   = round2(clamp(Math.max(suggestedCashout * 1.35, 2.20), 1.50, SIGNAL_MAX_CASHOUT));
 
   const sequenceMatch    = analyzeSequence(values);
   const detectedPatterns: PatternMatch[] = [];
@@ -1010,12 +1011,18 @@ export function gradePrediction(
   return actualCrash < 1.5;
 }
 
-function sessionHotAndStrong(stats: CrashStats): boolean {
-  return stats.sessionHot
-    && stats.trend === 'rising'
-    && stats.riskScore < 35
-    && stats.volatilityRegime === 'LOW'
-    && stats.recoveryMode === 'NONE';
+/** Allow swing targets when form is good — not only ultra-rare LOW+rising. */
+function allowSwing(stats: CrashStats): boolean {
+  const regime = stats.volatilityRegime ?? 'NORMAL';
+  const buyish = stats.masterSignal === 'BUY' || stats.masterSignal === 'STRONG_BUY';
+  const hotForm = stats.sessionHot || stats.recentMomentumLabel === 'hot';
+  return (
+    buyish
+    && hotForm
+    && (stats.recoveryMode ?? 'NONE') === 'NONE'
+    && regime !== 'EXTREME'
+    && stats.riskScore < 55
+  );
 }
 
 export function computeBetSignal(
@@ -1028,112 +1035,74 @@ export function computeBetSignal(
   if (regime === 'LOW') volatility_phase = 'CALM';
   else if (regime === 'HIGH' || regime === 'EXTREME') volatility_phase = 'VOLATILE';
 
-  // ─── Hold Score Calculation ───────────────────────────────────────────────
+  // ─── Hold Score (v4: no double-stack mega + regime pile-on) ───────────────
   let holdScore = 0;
   const holdReasons: string[] = [];
   const outcomes = stats.recentOutcomes || [];
 
-  // 1. High Streak Cooldown: 5+ consecutive rounds >= 2.50x (+35 points)
-  if (stats.currentHighStreak250 >= 5) {
-    holdScore += 35;
-    holdReasons.push(`High streak cooldown (+35): ${stats.currentHighStreak250} consecutive rounds >= 2.50x`);
-  }
-
-  // 2. Mega Round Cooldown: previous round >= 10x (+25 points)
-  if (outcomes.length >= 1 && outcomes[0] >= 10.0) {
-    holdScore += 25;
-    holdReasons.push(`Mega round cooldown (+25): previous round crashed at ${outcomes[0]}x`);
-  }
-
-  // 2b. Mega in last 3 rounds (extra recovery pressure)
-  if (outcomes.slice(0, 3).some(v => v >= 10)) {
-    holdScore += 20;
-    holdReasons.push('Recent mega in last 3 rounds (+20)');
-  }
-
-  // 3. Consecutive Low Crashes: last two rounds below 1.80x (+20 points)
-  if (outcomes.length >= 2 && outcomes[0] < 1.80 && outcomes[1] < 1.80) {
-    holdScore += 20;
-    holdReasons.push(`Consecutive low crashes (+20): last two rounds below 1.80x (${outcomes[0]}x, ${outcomes[1]}x)`);
-  }
-
-  // 4. Instant Crash Follow-up: prev round < 1.15x and riskScore >= 45 (+20 points)
-  if (outcomes.length >= 1 && outcomes[0] < 1.15 && stats.riskScore >= 45) {
-    holdScore += 20;
-    holdReasons.push(`Instant crash follow-up (+20): prev round ${outcomes[0]}x under elevated risk (${stats.riskScore})`);
-  }
-
-  // 5. Long cold streak lock
-  if (stats.currentLowStreak >= 4) {
-    holdScore += 25;
-    holdReasons.push(`Cold lock streak ${stats.currentLowStreak} (+25)`);
-  }
-
-  // 6. Unstable form / regime / recovery
-  if (stats.recentMomentumLabel === 'unstable') {
-    holdScore += 20;
-    holdReasons.push('Unstable recent form (+20)');
-  }
-  if (regime === 'HIGH') {
-    holdScore += 15;
-    holdReasons.push('HIGH volatility regime (+15)');
-  }
-  if (regime === 'EXTREME') {
+  if (stats.currentHighStreak250 >= 6) {
     holdScore += 30;
-    holdReasons.push('EXTREME volatility regime (+30)');
+    holdReasons.push(`High streak cooldown (+30): ${stats.currentHighStreak250} rounds >= 2.50x`);
   }
-  if (stats.recoveryMode && stats.recoveryMode !== 'NONE') {
+
+  // Single mega rule: last round mega OR (if not) mega in last 3
+  if (outcomes.length >= 1 && outcomes[0] >= 10.0) {
+    holdScore += 35;
+    holdReasons.push(`Mega round cooldown (+35): previous ${outcomes[0]}x`);
+  } else if (outcomes.slice(0, 3).some(v => v >= 10)) {
+    holdScore += 20;
+    holdReasons.push('Mega in last 3 rounds (+20)');
+  }
+
+  if (outcomes.length >= 1 && outcomes[0] < 1.15 && stats.riskScore >= 55) {
+    holdScore += 20;
+    holdReasons.push(`Instant follow-up (+20): prev ${outcomes[0]}x`);
+  }
+
+  if (stats.currentLowStreak >= 6) {
+    holdScore += 20;
+    holdReasons.push(`Extended cold streak ${stats.currentLowStreak} (+20)`);
+  }
+
+  if (regime === 'EXTREME') {
     holdScore += 15;
-    holdReasons.push(`Recovery mode ${stats.recoveryMode} (+15)`);
+    holdReasons.push('EXTREME regime (+15)');
   }
 
   holdScore = Math.min(100, Math.max(0, holdScore));
-  const holdThreshold =
-    regime === 'EXTREME' ? 35 :
-    regime === 'HIGH' ? 40 : 50;
+  const holdThreshold = 58;
   const holdSignal = holdScore >= holdThreshold;
 
   const skipReasons: string[] = [];
 
-  // Sleep phase lock
   if (timeData?.isLKSleep) {
     skipReasons.push(`Colombo sleep phase (${timeData.currentLKTimeStr || ''})`);
   }
 
-  // Master signal locks - only skip on severe ABORT or DANGER
+  // Hard SKIP only for true danger (WAIT still allows BET with lower target)
   if (stats.masterSignal === 'ABORT' || stats.masterSignal === 'DANGER') {
     skipReasons.push(`Market volatility: ${stats.masterSignal}`);
   }
 
-  // EXTREME + WAIT → skip (conservative)
-  if (stats.masterSignal === 'WAIT' && regime === 'EXTREME') {
-    skipReasons.push('EXTREME regime with WAIT signal');
-  }
-
-  // Confidence gate (was defined but unused)
-  const minConf =
-    regime === 'EXTREME' ? 45 :
-    regime === 'HIGH' ? 35 :
-    MIN_CONFIDENCE_TO_BET;
+  // Soft confidence gate — only EXTREME raises bar slightly
+  const minConf = regime === 'EXTREME' ? 30 : MIN_CONFIDENCE_TO_BET;
   if (stats.signalConfidence < minConf) {
     skipReasons.push(`Confidence ${stats.signalConfidence} < ${minConf} gate`);
   }
 
-  // Hold score lock
   if (holdSignal) {
-    skipReasons.push(`Pattern Risk threshold reached (${holdScore}/${holdThreshold}): ${holdReasons.join('; ')}`);
+    skipReasons.push(`Pattern Risk threshold (${holdScore}/${holdThreshold}): ${holdReasons.join('; ')}`);
   }
 
-  // ─── Partner & Season behavioral adaptivity ───────────────────────────────
   let partnerModifier = 1.0;
   if (gameType === 'aviator') {
     partnerModifier = 0.92;
-    if (stats.instantClusterRisk > 55) {
-      skipReasons.push('Aviator: severe cluster risk (>55%)');
+    if (stats.instantClusterRisk > 60) {
+      skipReasons.push('Aviator: severe cluster risk (>60%)');
     }
   } else if (gameType === 'luckyjet') {
     partnerModifier = 1.05;
-    if (stats.currentLowStreak >= 3 && stats.instantClusterRisk > 55) {
+    if (stats.currentLowStreak >= 4 && stats.instantClusterRisk > 60) {
       skipReasons.push('LuckyJet: severe low streak cluster lock');
     }
   }
@@ -1148,17 +1117,16 @@ export function computeBetSignal(
       swing_target: null,
       volatility_phase,
       recommended_stake_pct: 0,
-      strategy_reason: stats.cashoutReason,
+      strategy_reason: `[v4-balanced] ${stats.cashoutReason}`,
       holdScore,
       holdReasons,
       holdSignal,
     };
   }
 
-  // ─── Phase caps (stable, max 3x) ──────────────────────────────────────────
   const phase = timeData?.lkPhase ?? 'DAY';
   const phaseMax: Record<string, number> = {
-    SLEEP:   1.10,
+    SLEEP:   1.20,
     MORNING: 2.50,
     DAY:     2.50,
     EVENING: 3.00,
@@ -1167,41 +1135,82 @@ export function computeBetSignal(
   };
   const maxByPhase = (phaseMax[phase] ?? 2.50) * partnerModifier;
 
-  let cashoutTarget = clamp(stats.suggestedCashout * partnerModifier, 1.10, maxByPhase);
+  let cashoutTarget = clamp(stats.suggestedCashout * partnerModifier, 1.15, maxByPhase);
 
-  // High win-rate bias under stress
-  if (volatility_phase === 'VOLATILE' || (stats.recoveryMode && stats.recoveryMode !== 'NONE')) {
-    cashoutTarget = Math.min(cashoutTarget, 1.35);
+  // Soft stress caps (not 1.10 floor)
+  if (stats.recoveryMode === 'POST_MEGA') {
+    cashoutTarget = Math.min(cashoutTarget, 1.50);
+  } else if (volatility_phase === 'VOLATILE') {
+    cashoutTarget = Math.min(cashoutTarget, 2.00);
   }
 
-  // Prefer historical hit-rate band (~85%+) on taken bets
-  const desiredHit = regime === 'LOW' ? 80 : 85;
-  const hitTarget = preferHighHitTarget(stats, desiredHit);
-  cashoutTarget = Math.min(cashoutTarget, hitTarget);
+  // Soft hit-rate bias only when risk is HIGH (desired ~70%)
+  if (stats.riskLabel === 'HIGH') {
+    cashoutTarget = Math.min(cashoutTarget, preferHighHitTarget(stats, 70));
+  }
 
-  cashoutTarget = round2(clamp(cashoutTarget, 1.10, SIGNAL_MAX_CASHOUT));
+  // Aggressive floor on STRONG_BUY
+  if (stats.masterSignal === 'STRONG_BUY') {
+    cashoutTarget = Math.max(cashoutTarget, 1.80);
+  }
+
+  cashoutTarget = round2(clamp(cashoutTarget, 1.15, SIGNAL_MAX_CASHOUT));
 
   const aggressive = stats.masterSignal === 'STRONG_BUY';
   const stake = aggressive ? 3 : stats.masterSignal === 'BUY' ? 2 : 1;
 
-  const swingTarget = (sessionHotAndStrong(stats) && maxByPhase >= 2.0)
-    ? round2(Math.min(stats.aggressiveCashout, maxByPhase, SIGNAL_MAX_CASHOUT))
+  const swingTarget = (allowSwing(stats) && maxByPhase >= 2.0)
+    ? round2(Math.min(Math.max(stats.aggressiveCashout, 2.20), maxByPhase, SIGNAL_MAX_CASHOUT))
     : null;
+
+  const strategyLabel = aggressive
+    ? 'AGGRESSIVE'
+    : stats.masterSignal === 'WAIT'
+      ? 'CONSERVATIVE'
+      : 'CONSERVATIVE';
 
   return {
     should_bet: true,
     skip_reason: null,
-    strategy: aggressive ? 'AGGRESSIVE' : 'CONSERVATIVE',
+    strategy: strategyLabel,
     cashout_target: cashoutTarget,
     recommended_bet_units: aggressive ? 1.5 : 1,
     swing_target: swingTarget,
     volatility_phase,
-    recommended_stake_pct: volatility_phase === 'VOLATILE' ? Math.min(1, stake) : stake,
-    strategy_reason: `${stats.masterSignal} at ${stats.signalConfidence}% conf; ensemble ${stats.ensembleScore}; regime ${regime}. Hit-rate target ≥${desiredHit}%. ${stats.cashoutReason}`,
+    recommended_stake_pct: volatility_phase === 'VOLATILE' ? Math.min(1.5, stake) : stake,
+    strategy_reason: `[v4-balanced] ${stats.masterSignal} conf=${stats.signalConfidence}% ensemble=${stats.ensembleScore} regime=${regime}. ${stats.cashoutReason}`,
     holdScore,
     holdReasons,
     holdSignal,
   };
+}
+
+/**
+ * Always-populated Safe / Swing / Moon tiers for DB + UI.
+ * On SKIP, cashout_target stays 0 for grading, but tiers remain advisory.
+ */
+export function buildAdvisoryTiers(
+  stats: CrashStats,
+  betSignal: BetSignal,
+): { tier_safe: number; tier_swing: number; tier_moon: number } {
+  const safeBase = betSignal.should_bet && betSignal.cashout_target > 0
+    ? betSignal.cashout_target
+    : Math.max(1.20, stats.suggestedCashout || stats.conservativeCashout || 1.50);
+
+  const tier_safe = round2(clamp(safeBase, 1.15, SIGNAL_MAX_CASHOUT));
+
+  const swingRaw = betSignal.swing_target
+    ?? Math.max(stats.aggressiveCashout || 2.2, tier_safe * 1.35);
+  const tier_swing = round2(clamp(Math.max(tier_safe, swingRaw), 1.15, SIGNAL_MAX_CASHOUT));
+
+  const moonRaw = Math.max(
+    tier_swing,
+    stats.p50SafeCashout || 2.0,
+    stats.p60SafeCashout || 2.2,
+  );
+  const tier_moon = round2(clamp(moonRaw, tier_swing, SIGNAL_MAX_CASHOUT));
+
+  return { tier_safe, tier_swing, tier_moon };
 }
 
 export function buildHumanSummary(
