@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Home, Activity, Target, Layers, Clock, Menu, X, User, LogOut, Settings, RefreshCw, Zap, ShieldCheck, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import { type Translations, type LanguageCode, LANGUAGE_NAMES } from "@/lib/locales";
 import { type Round, type ToastMessage } from "../_lib/dashboard-types";
@@ -6,10 +7,10 @@ import { ConnectionStatus } from "./ConnectionStatus";
 import { BetControls } from "./BetControls";
 import { LiveSignalCard } from "./LiveSignalCard";
 import SafePlayModal from "../SafePlayModal";
+import { NAV_HREF, type NavId } from "../_context/DashboardContext";
 
 interface DashboardShellProps {
   activeNav: string;
-  setActiveNav: (nav: string) => void;
   mobileDrawerOpen: boolean;
   setMobileDrawerOpen: (open: boolean) => void;
   isAdmin: boolean;
@@ -36,7 +37,6 @@ interface DashboardShellProps {
 
 export function DashboardShell({
   activeNav,
-  setActiveNav,
   mobileDrawerOpen,
   setMobileDrawerOpen,
   isAdmin,
@@ -60,13 +60,19 @@ export function DashboardShell({
   t,
   children,
 }: DashboardShellProps) {
-  const navItems = [
-    { id: 'dashboard', icon: <Home size={18} />, label: t.navDashboard },
-    { id: 'live', icon: <Activity size={18} />, label: t.navLiveFeed },
-    { id: 'targets', icon: <Target size={18} />, label: t.navTargets },
-    { id: 'patterns', icon: <Layers size={18} />, label: t.navPatterns },
-    { id: 'history', icon: <Clock size={18} />, label: t.navHistory },
+  const router = useRouter();
+  const navItems: { id: NavId; icon: React.ReactNode; label: string; href: string }[] = [
+    { id: 'dashboard', icon: <Home size={18} />, label: t.navDashboard, href: NAV_HREF.dashboard },
+    { id: 'live', icon: <Activity size={18} />, label: t.navLiveFeed, href: NAV_HREF.live },
+    { id: 'targets', icon: <Target size={18} />, label: t.navTargets, href: NAV_HREF.targets },
+    { id: 'patterns', icon: <Layers size={18} />, label: t.navPatterns, href: NAV_HREF.patterns },
+    { id: 'history', icon: <Clock size={18} />, label: t.navHistory, href: NAV_HREF.history },
   ];
+
+  const go = (href: string) => {
+    setMobileDrawerOpen(false);
+    router.push(href);
+  };
 
   return (
     <div className="dash-shell">
@@ -79,14 +85,15 @@ export function DashboardShell({
 
         <nav className="sidebar-nav">
           {navItems.map(item => (
-            <button
+            <Link
               key={item.id}
+              href={item.href}
               className={`sidebar-nav-item ${activeNav === item.id ? 'active' : ''}`}
-              onClick={() => setActiveNav(item.id)}
+              onClick={() => setMobileDrawerOpen(false)}
             >
               {item.icon}
               <span>{item.label}</span>
-            </button>
+            </Link>
           ))}
           {isAdmin && (
             <Link href="/admin" className="sidebar-nav-item" style={{ color: '#a78bfa' }}>
@@ -308,8 +315,9 @@ export function DashboardShell({
           return (
             <button
               key={item.id}
+              type="button"
               className={`mobile-tab-item ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveNav(item.id)}
+              onClick={() => go(item.href)}
             >
               <div className="tab-icon-wrapper">
                 {item.icon}

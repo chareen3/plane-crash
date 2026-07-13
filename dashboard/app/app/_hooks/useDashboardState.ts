@@ -19,6 +19,7 @@ export function useDashboardState() {
   const [selectedRound, setSelectedRound] = useState<Round | null>(null);
   const [showRoundModal, setShowRoundModal] = useState(false);
   const [displayCount, setDisplayCount] = useState<number>(50);
+  // Supports both number and functional updater (history "load more")
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);

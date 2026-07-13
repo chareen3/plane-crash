@@ -56,6 +56,26 @@ export interface WinRateWindow {
   totalLosses: number;
   avgTarget: number;
   realizedEv: number;
+  /** Graded signals (BET + SKIP) in window */
+  signalsTotal?: number;
+  skipTotal?: number;
+  skipSaves?: number;
+  skipMisses?: number;
+  /** % of skips where crash stayed < 1.5x (discipline value) */
+  skipSaveRate?: number;
+  betRate?: number;
+  skipRate?: number;
+  bestWin?: number;
+  worstLoss?: number;
+}
+
+export interface MarketSnapshot {
+  sampleSize: number;
+  avg: number;
+  last20Avg: number;
+  pctAbove15: number;
+  pctAbove2: number;
+  instantPct: number;
 }
 
 export interface WinRate {
@@ -73,6 +93,12 @@ export interface WinRate {
   allTime?: WinRateWindow;
   signalQuality?: 'STRONG' | 'MODERATE' | 'CAUTION' | 'INSUFFICIENT';
   signalBasisWindow?: string;
+  market?: MarketSnapshot;
+  signalsTotal?: number;
+  skipTotal?: number;
+  skipSaveRate?: number;
+  betRate?: number;
+  skipRate?: number;
 }
 
 export interface ToastMessage {
