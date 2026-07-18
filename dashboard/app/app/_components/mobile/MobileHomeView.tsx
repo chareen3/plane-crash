@@ -47,52 +47,53 @@ export function MobileHomeView() {
   const isSubActive = subscription && subscription.status === "active" && subscription.current_period_end && new Date(subscription.current_period_end) > new Date();
   const hasAccess = isTrialActive || isSubActive || d.isAdmin;
 
-  return (
-    <div className="m-home">
-      {!hasAccess && (
+  if (!hasAccess) {
+    return (
+      <div className="m-home" style={{ minHeight: "80vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <div 
           className="glass-card" 
           style={{ 
             background: "linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)",
             border: "1px solid rgba(6, 182, 212, 0.3)",
-            padding: "16px",
-            borderRadius: 14,
-            marginBottom: 16,
+            padding: "32px 24px",
+            borderRadius: 24,
             display: "flex",
             flexDirection: "column",
-            gap: 12,
+            alignItems: "center",
+            gap: 20,
             boxShadow: "0 8px 32px 0 rgba(6, 182, 212, 0.05)",
             position: "relative",
-            overflow: "hidden"
+            overflow: "hidden",
+            textAlign: "center"
           }}
         >
-          <div className="absolute -right-16 -top-16 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div 
-              style={{ 
-                width: 38, 
-                height: 38, 
-                borderRadius: 10, 
-                background: "rgba(6, 182, 212, 0.2)", 
-                border: "1px solid rgba(6, 182, 212, 0.4)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#00ffd5",
-                flexShrink: 0
-              }}
-            >
-              <Gift size={20} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 2, letterSpacing: "-0.01em" }}>
-                ACTIVATE YOUR 7-DAY FREE TRIAL
-              </h3>
-              <p style={{ fontSize: 11, color: "#a0aec0", lineHeight: 1.4, margin: 0 }}>
-                Get instant access to real-time AI signals, risk telemetry & stats. No card required.
-              </p>
-            </div>
+          <div className="absolute -right-16 -top-16 w-32 h-32 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+          <div 
+            style={{ 
+              width: 64, 
+              height: 64, 
+              borderRadius: 16, 
+              background: "rgba(6, 182, 212, 0.2)", 
+              border: "1px solid rgba(6, 182, 212, 0.4)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#00ffd5",
+              boxShadow: "0 0 30px rgba(6, 182, 212, 0.2)"
+            }}
+          >
+            <Gift size={32} />
           </div>
+          
+          <div>
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: "#fff", marginBottom: 8, letterSpacing: "-0.02em" }}>
+              Unlock Full Access
+            </h3>
+            <p style={{ fontSize: 14, color: "#a0aec0", lineHeight: 1.5, margin: 0 }}>
+              Activate your <strong style={{ color: "#00ffd5" }}>7-Day Free Trial</strong> for instant access to real-time AI signals, risk telemetry & stats. No card required.
+            </p>
+          </div>
+
           <button
             onClick={async () => {
               setClaiming(true);
@@ -101,32 +102,27 @@ export function MobileHomeView() {
             }}
             disabled={claiming}
             style={{
-              padding: "10px 16px",
-              background: "#00ffd5",
+              padding: "16px",
+              background: "linear-gradient(135deg, #00ffd5 0%, #00b8ff 100%)",
               color: "#080c18",
               fontWeight: 800,
-              fontSize: 11,
-              borderRadius: 8,
+              fontSize: 15,
+              borderRadius: 12,
               border: "none",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: 8,
+              gap: 10,
               transition: "all 0.2s ease-in-out",
-              boxShadow: "0 4px 12px rgba(0, 255, 213, 0.2)",
-              width: "100%"
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "#33ffdd";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "#00ffd5";
+              boxShadow: "0 4px 16px rgba(0, 255, 213, 0.3)",
+              width: "100%",
+              marginTop: 10
             }}
           >
             {claiming ? (
               <>
-                <Loader2 className="animate-spin" size={12} /> Claiming...
+                <Loader2 className="animate-spin" size={18} /> Activating...
               </>
             ) : (
               <>
@@ -135,7 +131,12 @@ export function MobileHomeView() {
             )}
           </button>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="m-home">
 
       {/* Hero signal */}
       <section

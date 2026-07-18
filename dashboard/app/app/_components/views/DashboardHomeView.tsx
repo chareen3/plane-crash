@@ -30,97 +30,102 @@ export function DashboardHomeView() {
   const isSubActive = subscription && subscription.status === "active" && subscription.current_period_end && new Date(subscription.current_period_end) > new Date();
   const hasAccess = isTrialActive || isSubActive || d.isAdmin;
 
-  return (
-    <>
-      {!hasAccess && (
+  if (!hasAccess) {
+    return (
+      <div 
+        style={{ 
+          height: "100%", 
+          minHeight: "70vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 70%)",
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 24,
+          border: "1px solid rgba(255,255,255,0.05)",
+          padding: 40,
+          textAlign: "center"
+        }}
+        className="glass-card"
+      >
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none" />
+        
         <div 
-          className="glass-card" 
           style={{ 
-            background: "linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)",
-            border: "1px solid rgba(6, 182, 212, 0.3)",
-            padding: "20px 24px",
-            borderRadius: 16,
-            marginBottom: 20,
+            width: 80, 
+            height: 80, 
+            borderRadius: 24, 
+            background: "linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)", 
+            border: "1px solid rgba(6, 182, 212, 0.4)",
             display: "flex",
-            flexDirection: "row",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            boxShadow: "0 8px 32px 0 rgba(6, 182, 212, 0.05)",
-            position: "relative",
-            overflow: "hidden"
+            justifyContent: "center",
+            color: "#00ffd5",
+            marginBottom: 32,
+            boxShadow: "0 0 40px rgba(6, 182, 212, 0.2)"
           }}
         >
-          <div className="absolute -right-16 -top-16 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div 
-              style={{ 
-                width: 48, 
-                height: 48, 
-                borderRadius: 12, 
-                background: "rgba(6, 182, 212, 0.2)", 
-                border: "1px solid rgba(6, 182, 212, 0.4)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#00ffd5",
-                flexShrink: 0
-              }}
-            >
-              <Gift size={24} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#fff", marginBottom: 4, letterSpacing: "-0.01em" }}>
-                ACTIVATE YOUR 7-DAY FREE TRIAL
-              </h3>
-              <p style={{ fontSize: 12, color: "#a0aec0", lineHeight: 1.5, margin: 0 }}>
-                Get instant access to real-time AI signals, risk telemetry, and game statistics. No credit card required.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={async () => {
-              setClaiming(true);
-              await claimTrial();
-              setClaiming(false);
-            }}
-            disabled={claiming}
-            style={{
-              padding: "10px 20px",
-              background: "#00ffd5",
-              color: "#080c18",
-              fontWeight: 800,
-              fontSize: 12,
-              borderRadius: 10,
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              transition: "all 0.2s ease-in-out",
-              boxShadow: "0 4px 12px rgba(0, 255, 213, 0.2)"
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = "#33ffdd";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = "#00ffd5";
-              e.currentTarget.style.transform = "translateY(0)";
-            }}
-          >
-            {claiming ? (
-              <>
-                <Loader2 className="animate-spin" size={14} /> Claiming...
-              </>
-            ) : (
-              <>
-                Claim Trial Now
-              </>
-            )}
-          </button>
+          <Gift size={40} />
         </div>
-      )}
+        
+        <h2 style={{ fontSize: 32, fontWeight: 900, color: "#fff", marginBottom: 16, letterSpacing: "-0.02em" }}>
+          Unlock Full Analytics
+        </h2>
+        
+        <p style={{ fontSize: 16, color: "#94a3b8", lineHeight: 1.6, maxWidth: 480, margin: "0 auto 40px" }}>
+          Activate your <strong style={{ color: "#00ffd5" }}>7-Day Free Trial</strong> to get instant access to real-time AI signals, risk telemetry, and advanced game statistics. No credit card required.
+        </p>
+        
+        <button
+          onClick={async () => {
+            setClaiming(true);
+            await claimTrial();
+            setClaiming(false);
+          }}
+          disabled={claiming}
+          style={{
+            padding: "16px 40px",
+            background: "linear-gradient(135deg, #00ffd5 0%, #00b8ff 100%)",
+            color: "#080c18",
+            fontWeight: 800,
+            fontSize: 15,
+            borderRadius: 16,
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+            boxShadow: "0 8px 32px rgba(0, 255, 213, 0.3)",
+            transform: claiming ? "scale(0.98)" : "scale(1)"
+          }}
+          onMouseOver={(e) => {
+            if(!claiming) e.currentTarget.style.transform = "translateY(-2px) scale(1.02)";
+            e.currentTarget.style.boxShadow = "0 12px 40px rgba(0, 255, 213, 0.4)";
+          }}
+          onMouseOut={(e) => {
+            if(!claiming) e.currentTarget.style.transform = "translateY(0) scale(1)";
+            e.currentTarget.style.boxShadow = "0 8px 32px rgba(0, 255, 213, 0.3)";
+          }}
+        >
+          {claiming ? (
+            <>
+              <Loader2 className="animate-spin" size={20} /> Activating...
+            </>
+          ) : (
+            <>
+              Claim 7-Day Trial Now
+            </>
+          )}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
 
       <PerformancePanel
         winRate={winRate}
