@@ -14,6 +14,7 @@ export function useDashboardState() {
   const [showMobileStatsPanel, setShowMobileStatsPanel] = useState(true);
   const [statsWindow, setStatsWindow] = useState<'24h' | '7d' | 'all'>('24h');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
 
   // Modal / History Details
   const [selectedRound, setSelectedRound] = useState<Round | null>(null);
@@ -54,9 +55,31 @@ export function useDashboardState() {
         supabase.from('profiles').select('is_admin').eq('id', user.id).single().then(({ data }) => {
           if (data?.is_admin) setIsAdmin(true);
         });
+
+        supabase.from('subscriptions').select('*').eq('user_id', user.id).single().then(({ data }) => {
+          if (data) setSubscription(data);
+        });
       }
     });
   }, []);
+
+  const claimTrial = useCallback(async () => {
+    try {
+      const res = await fetch("/api/subscription/claim", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to claim trial");
+      }
+      if (data.subscription) {
+        setSubscription(data.subscription);
+        addToast("30-Day Free Trial claimed successfully!", "success");
+      }
+    } catch (err: any) {
+      addToast(err.message || "Could not claim trial.", "error");
+    }
+  }, [addToast]);
 
   return {
     lang,
@@ -85,5 +108,8 @@ export function useDashboardState() {
     toasts,
     addToast,
     removeToast,
+    subscription,
+    setSubscription,
+    claimTrial,
   };
 }

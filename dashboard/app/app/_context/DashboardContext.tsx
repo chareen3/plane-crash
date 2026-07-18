@@ -109,6 +109,8 @@ interface DashboardContextValue {
   displayedRounds: Round[];
   chartData: { name: number; time: string; crash: number; color: string }[];
   formatStr: (str: string, values: Record<string, string | number>) => string;
+  subscription: any;
+  claimTrial: () => Promise<void>;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -145,6 +147,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     toasts,
     addToast,
     removeToast,
+    subscription,
+    claimTrial,
   } = dashboard;
 
   const t = translations[lang] || translations.en;
@@ -316,6 +320,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       displayedRounds,
       chartData,
       formatStr,
+      subscription,
+      claimTrial,
     }),
     [
       lang, handleLangChange, isAdmin, mobileDrawerOpen, dashTab,
@@ -328,6 +334,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       filterBy, processedRounds, displayedRounds, chartData, formatStr,
       setMobileDrawerOpen, setDashTab, setShowMobileStatsPanel, setStatsWindow,
       setUserMenuOpen, setSelectedRound, setShowRoundModal, setDisplayCount,
+      subscription, claimTrial,
     ],
   );
 

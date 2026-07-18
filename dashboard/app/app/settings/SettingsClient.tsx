@@ -93,15 +93,16 @@ export default function SettingsClient({ user, profile, subscription }: any) {
         badge: "Admin",
       };
     }
-    if (subscription && subscription.status === "active") {
+    if (subscription && (subscription.status === "active" || subscription.status === "trial")) {
       const until = subscription.current_period_end
         ? new Date(subscription.current_period_end).toLocaleDateString()
         : "—";
+      const isTrial = subscription.status === "trial";
       return {
-        kind: "active" as const,
-        title: "Pro plan · Active",
+        kind: isTrial ? ("trial" as const) : ("active" as const),
+        title: isTrial ? "Trial Access · Active" : "Pro plan · Active",
         desc: `Active until ${until}.`,
-        badge: "Pro",
+        badge: isTrial ? "Trial" : "Pro",
       };
     }
     return {
@@ -376,7 +377,7 @@ export default function SettingsClient({ user, profile, subscription }: any) {
     const iconClass =
       planState.kind === "admin"
         ? styles.planIconAdmin
-        : planState.kind === "active"
+        : (planState.kind === "active" || planState.kind === "trial")
           ? styles.planIconOk
           : styles.planIconBad;
 
@@ -466,7 +467,7 @@ export default function SettingsClient({ user, profile, subscription }: any) {
                   styles.heroStatus,
                   planState.kind === "admin"
                     ? styles.heroStatusAdmin
-                    : planState.kind === "active"
+                    : (planState.kind === "active" || planState.kind === "trial")
                       ? styles.heroStatusActive
                       : styles.heroStatusNone,
                 ].join(" ")}

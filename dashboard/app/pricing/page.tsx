@@ -147,7 +147,7 @@ function PricingContent() {
   ]
 
   const isSubscribed = subscription &&
-    subscription.status === 'active' &&
+    (subscription.status === 'active' || subscription.status === 'trial') &&
     subscription.current_period_end &&
     new Date(subscription.current_period_end) > new Date()
 

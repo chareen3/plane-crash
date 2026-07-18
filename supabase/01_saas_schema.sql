@@ -68,7 +68,7 @@ BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.subscriptions
     WHERE user_id = auth.uid()
-      AND status = 'active'
+      AND status IN ('active', 'trial')
       AND current_period_end > now()
   ) OR public.is_admin();
 END;
@@ -134,11 +134,12 @@ BEGIN
   );
 
   -- Insert default starting subscription
-  INSERT INTO public.subscriptions (user_id, status, payment_method)
+  INSERT INTO public.subscriptions (user_id, status, payment_method, current_period_end)
   VALUES (
     new.id,
+    'trial',
     'none',
-    'none'
+    now() + interval '30 days'
   );
 
   RETURN new;

@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Activity, AlertOctagon, CheckCircle2, Flame, Shield,
-  Target, TrendingUp,
+  Target, TrendingUp, Gift, Loader2,
 } from "lucide-react";
 import { useDashboard } from "../../_context/DashboardContext";
 import { MobileAICoach } from "./MobileAICoach";
@@ -16,7 +16,10 @@ export function MobileHomeView() {
   const {
     prediction, stats, rounds, lang, t, winRate, statsWindow, setStatsWindow,
     avg, heroRef, isPredicting, predStatus, timeData, getTargetStats,
+    subscription, claimTrial,
   } = d;
+
+  const [claiming, setClaiming] = useState(false);
 
   const feedRef = useRef<HTMLDivElement>(null);
   const w = statsWindow === "24h" ? winRate.last24h : statsWindow === "7d" ? winRate.last7d : winRate.allTime;
@@ -40,8 +43,100 @@ export function MobileHomeView() {
 
   const recent = rounds.slice(0, 5);
 
+  const isTrialActive = subscription && subscription.status === "trial" && subscription.current_period_end && new Date(subscription.current_period_end) > new Date();
+  const isSubActive = subscription && subscription.status === "active" && subscription.current_period_end && new Date(subscription.current_period_end) > new Date();
+  const hasAccess = isTrialActive || isSubActive || d.isAdmin;
+
   return (
     <div className="m-home">
+      {!hasAccess && (
+        <div 
+          className="glass-card" 
+          style={{ 
+            background: "linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)",
+            border: "1px solid rgba(6, 182, 212, 0.3)",
+            padding: "16px",
+            borderRadius: 14,
+            marginBottom: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            boxShadow: "0 8px 32px 0 rgba(6, 182, 212, 0.05)",
+            position: "relative",
+            overflow: "hidden"
+          }}
+        >
+          <div className="absolute -right-16 -top-16 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div 
+              style={{ 
+                width: 38, 
+                height: 38, 
+                borderRadius: 10, 
+                background: "rgba(6, 182, 212, 0.2)", 
+                border: "1px solid rgba(6, 182, 212, 0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#00ffd5",
+                flexShrink: 0
+              }}
+            >
+              <Gift size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 2, letterSpacing: "-0.01em" }}>
+                ACTIVATE YOUR 30-DAY FREE TRIAL
+              </h3>
+              <p style={{ fontSize: 11, color: "#a0aec0", lineHeight: 1.4, margin: 0 }}>
+                Get instant access to real-time AI signals, risk telemetry & stats. No card required.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              setClaiming(true);
+              await claimTrial();
+              setClaiming(false);
+            }}
+            disabled={claiming}
+            style={{
+              padding: "10px 16px",
+              background: "#00ffd5",
+              color: "#080c18",
+              fontWeight: 800,
+              fontSize: 11,
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              transition: "all 0.2s ease-in-out",
+              boxShadow: "0 4px 12px rgba(0, 255, 213, 0.2)",
+              width: "100%"
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "#33ffdd";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "#00ffd5";
+            }}
+          >
+            {claiming ? (
+              <>
+                <Loader2 className="animate-spin" size={12} /> Claiming...
+              </>
+            ) : (
+              <>
+                Claim Trial Now
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
       {/* Hero signal */}
       <section
         ref={heroRef as React.RefObject<HTMLDivElement>}
