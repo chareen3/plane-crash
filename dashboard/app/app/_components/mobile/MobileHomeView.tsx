@@ -18,7 +18,7 @@ export function MobileHomeView() {
   const {
     prediction, stats, rounds, lang, t, winRate, statsWindow, setStatsWindow,
     avg, heroRef, isPredicting, predStatus, timeData, getTargetStats,
-    subscription, claimTrial,
+    subscription, claimTrial, isLoadingSub,
   } = d;
 
   const [claiming, setClaiming] = useState(false);
@@ -80,6 +80,15 @@ export function MobileHomeView() {
       : "#00e5a0";
 
   const recent = rounds.slice(0, 5);
+
+  if (isLoadingSub) {
+    return (
+      <div className="m-home" style={{ minHeight: "80vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <Loader2 className="animate-spin text-cyan-400" size={24} />
+        <span className="text-xs font-bold text-cyan-400 uppercase tracking-widest">Loading...</span>
+      </div>
+    );
+  }
 
   const isTrialActive = subscription && subscription.status === "trial" && subscription.current_period_end && new Date(subscription.current_period_end) > new Date();
   const isSubActive = subscription && subscription.status === "active" && subscription.current_period_end && new Date(subscription.current_period_end) > new Date();

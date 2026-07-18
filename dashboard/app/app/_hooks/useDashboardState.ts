@@ -15,6 +15,7 @@ export function useDashboardState() {
   const [statsWindow, setStatsWindow] = useState<'24h' | '7d' | 'all'>('24h');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
+  const [isLoadingSub, setIsLoadingSub] = useState(true);
 
   // Modal / History Details
   const [selectedRound, setSelectedRound] = useState<Round | null>(null);
@@ -52,13 +53,16 @@ export function useDashboardState() {
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
-        supabase.from('profiles').select('is_admin').eq('id', user.id).single().then(({ data }) => {
-          if (data?.is_admin) setIsAdmin(true);
+        Promise.all([
+          supabase.from('profiles').select('is_admin').eq('id', user.id).single(),
+          supabase.from('subscriptions').select('*').eq('user_id', user.id).single()
+        ]).then(([profileRes, subRes]) => {
+          if (profileRes.data?.is_admin) setIsAdmin(true);
+          if (subRes.data) setSubscription(subRes.data);
+          setIsLoadingSub(false);
         });
-
-        supabase.from('subscriptions').select('*').eq('user_id', user.id).single().then(({ data }) => {
-          if (data) setSubscription(data);
-        });
+      } else {
+        setIsLoadingSub(false);
       }
     });
   }, []);
@@ -114,5 +118,6 @@ export function useDashboardState() {
     subscription,
     setSubscription,
     claimTrial,
+    isLoadingSub,
   };
 }

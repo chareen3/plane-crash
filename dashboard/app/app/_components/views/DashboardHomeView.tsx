@@ -19,7 +19,7 @@ export function DashboardHomeView() {
     avg, stats, lang, t, dashTab, setDashTab, prediction, rounds, heroRef,
     isPredicting, predStatus, timeData, getTargetStats, displayedRounds,
     chartType, setChartType, timeRange, setTimeRange, chartData,
-    subscription, claimTrial,
+    subscription, claimTrial, isLoadingSub,
   } = d;
 
   const [claiming, setClaiming] = useState(false);
@@ -62,6 +62,15 @@ export function DashboardHomeView() {
 
   if (isMobile) {
     return <MobileHomeView />;
+  }
+
+  if (isLoadingSub) {
+    return (
+      <div style={{ height: "70vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+        <Loader2 className="animate-spin text-cyan-400" size={32} />
+        <span className="text-sm font-bold text-cyan-400 uppercase tracking-widest">Loading Analytics...</span>
+      </div>
+    );
   }
 
   const isTrialActive = subscription && subscription.status === "trial" && subscription.current_period_end && new Date(subscription.current_period_end) > new Date();
