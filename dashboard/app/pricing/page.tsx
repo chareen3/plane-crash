@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/utils/supabase/client'
-import { Orbit, Check, ArrowRight, Loader2, AlertCircle, Info, Landmark, HelpCircle, X } from 'lucide-react'
+import { Orbit, Check, ArrowRight, Loader2, AlertCircle, Info, Landmark, HelpCircle, X, Gift } from 'lucide-react'
 
 function PricingContent() {
   const router = useRouter()
