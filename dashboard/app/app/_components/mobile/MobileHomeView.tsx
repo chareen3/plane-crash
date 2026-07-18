@@ -86,7 +86,7 @@ export function MobileHomeView() {
             </div>
             <div>
               <h3 style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 2, letterSpacing: "-0.01em" }}>
-                ACTIVATE YOUR 30-DAY FREE TRIAL
+                ACTIVATE YOUR 7-DAY FREE TRIAL
               </h3>
               <p style={{ fontSize: 11, color: "#a0aec0", lineHeight: 1.4, margin: 0 }}>
                 Get instant access to real-time AI signals, risk telemetry & stats. No card required.

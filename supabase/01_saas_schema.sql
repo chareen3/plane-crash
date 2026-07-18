@@ -139,7 +139,7 @@ BEGIN
     new.id,
     'trial',
     'none',
-    now() + interval '30 days'
+    now() + interval '7 days'
   );
 
   RETURN new;

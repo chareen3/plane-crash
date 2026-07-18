@@ -14,7 +14,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 2. Update handle_new_user function to insert a 30-day trial subscription by default
+-- 2. Update handle_new_user function to insert a 7-day trial subscription by default
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
@@ -33,7 +33,7 @@ BEGIN
     new.id,
     'trial',
     'none',
-    now() + interval '30 days'
+    now() + interval '7 days'
   );
 
   RETURN new;

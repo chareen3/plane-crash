@@ -35,9 +35,9 @@ export async function POST() {
       );
     }
 
-    // Set trial expiration to 30 days from now
+    // Set trial expiration to 7 days from now
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 30);
+    trialEnd.setDate(trialEnd.getDate() + 7);
 
     const { data: updatedSub, error: upsertError } = await supabaseAdmin
       .from('subscriptions')

@@ -74,7 +74,7 @@ export function useDashboardState() {
       }
       if (data.subscription) {
         setSubscription(data.subscription);
-        addToast("30-Day Free Trial claimed successfully!", "success");
+        addToast("7-Day Free Trial claimed successfully!", "success");
       }
     } catch (err: any) {
       addToast(err.message || "Could not claim trial.", "error");
