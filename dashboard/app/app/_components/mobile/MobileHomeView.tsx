@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Activity, AlertOctagon, CheckCircle2, Flame, Shield,
   Target, TrendingUp, Gift, Loader2,
 } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
+import confetti from "canvas-confetti";
 import { useDashboard } from "../../_context/DashboardContext";
 import { MobileAICoach } from "./MobileAICoach";
 
@@ -20,6 +22,42 @@ export function MobileHomeView() {
   } = d;
 
   const [claiming, setClaiming] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (searchParams.get("claimed") === "true") {
+      fireFireworks();
+      router.replace("/app"); // Remove the query param
+    }
+  }, [searchParams, router]);
+
+  const fireFireworks = () => {
+    const duration = 3000;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 5,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ['#00ffd5', '#3b82f6', '#a855f7']
+      });
+      confetti({
+        particleCount: 5,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ['#00ffd5', '#3b82f6', '#a855f7']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+  };
 
   const feedRef = useRef<HTMLDivElement>(null);
   const w = statsWindow === "24h" ? winRate.last24h : statsWindow === "7d" ? winRate.last7d : winRate.allTime;
@@ -97,7 +135,10 @@ export function MobileHomeView() {
           <button
             onClick={async () => {
               setClaiming(true);
-              await claimTrial();
+              const success = await claimTrial();
+              if (success) {
+                fireFireworks();
+              }
               setClaiming(false);
             }}
             disabled={claiming}

@@ -28,6 +28,7 @@ function PricingContent() {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [cardError, setCardError] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'annually'>('monthly')
+  const [claimingTrial, setClaimingTrial] = useState(false)
 
   const supabase = createClient()
 
@@ -95,6 +96,25 @@ function PricingContent() {
     } catch (err: any) {
       setCardError(err.message)
       setCheckoutLoading(false)
+    }
+  }
+
+  const handleClaimTrial = async () => {
+    if (!user) {
+      router.push('/login?redirectTo=/pricing')
+      return
+    }
+    setClaimingTrial(true)
+    try {
+      const response = await fetch('/api/subscription/claim', { method: 'POST' })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to claim trial')
+      }
+      router.push('/app?claimed=true')
+    } catch (err: any) {
+      alert(err.message)
+      setClaimingTrial(false)
     }
   }
 
@@ -227,6 +247,37 @@ function PricingContent() {
           <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">CHOOSE YOUR PLAN</h1>
           <p className="text-xs text-[#8090b0] max-w-sm mx-auto">Get full access to the real-time telemetry and strategy dashboard with a simple plan.</p>
         </div>
+
+        {/* Free Trial Banner */}
+        {!isSubscribed && (
+          <div className="max-w-4xl mx-auto mb-10">
+            <div className="relative p-6 md:p-8 rounded-3xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 to-blue-500/5 backdrop-blur-md shadow-[0_0_40px_rgba(6,182,212,0.15)] flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden">
+              <div className="absolute -right-20 -top-20 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="flex items-center gap-6 relative z-10">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+                  <Gift size={32} className="text-[#080c18]" />
+                </div>
+                <div>
+                  <h3 className="text-xl md:text-2xl font-black text-white mb-2">START YOUR 7-DAY FREE TRIAL</h3>
+                  <p className="text-sm text-[#a0aec0] max-w-md">Unlock full access to the dashboard instantly. No credit card required. Experience all premium features risk-free.</p>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleClaimTrial}
+                disabled={claimingTrial || loading}
+                className="relative z-10 w-full md:w-auto px-8 py-4 font-black text-sm uppercase tracking-widest rounded-xl bg-[#00ffd5] text-[#080c18] hover:bg-[#33ffdd] shadow-[0_0_20px_rgba(0,255,213,0.3)] hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {claimingTrial ? (
+                  <><Loader2 className="animate-spin" size={18} /> Claiming...</>
+                ) : (
+                  <>Unlock Now <ArrowRight size={18} /></>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Billing Cycle Toggle */}
         <div className="flex justify-center mb-10">

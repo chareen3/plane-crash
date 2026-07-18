@@ -63,7 +63,7 @@ export function useDashboardState() {
     });
   }, []);
 
-  const claimTrial = useCallback(async () => {
+  const claimTrial = useCallback(async (): Promise<boolean> => {
     try {
       const res = await fetch("/api/subscription/claim", {
         method: "POST",
@@ -75,9 +75,12 @@ export function useDashboardState() {
       if (data.subscription) {
         setSubscription(data.subscription);
         addToast("7-Day Free Trial claimed successfully!", "success");
+        return true;
       }
+      return false;
     } catch (err: any) {
       addToast(err.message || "Could not claim trial.", "error");
+      return false;
     }
   }, [addToast]);
 
