@@ -65,7 +65,7 @@ export default function UsersPage() {
   const filteredUsers = users.filter(u => {
     const matchSearch = u.email.toLowerCase().includes(search.toLowerCase())
     if (!matchSearch) return false
-    const isSubActive = u.subscription?.status === 'active' &&
+    const isSubActive = (u.subscription?.status === 'active' || u.subscription?.status === 'trial') &&
       u.subscription?.current_period_end &&
       new Date(u.subscription.current_period_end) > new Date()
     if (filter === 'online') return u.activity?.is_online
@@ -176,9 +176,10 @@ export default function UsersPage() {
                 </tr>
               ) : (
                 filteredUsers.map((u) => {
-                  const isSubActive = u.subscription?.status === 'active' &&
+                  const isSubActive = (u.subscription?.status === 'active' || u.subscription?.status === 'trial') &&
                     u.subscription?.current_period_end &&
                     new Date(u.subscription.current_period_end) > new Date();
+                  const isTrial = u.subscription?.status === 'trial';
                   const isOnline = u.activity?.is_online ?? false
                   const totalSeconds = u.activity?.total_seconds_spent ?? 0
                   const lastSeen = u.activity?.last_seen_at
@@ -237,9 +238,9 @@ export default function UsersPage() {
                       {/* Subscription */}
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${isSubActive ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                          <span className={`text-xs font-bold ${isSubActive ? 'text-emerald-700' : 'text-gray-500'}`}>
-                            {isSubActive ? 'Active Pro' : 'Free / Expired'}
+                          <div className={`w-2 h-2 rounded-full ${isSubActive ? (isTrial ? 'bg-amber-400' : 'bg-emerald-500') : 'bg-gray-300'}`} />
+                          <span className={`text-xs font-bold ${isSubActive ? (isTrial ? 'text-amber-600' : 'text-emerald-700') : 'text-gray-500'}`}>
+                            {isSubActive ? (isTrial ? 'Active Trial' : 'Active Pro') : 'Free / Expired'}
                           </span>
                         </div>
                       </td>

@@ -12,6 +12,7 @@ export interface UserActivityData {
 export interface UserProps {
   id: string
   email: string
+  phone?: string | null
   is_admin: boolean
   created_at: string
   subscription?: {
@@ -84,9 +85,11 @@ export default function UserSubscriptionModal({ user, onClose, onRefresh }: Moda
     }
   }
 
-  const isSubActive = user.subscription?.status === 'active' && 
+  const isSubActive = (user.subscription?.status === 'active' || user.subscription?.status === 'trial') && 
                       user.subscription?.current_period_end && 
                       new Date(user.subscription.current_period_end) > new Date();
+  
+  const isTrial = user.subscription?.status === 'trial';
 
   const isOnline = user.activity?.is_online ?? false
   const totalSeconds = user.activity?.total_seconds_spent ?? 0
@@ -109,6 +112,7 @@ export default function UserSubscriptionModal({ user, onClose, onRefresh }: Moda
             </div>
             <div>
               <div className="font-bold text-sm truncate max-w-[240px]">{user.email}</div>
+              {user.phone && <div className="text-xs text-indigo-300 font-mono mt-0.5">{user.phone}</div>}
               <div className="flex items-center gap-1.5 mt-0.5">
                 {isOnline ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
@@ -168,7 +172,7 @@ export default function UserSubscriptionModal({ user, onClose, onRefresh }: Moda
             <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
               <div>
                 <div className="font-bold text-gray-800">
-                  {isSubActive ? 'Active Subscription' : 'No Active Subscription'}
+                  {isSubActive ? (isTrial ? 'Active Trial' : 'Active Subscription') : 'No Active Subscription'}
                 </div>
                 {isSubActive && (
                   <div className="text-xs text-gray-500 mt-1">
@@ -176,8 +180,8 @@ export default function UserSubscriptionModal({ user, onClose, onRefresh }: Moda
                   </div>
                 )}
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${isSubActive ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                {isSubActive ? 'PRO' : 'FREE'}
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${isSubActive ? (isTrial ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600') : 'bg-rose-100 text-rose-600'}`}>
+                {isSubActive ? (isTrial ? 'TRIAL' : 'PRO') : 'FREE'}
               </span>
             </div>
           </div>

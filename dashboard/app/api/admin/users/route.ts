@@ -40,17 +40,28 @@ export async function GET(request: Request) {
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
+    // Fetch auth users to get phone numbers
+    const { data: authUsersResponse, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+    if (authError) throw authError;
+
     // Combine them
     const subsMap = new Map(subscriptions.map(s => [s.user_id, s]));
     const activityMap = new Map((activities || []).map(a => [a.user_id, a]));
+    const authMap = new Map((authUsersResponse.users || []).map(u => [u.id, u]));
 
     const result = profiles.map(p => {
       const activity = activityMap.get(p.id) || null;
+      const authUser = authMap.get(p.id);
+      
+      // Determine phone number (from auth.users phone or metadata)
+      const phone = authUser?.phone || authUser?.user_metadata?.phone || null;
+
       const isOnline = activity
         ? new Date(activity.last_seen_at) > fiveMinutesAgo
         : false;
       return {
         ...p,
+        phone,
         subscription: subsMap.get(p.id) || null,
         activity: activity
           ? {
